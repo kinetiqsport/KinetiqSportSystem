@@ -1,0 +1,3062 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes y Estadísticas - KinetiqSports</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="env-config.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth-guard.js"></script>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100vh;
+            max-height: 100vh;
+            overflow: hidden;
+            background: #f5f6fa;
+        }
+
+        .reportes-container {
+            width: 100%;
+            max-width: 1600px;
+            height: 100vh;
+            max-height: 100vh;
+            margin: 0 auto;
+            padding: 8px 14px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+            flex-wrap: nowrap;
+            flex-shrink: 0;
+        }
+
+        .top-bar .back-link {
+            margin-bottom: 0;
+            white-space: nowrap;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .search-input {
+            padding: 8px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            width: 240px;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #0A94B0;
+        }
+
+        .search-btn {
+            padding: 8px 18px;
+            background: #0A94B0;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+            white-space: nowrap;
+        }
+
+        .search-btn:hover {
+            background: #087D94;
+        }
+
+        .clear-btn {
+            padding: 8px 14px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+            white-space: nowrap;
+        }
+
+        .clear-btn:hover {
+            background: #7f8c8d;
+        }
+
+        /* Filtro rápido por profesional */
+        .prof-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            background: white;
+            padding: 5px 12px;
+            border-radius: 8px;
+            border: 1px solid #e8eff5;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+
+        .prof-filter-title {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #2c3e50;
+            white-space: nowrap;
+        }
+
+        .prof-pills {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .prof-pill {
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid #d0e4ee;
+            background: #f7fafc;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .prof-pill:hover {
+            background: #e8f4f8;
+            border-color: #0A94B0;
+            color: #0A94B0;
+        }
+
+        .prof-pill.active {
+            background: #0A94B0;
+            border-color: #0A94B0;
+            color: white;
+            box-shadow: 0 2px 6px rgba(10, 148, 176, 0.3);
+        }
+
+        .prof-pill .pill-count {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10.5px;
+            font-weight: 700;
+            background: rgba(0,0,0,0.06);
+            color: inherit;
+        }
+
+        .prof-pill.active .pill-count {
+            background: rgba(255,255,255,0.25);
+            color: white;
+        }
+
+        /* Sidebar Estadísticas por Profesional */
+        .sidebar-profesionales {
+            background: white;
+            border-radius: 10px;
+            padding: 8px 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid #e8eff5;
+            margin-top: 6px;
+        }
+
+        .sidebar-profesionales .sidebar-title {
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .profesionales-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .prof-stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 8px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: #f8fafc;
+        }
+
+        .prof-stat-item:hover {
+            background: #e8f4f8;
+            border-color: #d0e4ee;
+            transform: translateX(2px);
+        }
+
+        .prof-stat-item.active {
+            background: #0A94B0;
+            color: white;
+            box-shadow: 0 2px 8px rgba(10, 148, 176, 0.25);
+        }
+
+        .prof-stat-item.active .prof-stat-name {
+            color: white;
+            font-weight: 700;
+        }
+
+        .prof-stat-name {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .prof-stat-badge {
+            font-size: 11px;
+            font-weight: 800;
+            padding: 1px 7px;
+            border-radius: 10px;
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .prof-stat-item.active .prof-stat-badge {
+            background: white;
+            color: #0A94B0;
+        }
+
+        #reportesContainer {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Tarjetas de Resumen de Pacientes (Diseño Compacto y Altura Fija Estandarizada) */
+        .reporte-card {
+            background: #ffffff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            height: 220px;
+            min-height: 220px;
+            max-height: 220px;
+            box-sizing: border-box;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.2s ease;
+            border: 1px solid #e8eff5;
+            border-left: 4px solid #0A94B0;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .reporte-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        }
+
+        .reporte-card.card-pelvico {
+            border-left-color: #8E24AA;
+        }
+
+        .patient-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+
+        .patient-header-main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .patient-name-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 2px;
+        }
+
+        .patient-name {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #1e293b;
+            letter-spacing: 0.2px;
+            text-transform: uppercase;
+            line-height: 1.2;
+        }
+
+        .patient-badges-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .patient-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2.5px 8px;
+            border-radius: 12px;
+            color: white;
+            vertical-align: middle;
+            text-transform: none;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            line-height: 1.2;
+            border: 1.5px solid transparent;
+            cursor: default;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        /* Pestañas interactivas cuando el paciente tiene múltiples reportes */
+        .patient-type-tab {
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .patient-type-tab:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        .patient-type-tab.tab-active-deportiva {
+            background: #076D82 !important;
+            border-color: #076D82 !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(10, 148, 176, 0.4);
+            filter: brightness(0.92);
+        }
+
+        .patient-type-tab.tab-inactive-deportiva {
+            background: #f0f9fa !important;
+            border-color: #0A94B0 !important;
+            color: #0A94B0 !important;
+            box-shadow: none;
+            opacity: 0.85;
+        }
+
+        .patient-type-tab.tab-inactive-deportiva:hover {
+            opacity: 1;
+            background: #e1f4f7 !important;
+        }
+
+        .patient-type-tab.tab-active-pelvico {
+            background: #6A1B9A !important;
+            border-color: #6A1B9A !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(142, 36, 170, 0.4);
+            filter: brightness(0.92);
+        }
+
+        .patient-type-tab.tab-inactive-pelvico {
+            background: #fdf4ff !important;
+            border-color: #8E24AA !important;
+            color: #8E24AA !important;
+            box-shadow: none;
+            opacity: 0.85;
+        }
+
+        .patient-type-tab.tab-inactive-pelvico:hover {
+            opacity: 1;
+            background: #f8e8fc !important;
+        }
+
+        .patient-atendido {
+            font-size: 11.5px;
+            color: #475569;
+            margin-top: 1px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            line-height: 1.2;
+        }
+
+        .patient-atendido strong {
+            font-weight: 700;
+        }
+
+        .patient-demographics {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+            line-height: 1.2;
+        }
+
+        .patient-card-date {
+            font-size: 10.5px;
+            color: #94a3b8;
+            font-weight: 500;
+            white-space: nowrap;
+            background: #f8fafc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #edf2f7;
+        }
+
+        .patient-card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 3px;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+
+        .patient-card-body::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .patient-card-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .patient-card-body::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .patient-card-body::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .patient-block {
+            background: #f8fafc;
+            border-left: 2.5px solid #0A94B0;
+            padding: 4px 8px;
+            border-radius: 0 5px 5px 0;
+            margin-top: 1px;
+            transition: border-color 0.2s ease;
+        }
+
+        .card-pelvico .patient-block {
+            border-left-color: #8E24AA;
+        }
+
+        .patient-block-label {
+            font-size: 9px;
+            font-weight: 800;
+            color: #64748b;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 1px;
+            line-height: 1.1;
+        }
+
+        .patient-block-content {
+            font-size: 11.5px;
+            color: #334155;
+            line-height: 1.35;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            word-break: break-word;
+        }
+
+        .metrics-chips-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+            margin-top: 1px;
+        }
+
+        .metric-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 1.5px 6px;
+            font-size: 11px;
+            color: #334155;
+            line-height: 1.2;
+        }
+
+        .metric-chip strong {
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .metric-chip.chip-pain {
+            background: #fff1f2;
+            border-color: #fecdd3;
+            color: #be123c;
+        }
+
+        .metric-chip.chip-pain strong {
+            color: #be123c;
+        }
+
+        .patient-sport-section {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 11.5px;
+            color: #334155;
+            margin-top: 1px;
+        }
+
+        .patient-sport-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            line-height: 1.25;
+        }
+
+        .patient-competencia-row {
+            font-size: 11px;
+            color: #0A94B0;
+            background: #f0f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px dashed #bce3ea;
+            display: inline-block;
+            align-self: flex-start;
+            line-height: 1.2;
+        }
+
+        .patient-details-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 11px;
+            color: #334155;
+            background: #fafbfc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #f1f5f9;
+            line-height: 1.25;
+        }
+
+        .patient-sec-indicators {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin-top: 1px;
+        }
+
+        .patient-sec-label {
+            font-size: 9px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            line-height: 1.1;
+        }
+
+        .patient-sec-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+        }
+
+        .sec-pill {
+            font-size: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 3px;
+            padding: 1px 5px;
+            color: #475569;
+            line-height: 1.2;
+        }
+
+        .sec-pill strong {
+            color: #1e293b;
+        }
+
+        .patient-card-footer {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding-top: 4px;
+            border-top: 1px dashed #e2e8f0;
+            margin-top: auto;
+            gap: 6px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+
+        .open-btn {
+            padding: 4.5px 11px;
+            background: #0A94B0;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 11.5px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            line-height: 1.2;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .open-btn:hover {
+            filter: brightness(0.92);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+        }
+
+        .open-btn-deportiva {
+            background: #0A94B0;
+        }
+
+        .open-btn-deportiva:hover {
+            background: #087D94;
+        }
+
+        .open-btn-pelvico {
+            background: #8E24AA;
+        }
+
+        .open-btn-pelvico:hover {
+            background: #6A1B9A;
+        }
+
+        .adjuntos {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .adjuntos-header {
+            font-weight: 600;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+        }
+
+        .adjuntos-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .adjunto-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 10px;
+            background: #e8f2f8;
+            color: #0A94B0;
+            border-radius: 8px;
+            border: 1px solid #d6e4f0;
+            text-decoration: none;
+            font-size: 12px;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .adjunto-chip:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+
+        .adjunto-chip span {
+            color: #7f8c8d;
+            font-size: 11px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+            font-size: 18px;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+
+        .error-message {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #0A94B0;
+            text-decoration: none;
+            font-size: 16px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Layout Principal - Desktop Base (3 Columnas) */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 240px minmax(0, 1fr) 300px;
+            gap: 12px;
+            align-items: stretch;
+            width: 100%;
+            max-width: 100%;
+            flex: 1;
+            min-height: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-sizing: border-box;
+            height: 100%;
+            max-height: 100%;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .main-content {
+            width: 100%;
+            min-width: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .sidebar-right {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-sizing: border-box;
+            height: 100%;
+            max-height: 100%;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .sidebar-right::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar-right::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .sidebar-card {
+            background: white;
+            border-radius: 10px;
+            padding: 10px 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid #e8eff5;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .sidebar-title {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sidebar-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .stat-card {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.15s, filter 0.15s, box-shadow 0.15s;
+            position: relative;
+            overflow: hidden;
+            min-height: 38px;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.1);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateX(2px);
+            filter: brightness(1.08);
+        }
+
+        .stat-card:active {
+            transform: scale(0.97);
+        }
+
+        .stat-card.active {
+            filter: brightness(0.6) saturate(0.9);
+            transform: translateX(3px) scale(1.02);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.3), inset 0 0 0 2px rgba(255,255,255,0.6);
+        }
+
+        .stat-card.active .stat-icon-wrap {
+            background: rgba(255,255,255,0.35);
+        }
+
+        .stat-card .stat-check {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.9);
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .stat-card.active .stat-check {
+            opacity: 1;
+        }
+
+        .stat-icon-wrap {
+            width: 25px;
+            height: 25px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .stat-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .stat-label {
+            font-size: 10.5px;
+            font-weight: 600;
+            line-height: 1.15;
+            opacity: 0.95;
+            white-space: normal;
+        }
+
+        .stat-sub {
+            display: none;
+        }
+
+        .stat-number {
+            font-size: 15px;
+            font-weight: 800;
+            flex-shrink: 0;
+            opacity: 0.95;
+        }
+
+        .main-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .pagination-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            padding: 5px 12px;
+            border-radius: 8px;
+            margin-top: auto;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            border: 1px solid #e8eff5;
+            flex-wrap: nowrap;
+            gap: 10px;
+            min-height: 38px;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        .pagination-info {
+            font-size: 12px;
+            color: #666;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .page-btn {
+            min-width: 28px;
+            height: 28px;
+            padding: 0 6px;
+            border: 1px solid #dcdfe6;
+            background: white;
+            color: #2c3e50;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            box-sizing: border-box;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: #e8f4f8;
+            border-color: #0A94B0;
+            color: #0A94B0;
+        }
+
+        .page-btn.active {
+            background: #0A94B0;
+            color: white;
+            border-color: #0A94B0;
+            font-weight: 700;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        /* Gráfica Vertical de Reportes por Mes */
+        .monthly-chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .monthly-header-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .year-select {
+            padding: 3px 8px;
+            border: 1.5px solid #d0e4ee;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #0A94B0;
+            background: #f8fafc;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .year-select:focus {
+            border-color: #0A94B0;
+            box-shadow: 0 0 0 2px rgba(10, 148, 176, 0.15);
+        }
+
+        .year-total-badge {
+            font-size: 11px;
+            font-weight: 700;
+            color: #0A94B0;
+            background: #e8f4f8;
+            padding: 3px 8px;
+            border-radius: 12px;
+            white-space: nowrap;
+        }
+
+        .year-total-badge strong {
+            font-size: 12.5px;
+            font-weight: 800;
+            color: #076D82;
+        }
+
+        .peak-month-banner {
+            font-size: 11px;
+            color: #475569;
+            background: #f8fafc;
+            border: 1px dashed #d0e4ee;
+            border-radius: 6px;
+            padding: 5px 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            line-height: 1.3;
+        }
+
+        .peak-month-banner strong {
+            color: #0A94B0;
+            font-weight: 700;
+        }
+
+        .vertical-month-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 145px;
+            gap: 3px;
+            padding-top: 10px;
+            border-bottom: 2px solid #e2e8f0;
+            box-sizing: border-box;
+        }
+
+        .v-month-col {
+            flex: 1;
+            min-width: 14px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            position: relative;
+        }
+
+        .v-month-bar {
+            width: 100%;
+            max-width: 18px;
+            border-radius: 4px 4px 0 0;
+            min-height: 3px;
+            background: linear-gradient(180deg, #0A94B0 0%, #076D82 100%);
+            transition: height 0.35s ease, filter 0.15s ease, transform 0.15s ease;
+            cursor: pointer;
+        }
+
+        .v-month-bar.is-peak {
+            background: linear-gradient(180deg, #00C0DE 0%, #0A94B0 100%);
+            box-shadow: 0 0 6px rgba(10, 148, 176, 0.45);
+        }
+
+        .v-month-bar.is-zero {
+            background: #e2e8f0;
+            min-height: 2px;
+            cursor: default;
+        }
+
+        .v-month-bar:hover:not(.is-zero) {
+            filter: brightness(1.15);
+            transform: scaleY(1.02);
+        }
+
+        .v-month-count {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 3px;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .v-month-count.zero {
+            color: #94a3b8;
+            font-weight: 500;
+            font-size: 8.5px;
+        }
+
+        .v-month-label {
+            font-size: 9px;
+            font-weight: 600;
+            color: #64748b;
+            margin-top: 5px;
+            text-align: center;
+            text-transform: capitalize;
+        }
+
+        .v-month-col.is-peak .v-month-label {
+            color: #0A94B0;
+            font-weight: 800;
+        }
+
+        .source-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .source-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .source-label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .source-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .source-count {
+            font-weight: 700;
+            color: #0A94B0;
+            font-size: 14px;
+        }
+
+        .source-bar-bg {
+            height: 8px;
+            background: #e8f2f8;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .source-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .source-referidos-list {
+            margin-top: 8px;
+            padding-left: 16px;
+            font-size: 11px;
+            color: #7f8c8d;
+        }
+
+        .source-referido-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .source-referido-item:last-child {
+            border-bottom: none;
+        }
+
+        .ref-mini-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+            margin-top: 6px;
+            padding-top: 4px;
+        }
+
+        .ref-page-btn {
+            background: #e8f4f8;
+            color: #0A94B0;
+            border: 1px solid #d0e4ee;
+            border-radius: 4px;
+            width: 22px;
+            height: 22px;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            line-height: 1;
+            transition: all 0.15s ease;
+        }
+
+        .ref-page-btn:hover:not(:disabled) {
+            background: #0A94B0;
+            color: white;
+            border-color: #0A94B0;
+        }
+
+        .ref-page-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            background: #f5f5f5;
+            border-color: #e5e5e5;
+            color: #aaa;
+        }
+
+        .ref-page-text {
+            font-size: 11px;
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+
+        .filter-toggle {
+            display: none;
+        }
+
+        .filter-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .filter-modal.open {
+            display: flex;
+        }
+
+        .filter-modal-content {
+            background: #f5f6fa;
+            border-radius: 20px;
+            padding: 20px 16px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .filter-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        /* =========================================================================
+           BREAKPOINTS RESPONSIVOS DEL DASHBOARD
+           ========================================================================= */
+
+        /* 1. DESKTOP MEDIANO / LAPTOP (1000px a 1299px)
+           Mantiene las 3 columnas en viewport compacto sin desbordar */
+        @media (min-width: 1000px) and (max-width: 1299px) {
+            .main-layout {
+                grid-template-columns: 220px minmax(0, 1fr) 280px;
+                gap: 10px;
+            }
+
+            .sidebar {
+                width: 100%;
+            }
+
+            .main-content {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .sidebar-right {
+                width: 100%;
+            }
+        }
+
+        /* 2. TABLET (768px a 999px)
+           3 Niveles: [Filtros en 2 col] -> [Pacientes 100%] -> [Estadísticas en 2 col] */
+        @media (min-width: 768px) and (max-width: 999px) {
+            .main-layout {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                width: 100%;
+            }
+
+            .sidebar {
+                width: 100%;
+                position: static;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 14px;
+                align-items: start;
+            }
+
+            .sidebar-stats {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+                width: 100%;
+            }
+
+            .sidebar-profesionales {
+                margin-top: 0;
+                width: 100%;
+                height: 100%;
+            }
+
+            .main-content {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .sidebar-right {
+                width: 100%;
+                position: static;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 14px;
+            }
+        }
+
+        /* 3. MÓVIL (< 768px)
+           Una sola columna: Buscador -> Filtros -> Atendidos por -> Pacientes -> Origen -> Reportes por mes */
+        @media (max-width: 767px) {
+            .reportes-container {
+                padding: 0 10px;
+                margin: 8px auto;
+                width: 100%;
+            }
+
+            .top-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+                margin-bottom: 10px;
+                position: static;
+                padding: 0;
+                width: 100%;
+            }
+
+            .top-bar .back-link {
+                align-self: flex-start;
+                font-size: 13.5px;
+                margin-bottom: 2px;
+            }
+
+            .search-box {
+                width: 100%;
+                display: flex;
+                gap: 6px;
+            }
+
+            .search-input {
+                flex: 1;
+                width: auto;
+                min-width: 0;
+                padding: 8px 10px;
+                font-size: 13px;
+            }
+
+            .search-btn, .clear-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+                flex-shrink: 0;
+            }
+
+            .filter-toggle {
+                display: none !important;
+            }
+
+            .main-layout {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                width: 100%;
+            }
+
+            .sidebar {
+                width: 100%;
+                position: static;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .sidebar-stats {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+                gap: 6px;
+                width: 100%;
+            }
+
+            .stat-card {
+                padding: 8px 10px;
+                gap: 8px;
+            }
+
+            .stat-icon-wrap {
+                width: 28px;
+                height: 28px;
+                font-size: 14px;
+            }
+
+            .stat-label {
+                font-size: 11px;
+            }
+
+            .stat-number {
+                font-size: 16px;
+            }
+
+            .stat-sub {
+                font-size: 8.5px;
+            }
+
+            .sidebar-profesionales {
+                margin-top: 0;
+                width: 100%;
+            }
+
+            .main-content {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .prof-filter-bar {
+                padding: 6px 10px;
+                gap: 6px;
+                width: 100%;
+            }
+
+            .prof-pills {
+                gap: 4px;
+            }
+
+            .prof-pill {
+                padding: 3px 8px;
+                font-size: 11px;
+            }
+
+            .reporte-card {
+                padding: 8px 10px;
+                border-radius: 6px;
+                width: 100%;
+                height: auto;
+                min-height: auto;
+                max-height: none;
+            }
+
+            .patient-name {
+                font-size: 13.5px;
+            }
+
+            .patient-card-footer {
+                justify-content: stretch;
+                width: 100%;
+            }
+
+            .patient-card-footer .open-btn {
+                width: 100%;
+                text-align: center;
+                padding: 7px 12px;
+                font-size: 12px;
+            }
+
+            .pagination-container {
+                flex-direction: column;
+                gap: 8px;
+                align-items: center;
+                text-align: center;
+                width: 100%;
+            }
+
+            .sidebar-right {
+                width: 100%;
+                position: static;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .vertical-month-chart {
+                height: 165px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 4px;
+                width: 100%;
+            }
+
+            .v-month-col {
+                min-width: 16px;
+            }
+        }
+
+        /* 4. TELÉFONOS PEQUEÑOS (< 480px) */
+        @media (max-width: 480px) {
+            .reportes-container {
+                padding: 0 6px;
+            }
+
+            .sidebar-card {
+                padding: 10px 10px;
+            }
+
+            .patient-demographics {
+                font-size: 10.5px;
+                gap: 4px;
+            }
+
+            .metrics-chips-row {
+                gap: 3px;
+            }
+
+            .metric-chip {
+                padding: 1px 5px;
+                font-size: 10.5px;
+            }
+
+            .source-chart {
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="reportes-container">
+        <div class="top-bar">
+            <a href="bienvenida.html" class="back-link">← Volver</a>
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="Buscar paciente...">
+                <button id="searchBtn" class="search-btn">Buscar</button>
+                <button id="clearBtn" class="clear-btn">Limpiar</button>
+            </div>
+            <button id="filterToggle" class="filter-toggle">📊 Filtros</button>
+            <button id="monthToggle" class="filter-toggle">📅 Mes</button>
+        </div>
+
+        <div class="main-layout">
+            <aside class="sidebar" id="sidebar">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <div class="sidebar-title" style="margin-bottom:0;">📊 Filtros</div>
+                    <button id="closeFilters" class="clear-btn" style="display:none;padding:4px 10px;font-size:12px;">✕ Cerrar</button>
+                </div>
+                <div class="sidebar-stats" id="statsContainer"></div>
+                <div class="sidebar-profesionales" id="sidebarProfesionales">
+                    <div class="sidebar-title">👨‍⚕️ Atendidos por</div>
+                    <div class="profesionales-list" id="profesionalesList"></div>
+                </div>
+            </aside>
+
+            <div class="main-content">
+                <div id="errorContainer"></div>
+                <div class="prof-filter-bar" id="profFilterBar">
+                    <span class="prof-filter-title">Atendido por:</span>
+                    <div class="prof-pills" id="profPills"></div>
+                </div>
+                <div id="reportesContainer">
+                    <div class="loading">Cargando reportes...</div>
+                </div>
+                <div id="paginationContainer" class="pagination-container"></div>
+            </div>
+
+            <aside class="sidebar-right" id="sidebarRight">
+                <div class="sidebar-card">
+                    <div class="sidebar-title">📈 ¿Cómo nos conocieron?</div>
+                    <div class="source-chart" id="sourceChart"></div>
+                </div>
+                <div class="sidebar-card" id="sidebarMonthlyCard">
+                    <div class="sidebar-title">📅 Reportes por Mes</div>
+                    <div class="monthly-chart-header">
+                        <div class="monthly-header-left">
+                            <span>Año:</span>
+                            <select id="yearSelect" class="year-select" title="Seleccionar año"></select>
+                        </div>
+                        <div class="year-total-badge">
+                            Total: <strong id="yearTotalCount">0</strong>
+                        </div>
+                    </div>
+                    <div class="peak-month-banner" id="peakMonthBanner">
+                        <span>🔥 Mes con mayor actividad: <strong id="peakMonthText">-</strong></span>
+                    </div>
+                    <div class="vertical-month-chart" id="monthBars"></div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <div id="filterModal" class="filter-modal">
+        <div class="filter-modal-content">
+            <div class="filter-modal-header">
+                <div class="sidebar-title" style="margin-bottom:0;">📊 Filtros</div>
+            </div>
+            <div class="sidebar-stats" id="modalStatsContainer"></div>
+            <div class="sidebar-profesionales" style="margin-top: 10px;">
+                <div class="sidebar-title">👨‍⚕️ Atendidos por</div>
+                <div class="profesionales-list" id="modalProfesionalesList"></div>
+            </div>
+            <div class="sidebar-card" style="margin-top: 10px;">
+                <div class="sidebar-title">📈 ¿Cómo nos conocieron?</div>
+                <div class="source-chart" id="modalSourceChart"></div>
+            </div>
+            <button id="modalOkBtn" class="search-btn" style="width:100%;margin-top:16px;padding:12px;font-size:16px;">OK</button>
+        </div>
+    </div>
+
+    <div id="monthModal" class="filter-modal">
+        <div class="filter-modal-content">
+            <div class="filter-modal-header">
+                <div class="sidebar-title" style="margin-bottom:0;">📅 Reportes por Mes</div>
+            </div>
+            <div class="monthly-chart-header" style="margin-top: 6px;">
+                <div class="monthly-header-left">
+                    <span>Año:</span>
+                    <select id="modalYearSelect" class="year-select" title="Seleccionar año"></select>
+                </div>
+                <div class="year-total-badge">
+                    Total: <strong id="modalYearTotalCount">0</strong>
+                </div>
+            </div>
+            <div class="peak-month-banner" id="modalPeakMonthBanner" style="margin-top: 6px;">
+                <span>🔥 Mes con mayor actividad: <strong id="modalPeakMonthText">-</strong></span>
+            </div>
+            <div class="vertical-month-chart" id="modalMonthBars" style="height: 190px;"></div>
+            <div class="sidebar-card" style="margin-top: 14px;">
+                <div class="sidebar-title">📈 ¿Cómo nos conocieron?</div>
+                <div class="source-chart" id="modalSourceChart2"></div>
+            </div>
+            <button id="monthOkBtn" class="search-btn" style="width:100%;margin-top:16px;padding:12px;font-size:16px;">OK</button>
+        </div>
+    </div>
+
+    <script>
+        class ReportesViewer {
+            constructor() {
+                this.reportesContainer = document.getElementById('reportesContainer');
+                this.paginationContainer = document.getElementById('paginationContainer');
+                this.searchInput = document.getElementById('searchInput');
+                this.searchBtn = document.getElementById('searchBtn');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.errorContainer = document.getElementById('errorContainer');
+                this.statsContainer = document.getElementById('statsContainer');
+                this.monthBars = document.getElementById('monthBars');
+                this.modalStatsContainer = document.getElementById('modalStatsContainer');
+                this.modalMonthBars = document.getElementById('modalMonthBars');
+                this.yearSelect = document.getElementById('yearSelect');
+                this.modalYearSelect = document.getElementById('modalYearSelect');
+                this.yearTotalCount = document.getElementById('yearTotalCount');
+                this.modalYearTotalCount = document.getElementById('modalYearTotalCount');
+                this.peakMonthText = document.getElementById('peakMonthText');
+                this.modalPeakMonthText = document.getElementById('modalPeakMonthText');
+                this.filterModal = document.getElementById('filterModal');
+                this.monthModal = document.getElementById('monthModal');
+                this.profPills = document.getElementById('profPills');
+                this.profesionalesList = document.getElementById('profesionalesList');
+                this.modalProfesionalesList = document.getElementById('modalProfesionalesList');
+                this.allReportes = [];
+                this.filteredReportes = [];
+                this.activeFilters = new Set();
+                this.selectedProfessional = null;
+                this.selectedYear = null;
+                this.currentPage = 1;
+                this.itemsPerPage = this.calculateItemsPerPage();
+                this.referidosMap = {};
+                this.referidosLoaded = false;
+                this.referidosPage = 1;
+                this.referidosPerPage = 4;
+                this.lastSourcesData = [];
+                this.statDefs = [
+                    { id: 'totalReportes', icon: '📊', label: 'Reportes Totales', filter: null },
+                    { id: 'totalPisada', icon: '🏋️', label: 'Fisioterapia Deportiva', filter: r => (r.tipo_reporte || 'pisada') === 'pisada' },
+                    { id: 'totalPisoPelvico', icon: '🫀', label: 'Piso Pélvico', filter: r => r.tipo_reporte === 'piso_pelvico' },
+                    { id: 'statMenores', icon: '🧒', label: 'Menores de Edad', sub: '< 18 años', filter: r => { const e = this.getEdad(r); return e !== null && e < 18; } },
+                    { id: 'statMayores', icon: '👴', label: 'Adultos Mayores', sub: '≥ 60 años', filter: r => { const e = this.getEdad(r); return e !== null && e >= 60; } },
+                    { id: 'statPesoAlto', icon: '⚖️', label: 'Sobre 100 kg', sub: 'Peso elevado', filter: r => { const p = this.getPeso(r); return p !== null && p > 100; } },
+                    { id: 'statMasculino', icon: '♂️', label: 'Masculino', filter: r => { const s = this.getSexo(r); return s === 'masculino' || s === 'm' || s === 'hombre'; } },
+                    { id: 'statFemenino', icon: '♀️', label: 'Femenino', filter: r => { const s = this.getSexo(r); return s === 'femenino' || s === 'f' || s === 'mujer'; } },
+                ];
+                this.monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                this.monthFullNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+                
+                this.init();
+            }
+
+            calculateItemsPerPage() {
+                const vh = window.innerHeight || document.documentElement.clientHeight || 800;
+                
+                // Si el contenedor ya está en pantalla, medir su espacio vertical disponible
+                if (this.reportesContainer) {
+                    const contHeight = this.reportesContainer.clientHeight;
+                    if (contHeight > 200) {
+                        // Tarjeta de 220px + 6px separación = 226px
+                        const count = Math.floor((contHeight + 6) / 226);
+                        if (count >= 2) {
+                            return Math.min(count, 5);
+                        }
+                    }
+                    const rect = this.reportesContainer.getBoundingClientRect();
+                    const topOffset = rect.top + (window.scrollY || 0);
+                    if (topOffset > 0) {
+                        const availableHeight = vh - topOffset - 60;
+                        const count = Math.floor((availableHeight + 6) / 226);
+                        if (count >= 2) {
+                            return Math.min(count, 5);
+                        }
+                    }
+                }
+
+                // Umbrales calibrados para pantallas estándar (basados en 226px por tarjeta):
+                // < 750px (laptops 1366x768 o ventanas compactas) -> 2 reportes
+                // 750px a 1050px (pantallas 1080p estándar) -> 3 reportes
+                // 1050px a 1300px (monitores 2K) -> 4 reportes
+                // >= 1300px (monitores grandes / 4K) -> 5 reportes
+                if (vh < 750) {
+                    return 2;
+                } else if (vh < 1050) {
+                    return 3;
+                } else if (vh < 1300) {
+                    return 4;
+                } else {
+                    return 5;
+                }
+            }
+
+            async init() {
+                await this.waitForSupabase();
+                this.setupEventListeners();
+                await this.loadReportes();
+            }
+
+            async waitForSupabase() {
+                let attempts = 0;
+                while ((!window.supabaseClient || !window.supabaseClient.supabase) && attempts < 20) {
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                    attempts++;
+                }
+                if (!window.supabaseClient || !window.supabaseClient.supabase) {
+                    console.error('Supabase no se cargó después de esperar');
+                }
+            }
+
+            setupEventListeners() {
+                this.searchBtn.addEventListener('click', () => this.aplicarFiltros());
+                this.searchInput.addEventListener('input', () => this.aplicarFiltros());
+                this.searchInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.aplicarFiltros();
+                });
+                this.clearBtn.addEventListener('click', () => this.limpiarBusqueda());
+
+                window.addEventListener('resize', () => {
+                    clearTimeout(this._resizeTimer);
+                    this._resizeTimer = setTimeout(() => {
+                        const newCount = this.calculateItemsPerPage();
+                        if (newCount !== this.itemsPerPage) {
+                            this.itemsPerPage = newCount;
+                            this.renderReportes(this.filteredReportes || this.allReportes);
+                        }
+                    }, 150);
+                });
+
+                if (this.yearSelect) {
+                    this.yearSelect.addEventListener('change', (e) => {
+                        this.selectedYear = parseInt(e.target.value);
+                        if (this.modalYearSelect) this.modalYearSelect.value = this.selectedYear;
+                        this.renderMonthStats(this.allReportes);
+                    });
+                }
+                if (this.modalYearSelect) {
+                    this.modalYearSelect.addEventListener('change', (e) => {
+                        this.selectedYear = parseInt(e.target.value);
+                        if (this.yearSelect) this.yearSelect.value = this.selectedYear;
+                        this.renderMonthStats(this.allReportes);
+                    });
+                }
+
+                const filterToggle = document.getElementById('filterToggle');
+                const modalOkBtn = document.getElementById('modalOkBtn');
+                if (filterToggle && this.filterModal) {
+                    filterToggle.addEventListener('click', () => {
+                        this.filterModal.classList.add('open');
+                    });
+                }
+                if (modalOkBtn && this.filterModal) {
+                    modalOkBtn.addEventListener('click', () => {
+                        this.filterModal.classList.remove('open');
+                    });
+                    this.filterModal.addEventListener('click', (e) => {
+                        if (e.target === this.filterModal) {
+                            this.filterModal.classList.remove('open');
+                        }
+                    });
+                }
+
+                const monthToggle = document.getElementById('monthToggle');
+                const monthOkBtn = document.getElementById('monthOkBtn');
+                if (monthToggle && this.monthModal) {
+                    monthToggle.addEventListener('click', () => {
+                        this.monthModal.classList.add('open');
+                    });
+                }
+                if (monthOkBtn && this.monthModal) {
+                    monthOkBtn.addEventListener('click', () => {
+                        this.monthModal.classList.remove('open');
+                    });
+                    this.monthModal.addEventListener('click', (e) => {
+                        if (e.target === this.monthModal) {
+                            this.monthModal.classList.remove('open');
+                        }
+                    });
+                }
+            }
+
+            async loadReferidosMap() {
+                if (this.referidosLoaded || !window.supabaseClient) return;
+                try {
+                    const referidos = await window.supabaseClient.getReferidos();
+                    if (referidos && Array.isArray(referidos)) {
+                        referidos.forEach(ref => {
+                            if (ref.id) this.referidosMap[ref.id] = ref.nombre;
+                        });
+                        this.referidosLoaded = true;
+                        if (this.allReportes && this.allReportes.length > 0) {
+                            this.renderSourceChart(this.allReportes);
+                        }
+                    }
+                } catch (refErr) {
+                    console.warn('No se pudieron obtener nombres de referidos:', refErr);
+                }
+            }
+
+            async loadReportes() {
+                try {
+                    if (!window.supabaseClient || !window.supabaseClient.supabase) {
+                        this.showError('Error: Supabase no está configurado correctamente');
+                        return;
+                    }
+
+                    // Cargar referidos en segundo plano (una sola vez)
+                    this.loadReferidosMap();
+                    
+                    // Check for preloaded data in localStorage (30 min TTL)
+                    const cached = localStorage.getItem('preloadedReportes');
+                    let isFresh = false;
+                    let preloadedData = null;
+                    
+                    if (cached) {
+                        try {
+                            const cache = JSON.parse(cached);
+                            preloadedData = cache.data;
+                            const age = Date.now() - cache.timestamp;
+                            isFresh = age < 30 * 60 * 1000; // 30 min
+                        } catch (e) {
+                            console.log('Cache parse error, ignoring');
+                        }
+                    }
+                    
+                    if (preloadedData && isFresh) {
+                        this.allReportes = preloadedData;
+                        this.aplicarFiltros();
+                        console.log('✓ Using preloaded reportes data (localStorage)');
+                        // Refresh in background
+                        this.refreshReportesInBackground();
+                        return;
+                    }
+                    
+                    // Mostrar skeleton loaders
+                    this.renderSkeletons(this.itemsPerPage || 4);
+                    this.allReportes = await window.supabaseClient.getAllReportes();
+                    try {
+                        const cache = { data: this.allReportes, timestamp: Date.now() };
+                        localStorage.setItem('preloadedReportes', JSON.stringify(cache));
+                    } catch (quotaErr) {
+                        console.warn('LocalStorage save failed:', quotaErr.message);
+                    }
+                    this.aplicarFiltros();
+                } catch (error) {
+                    console.error('Error cargando reportes:', error);
+                    this.showError('Error al cargar los reportes: ' + error.message);
+                }
+            }
+
+            async refreshReportesInBackground() {
+                try {
+                    const freshData = await window.supabaseClient.getAllReportes();
+                    try {
+                        const cache = { data: freshData, timestamp: Date.now() };
+                        localStorage.setItem('preloadedReportes', JSON.stringify(cache));
+                    } catch (e) {}
+                    this.allReportes = freshData;
+                    this.aplicarFiltros();
+                    console.log('✓ Background refresh complete (localStorage)');
+                } catch (error) {
+                    console.log('Background refresh failed:', error.message);
+                }
+            }
+
+            async loadSourcesData() {
+                await this.loadReferidosMap();
+                this.renderSourceChart(this.allReportes);
+            }
+
+            renderSourceChartFromSources(sourcesData) {
+                if (sourcesData) {
+                    this.lastSourcesData = sourcesData;
+                } else {
+                    sourcesData = this.lastSourcesData || [];
+                }
+
+                // sourcesData: [{ id, comoNosConociste, referidoSeleccionado }, ...]
+                const containers = [
+                    document.getElementById('sourceChart'),
+                    document.getElementById('modalSourceChart'),
+                    document.getElementById('modalSourceChart2')
+                ].filter(Boolean);
+                
+                const sourceCounts = { redes_sociales: 0, charlas_informativas: 0, referido_por: 0, otro: 0 };
+                const referidosDetail = {};
+                
+                sourcesData.forEach(r => {
+                    const source = r.comoNosConociste;
+                    if (source && sourceCounts.hasOwnProperty(source)) {
+                        sourceCounts[source]++;
+                        if (source === 'referido_por') {
+                            const refId = r.referidoSeleccionado;
+                            if (refId) referidosDetail[refId] = (referidosDetail[refId] || 0) + 1;
+                        }
+                    }
+                });
+                
+                const total = Object.values(sourceCounts).reduce((a, b) => a + b, 0);
+                if (total === 0) {
+                    containers.forEach(c => c.innerHTML = '<div style="color:#999;font-size:13px;text-align:center;padding:20px">Sin datos de origen</div>');
+                    return;
+                }
+                
+                const sourceLabels = {
+                    redes_sociales: '📱 Redes Sociales',
+                    charlas_informativas: '🎤 Charlas Informativas',
+                    referido_por: '👥 Referidos',
+                    otro: '📝 Otros'
+                };
+                const sourceColors = {
+                    redes_sociales: '#3b82f6',
+                    charlas_informativas: '#8b5cf6',
+                    referido_por: '#0A94B0',
+                    otro: '#95a5a6'
+                };
+
+                const refEntries = Object.entries(referidosDetail).sort((a, b) => b[1] - a[1]);
+                const totalRefItems = refEntries.length;
+                const refPerPage = this.referidosPerPage || 4;
+                const totalRefPages = Math.ceil(totalRefItems / refPerPage) || 1;
+
+                if (this.referidosPage > totalRefPages) this.referidosPage = totalRefPages;
+                if (this.referidosPage < 1) this.referidosPage = 1;
+
+                const refSlice = totalRefItems >= 5
+                    ? refEntries.slice((this.referidosPage - 1) * refPerPage, this.referidosPage * refPerPage)
+                    : refEntries;
+                
+                containers.forEach(container => {
+                    container.innerHTML = Object.entries(sourceCounts).map(([key, count]) => {
+                        const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+                        const color = sourceColors[key];
+                        let referidosHtml = '';
+                        if (key === 'referido_por' && totalRefItems > 0) {
+                            const itemsHtml = refSlice.map(([refId, refCount]) => {
+                                const refName = this.referidosMap[refId] || (refId.length > 20 ? refId.substring(0, 16) + '...' : refId);
+                                return `<div class="source-referido-item"><span title="${refName}">${refName}</span><b>${refCount}</b></div>`;
+                            }).join('');
+
+                            let paginationHtml = '';
+                            if (totalRefItems >= 5) {
+                                paginationHtml = `
+                                    <div class="ref-mini-pagination">
+                                        <button type="button" class="ref-page-btn ref-prev-btn" ${this.referidosPage === 1 ? 'disabled' : ''} title="Anterior">‹</button>
+                                        <span class="ref-page-text">${this.referidosPage} / ${totalRefPages}</span>
+                                        <button type="button" class="ref-page-btn ref-next-btn" ${this.referidosPage === totalRefPages ? 'disabled' : ''} title="Siguiente">›</button>
+                                    </div>
+                                `;
+                            }
+
+                            referidosHtml = `<div class="source-referidos-list">${itemsHtml}${paginationHtml}</div>`;
+                        }
+                        return `
+                            <div class="source-item">
+                                <div class="source-label-row">
+                                    <span class="source-label">${sourceLabels[key]}</span>
+                                    <span class="source-count" style="color: ${color};">${count} (${percentage}%)</span>
+                                </div>
+                                <div class="source-bar-bg">
+                                    <div class="source-bar-fill" style="width: ${percentage}%; background: ${color};"></div>
+                                </div>
+                                ${referidosHtml}
+                            </div>
+                        `;
+                    }).join('');
+
+                    container.querySelectorAll('.ref-prev-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (this.referidosPage > 1) {
+                                this.referidosPage--;
+                                this.renderSourceChartFromSources();
+                            }
+                        });
+                    });
+                    container.querySelectorAll('.ref-next-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (this.referidosPage < totalRefPages) {
+                                this.referidosPage++;
+                                this.renderSourceChartFromSources();
+                            }
+                        });
+                    });
+                });
+            }
+
+            renderSkeletons(count) {
+                this.reportesContainer.innerHTML = Array(count).fill(0).map(() => `
+                    <div class="reporte-card" style="background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-left: 4px solid transparent;">
+                        <div class="reporte-info">
+                            <div class="reporte-nombre" style="height: 20px; width: 60%; background: #ddd; border-radius: 4px;"></div>
+                            <div class="reporte-cedula" style="height: 14px; width: 40%; background: #ddd; border-radius: 4px; margin-top: 8px;"></div>
+                            <div class="reporte-fecha" style="height: 12px; width: 30%; background: #ddd; border-radius: 4px; margin-top: 6px;"></div>
+                        </div>
+                        <div class="reporte-actions">
+                            <div style="width: 100px; height: 36px; background: #ddd; border-radius: 6px;"></div>
+                        </div>
+                    </div>
+                `).join('');
+                // Agregar keyframes si no existe
+                if (!document.getElementById('skeleton-style')) {
+                    const style = document.createElement('style');
+                    style.id = 'skeleton-style';
+                    style.textContent = `@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`;
+                    document.head.appendChild(style);
+                }
+            }
+
+            escapeHtml(val) {
+                if (val === undefined || val === null) return '';
+                return String(val)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            getEdad(reporte) {
+                if (!reporte || !reporte.reporte_json) return null;
+                let v = reporte.reporte_json;
+                if (typeof v === 'string') { try { v = JSON.parse(v); } catch(e) { return null; } }
+                return v.edad ? parseInt(v.edad) : null;
+            }
+
+            getPeso(reporte) {
+                if (!reporte || !reporte.reporte_json) return null;
+                let v = reporte.reporte_json;
+                if (typeof v === 'string') { try { v = JSON.parse(v); } catch(e) { return null; } }
+                return v.peso ? parseFloat(v.peso) : null;
+            }
+
+            getSexo(reporte) {
+                if (!reporte || !reporte.reporte_json) return null;
+                let v = reporte.reporte_json;
+                if (typeof v === 'string') { try { v = JSON.parse(v); } catch(e) { return null; } }
+                return v.sexo ? v.sexo.toLowerCase().trim() : null;
+            }
+
+            getAtendidoPor(reporte) {
+                if (!reporte) return null;
+                if (reporte.atendido_por && typeof reporte.atendido_por === 'string' && reporte.atendido_por.trim()) {
+                    return reporte.atendido_por.trim();
+                }
+                let json = reporte.reporte_json;
+                if (typeof json === 'string') {
+                    try { json = JSON.parse(json); } catch(e) { json = null; }
+                }
+                if (json) {
+                    if (json.atendidoPor && typeof json.atendidoPor === 'string' && json.atendidoPor.trim()) {
+                        return json.atendidoPor.trim();
+                    }
+                    if (json.atendido_por && typeof json.atendido_por === 'string' && json.atendido_por.trim()) {
+                        return json.atendido_por.trim();
+                    }
+                }
+                return null;
+            }
+
+            getProfessionalStats(reportes) {
+                const list = reportes || this.allReportes || [];
+                const counts = {
+                    'Jorge': 0,
+                    'Santiago': 0,
+                    'Mariana': 0,
+                    'Nataly': 0
+                };
+                list.forEach(r => {
+                    const atendido = this.getAtendidoPor(r);
+                    if (atendido) {
+                        const lower = atendido.toLowerCase().trim();
+                        if (lower === 'jorge') counts['Jorge']++;
+                        else if (lower === 'santiago') counts['Santiago']++;
+                        else if (lower === 'mariana') counts['Mariana']++;
+                        else if (lower === 'nataly') counts['Nataly']++;
+                        else {
+                            const match = Object.keys(counts).find(k => k.toLowerCase() === lower);
+                            if (match) counts[match]++;
+                        }
+                    }
+                });
+                return counts;
+            }
+
+            setProfessionalFilter(prof) {
+                if (!prof || prof === 'todos' || prof === this.selectedProfessional) {
+                    this.selectedProfessional = null;
+                } else {
+                    this.selectedProfessional = prof;
+                }
+                this.aplicarFiltros();
+            }
+
+            renderProfesionales(reportes) {
+                const stats = this.getProfessionalStats(reportes);
+                const total = (reportes || this.allReportes || []).length;
+                const standardProfs = ['Jorge', 'Santiago', 'Mariana', 'Nataly'];
+
+                // 1. Pills horizontales superiores
+                if (this.profPills) {
+                    let pillsHtml = `
+                        <button type="button" class="prof-pill ${!this.selectedProfessional ? 'active' : ''}" data-prof="todos">
+                            Todos <span class="pill-count">${total}</span>
+                        </button>
+                    `;
+                    standardProfs.forEach(name => {
+                        const count = stats[name] || 0;
+                        const isActive = this.selectedProfessional && this.selectedProfessional.toLowerCase() === name.toLowerCase();
+                        pillsHtml += `
+                            <button type="button" class="prof-pill ${isActive ? 'active' : ''}" data-prof="${name}">
+                                ${name} <span class="pill-count">${count}</span>
+                            </button>
+                        `;
+                    });
+                    this.profPills.innerHTML = pillsHtml;
+                    this.profPills.querySelectorAll('.prof-pill').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            this.setProfessionalFilter(btn.dataset.prof);
+                        });
+                    });
+                }
+
+                // 2. Lista de estadísticas en sidebar y modal
+                const listContainers = [this.profesionalesList, this.modalProfesionalesList].filter(Boolean);
+                listContainers.forEach(container => {
+                    let listHtml = '';
+                    standardProfs.forEach(name => {
+                        const count = stats[name] || 0;
+                        const isActive = this.selectedProfessional && this.selectedProfessional.toLowerCase() === name.toLowerCase();
+                        listHtml += `
+                            <div class="prof-stat-item ${isActive ? 'active' : ''}" data-prof="${name}">
+                                <span class="prof-stat-name">${name}</span>
+                                <span class="prof-stat-badge">${count}</span>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = listHtml;
+                    container.querySelectorAll('.prof-stat-item').forEach(item => {
+                        item.addEventListener('click', () => {
+                            this.setProfessionalFilter(item.dataset.prof);
+                        });
+                    });
+                });
+            }
+
+            aplicarFiltros() {
+                const query = this.searchInput.value.trim().toLowerCase();
+
+                let filtered = this.allReportes.filter(reporte => {
+                    if (query) {
+                        const nombre = (reporte.nombre || '').toLowerCase();
+                        const apellido = (reporte.apellido || '').toLowerCase();
+                        const cedula = (reporte.cedula || '').toLowerCase();
+                        if (!nombre.includes(query) && !apellido.includes(query) && !cedula.includes(query)) {
+                            return false;
+                        }
+                    }
+                    if (this.selectedProfessional) {
+                        const atendido = this.getAtendidoPor(reporte);
+                        if (!atendido || atendido.toLowerCase() !== this.selectedProfessional.toLowerCase()) {
+                            return false;
+                        }
+                    }
+                    if (this.activeFilters.size) {
+                        for (let fn of this.activeFilters) {
+                            if (!fn(reporte)) return false;
+                        }
+                    }
+                    return true;
+                });
+
+                this.filteredReportes = filtered;
+                this.currentPage = 1;
+
+                this.renderStats(this.allReportes);
+                this.renderProfesionales(this.allReportes);
+                this.renderMonthStats(this.allReportes);
+                this.renderSourceChart(this.allReportes);
+                this.renderReportes(filtered);
+            }
+
+            limpiarBusqueda() {
+                this.searchInput.value = '';
+                this.activeFilters.clear();
+                this.selectedProfessional = null;
+                this.aplicarFiltros();
+            }
+
+            toggleFilter(filterFn) {
+                if (this.activeFilters.has(filterFn)) {
+                    this.activeFilters.delete(filterFn);
+                } else {
+                    this.activeFilters.add(filterFn);
+                }
+                this.aplicarFiltros();
+            }
+
+            renderStats(reportes) {
+                const containers = [this.statsContainer];
+                if (this.modalStatsContainer) containers.push(this.modalStatsContainer);
+                containers.forEach(container => {
+                    container.innerHTML = '';
+                    this.statDefs.forEach(def => {
+                        let count;
+                        if (def.filter === null) {
+                            count = reportes.length;
+                        } else {
+                            count = reportes.filter(def.filter).length;
+                        }
+
+                        const isActive = def.filter && this.activeFilters.has(def.filter);
+                        const card = document.createElement('div');
+                        card.className = 'stat-card' + (isActive ? ' active' : '');
+                        card.style.background = this.getStatColor(def.id);
+                        card.title = def.filter ? 'Clic para filtrar' : 'Total de reportes';
+
+                        card.innerHTML = `
+                            <div class="stat-check">✓</div>
+                            <div class="stat-icon-wrap">${def.icon}</div>
+                            <div class="stat-body">
+                                <div class="stat-label">${def.label}</div>
+                                ${def.sub ? `<div class="stat-sub">${def.sub}</div>` : ''}
+                            </div>
+                            <div class="stat-number">${count}</div>
+                        `;
+
+                        if (def.filter !== null) {
+                            card.addEventListener('click', () => this.toggleFilter(def.filter));
+                        }
+
+                        container.appendChild(card);
+                    });
+                });
+            }
+
+            getStatColor(id) {
+                const colors = {
+                    totalReportes: 'linear-gradient(135deg, #0A94B0 0%, #076D82 100%)',
+                    totalPisada: 'linear-gradient(135deg, #0A94B0 0%, #087D94 100%)',
+                    totalPisoPelvico: 'linear-gradient(135deg, #8E24AA 0%, #6A1B9A 100%)',
+                    statMenores: 'linear-gradient(135deg, #d35400 0%, #e67e22 100%)',
+                    statMayores: 'linear-gradient(135deg, #c0392b 0%, #e74c3c 100%)',
+                    statPesoAlto: 'linear-gradient(135deg, #0A94B0 0%, #065A6B 100%)',
+                    statMasculino: 'linear-gradient(135deg, #2980b9 0%, #1a5276 100%)',
+                    statFemenino: 'linear-gradient(135deg, #e84393 0%, #b71c6b 100%)',
+                };
+                return colors[id] || 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)';
+            }
+
+            getAvailableYears(reportes) {
+                const list = reportes || this.allReportes || [];
+                const yearsSet = new Set();
+                const currentYear = new Date().getFullYear();
+                yearsSet.add(currentYear);
+                list.forEach(r => {
+                    const fecha = r.fecha_modificacion || r.fecha_creacion;
+                    if (!fecha) return;
+                    const d = new Date(fecha);
+                    if (!isNaN(d.getTime())) {
+                        yearsSet.add(d.getFullYear());
+                    }
+                });
+                return Array.from(yearsSet).sort((a, b) => b - a);
+            }
+
+            renderMonthStats(reportes) {
+                const list = reportes || this.allReportes || [];
+                const availableYears = this.getAvailableYears(list);
+
+                if (!this.selectedYear || !availableYears.includes(this.selectedYear)) {
+                    this.selectedYear = availableYears[0];
+                }
+
+                // 1. Poblar selectores de año
+                const selects = [this.yearSelect, this.modalYearSelect].filter(Boolean);
+                selects.forEach(selectEl => {
+                    const optionsHtml = availableYears.map(y => `<option value="${y}" ${y === this.selectedYear ? 'selected' : ''}>${y}</option>`).join('');
+                    if (selectEl.innerHTML !== optionsHtml) {
+                        selectEl.innerHTML = optionsHtml;
+                    }
+                    selectEl.value = this.selectedYear;
+                });
+
+                // 2. Conteo de los 12 meses para el año seleccionado
+                const monthCounts = new Array(12).fill(0);
+                let yearTotal = 0;
+
+                list.forEach(r => {
+                    const fecha = r.fecha_modificacion || r.fecha_creacion;
+                    if (!fecha) return;
+                    const d = new Date(fecha);
+                    if (!isNaN(d.getTime()) && d.getFullYear() === this.selectedYear) {
+                        const m = d.getMonth(); // 0 a 11
+                        monthCounts[m]++;
+                        yearTotal++;
+                    }
+                });
+
+                // 3. Mes con mayor actividad
+                let peakMonthIdx = -1;
+                let peakCount = 0;
+                monthCounts.forEach((c, idx) => {
+                    if (c > peakCount) {
+                        peakCount = c;
+                        peakMonthIdx = idx;
+                    }
+                });
+
+                // 4. Actualizar total del año
+                if (this.yearTotalCount) this.yearTotalCount.textContent = yearTotal;
+                if (this.modalYearTotalCount) this.modalYearTotalCount.textContent = yearTotal;
+
+                // 5. Actualizar mes con mayor actividad
+                const peakText = peakCount > 0
+                    ? `${this.monthFullNames[peakMonthIdx]} · ${peakCount} reporte${peakCount === 1 ? '' : 's'}`
+                    : `Sin actividad en ${this.selectedYear}`;
+
+                if (this.peakMonthText) this.peakMonthText.textContent = peakText;
+                if (this.modalPeakMonthText) this.modalPeakMonthText.textContent = peakText;
+
+                // 6. Renderizar barras verticales
+                const containers = [this.monthBars, this.modalMonthBars].filter(Boolean);
+                const maxCount = Math.max(...monthCounts, 1);
+                const chartHeight = 135; // Altura máxima efectiva de barra en px
+
+                containers.forEach(container => {
+                    container.innerHTML = '';
+                    for (let m = 0; m < 12; m++) {
+                        const count = monthCounts[m];
+                        const monthShort = this.monthNames[m];
+                        const monthFull = this.monthFullNames[m];
+                        const isPeak = (m === peakMonthIdx && peakCount > 0);
+                        const isZero = (count === 0);
+
+                        let barHeight = 2;
+                        if (!isZero) {
+                            barHeight = Math.max(6, Math.round((count / maxCount) * chartHeight));
+                        }
+
+                        const col = document.createElement('div');
+                        col.className = 'v-month-col' + (isPeak ? ' is-peak' : '');
+
+                        const countEl = document.createElement('div');
+                        countEl.className = 'v-month-count' + (isZero ? ' zero' : '');
+                        countEl.textContent = count;
+
+                        const barEl = document.createElement('div');
+                        barEl.className = 'v-month-bar' + (isPeak ? ' is-peak' : '') + (isZero ? ' is-zero' : '');
+                        barEl.style.height = `${barHeight}px`;
+                        barEl.title = `${monthFull} ${this.selectedYear}: ${count} reporte${count === 1 ? '' : 's'}`;
+
+                        const labelEl = document.createElement('div');
+                        labelEl.className = 'v-month-label';
+                        labelEl.textContent = monthShort;
+
+                        col.appendChild(countEl);
+                        col.appendChild(barEl);
+                        col.appendChild(labelEl);
+                        container.appendChild(col);
+                    }
+                });
+            }
+
+            renderSourceChart(reportes) {
+                const list = reportes || this.allReportes || [];
+                const sourcesData = list
+                    .filter(r => r && r.reporte_json)
+                    .map(r => ({
+                        id: r.id,
+                        comoNosConociste: r.reporte_json.comoNosConociste,
+                        referidoSeleccionado: r.reporte_json.referidoSeleccionado
+                    }));
+                this.renderSourceChartFromSources(sourcesData);
+            }
+
+            groupReportesByPatient(reportes) {
+                const list = reportes || [];
+                const patientMap = new Map();
+                list.forEach(r => {
+                    let json = r.reporte_json;
+                    if (typeof json === 'string') {
+                        try { json = JSON.parse(json); } catch(e) { json = {}; }
+                    }
+                    const cc = (r.cedula || (json && (json.cc || json.cedula)) || '').toString().trim().toLowerCase();
+                    let key = '';
+                    if (cc && cc !== '-' && cc !== 'null' && cc !== 'undefined') {
+                        key = 'cc_' + cc;
+                    } else {
+                        const nom = `${r.nombre || (json && json.nombre) || ''} ${r.apellido || (json && json.apellido) || ''}`.trim().toLowerCase();
+                        if (nom && nom !== 'paciente sin nombre') {
+                            key = 'nom_' + nom;
+                        } else {
+                            key = 'id_' + (r.id || Math.random().toString());
+                        }
+                    }
+                    if (!patientMap.has(key)) {
+                        patientMap.set(key, []);
+                    }
+                    patientMap.get(key).push(r);
+                });
+                return Array.from(patientMap.values());
+            }
+
+            renderReportes(reportes) {
+                this.reportesContainer.innerHTML = '';
+                if (!reportes || reportes.length === 0) {
+                    this.reportesContainer.style.minHeight = 'auto';
+                    this.reportesContainer.innerHTML = '<div class="no-results">No se encontraron reportes con los filtros actuales</div>';
+                    if (this.paginationContainer) {
+                        this.paginationContainer.innerHTML = '';
+                        this.paginationContainer.style.display = 'none';
+                    }
+                    return;
+                }
+
+                const patientGroups = this.groupReportesByPatient(reportes);
+                const totalItems = patientGroups.length;
+                const itemsPerPage = this.itemsPerPage || 3;
+                const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+                // Mantener altura fija y estable del contenedor en pantallas mayores a 999px
+                // para que la paginación no salte ni se suba/baje entre páginas
+                if (window.innerWidth > 999) {
+                    const containerMinHeight = (itemsPerPage * 226) - 6;
+                    this.reportesContainer.style.minHeight = `${containerMinHeight}px`;
+                } else {
+                    this.reportesContainer.style.minHeight = 'auto';
+                }
+
+                if (this.currentPage > totalPages) this.currentPage = totalPages;
+                if (this.currentPage < 1) this.currentPage = 1;
+
+                const startIndex = (this.currentPage - 1) * itemsPerPage;
+                const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+                const pageGroups = patientGroups.slice(startIndex, endIndex);
+
+                pageGroups.forEach(group => {
+                    this.reportesContainer.appendChild(this.createPatientCard(group));
+                });
+
+                this.renderPagination(totalItems, totalPages, startIndex + 1, endIndex);
+            }
+
+            renderPagination(totalItems, totalPages, fromIndex, toIndex) {
+                if (!this.paginationContainer) return;
+
+                if (totalItems <= this.itemsPerPage) {
+                    this.paginationContainer.style.display = 'flex';
+                    this.paginationContainer.innerHTML = `
+                        <div class="pagination-info">Mostrando <b>${totalItems}</b> de <b>${totalItems}</b> pacientes</div>
+                        <div></div>
+                    `;
+                    return;
+                }
+
+                this.paginationContainer.style.display = 'flex';
+
+                const maxWindow = 5;
+                let startPage = Math.max(1, this.currentPage - Math.floor(maxWindow / 2));
+                let endPage = Math.min(totalPages, startPage + maxWindow - 1);
+                if (endPage - startPage + 1 < maxWindow) {
+                    startPage = Math.max(1, endPage - maxWindow + 1);
+                }
+
+                let pagesHtml = '';
+                for (let p = startPage; p <= endPage; p++) {
+                    const activeClass = p === this.currentPage ? ' active' : '';
+                    pagesHtml += `<button type="button" class="page-btn${activeClass}" data-page="${p}">${p}</button>`;
+                }
+
+                this.paginationContainer.innerHTML = `
+                    <div class="pagination-info">Mostrando <b>${fromIndex}–${toIndex}</b> de <b>${totalItems}</b> (Pág. ${this.currentPage}/${totalPages})</div>
+                    <div class="pagination-buttons">
+                        <button type="button" class="page-btn" data-page="1" ${this.currentPage === 1 ? 'disabled' : ''} title="Primera página">«</button>
+                        <button type="button" class="page-btn" data-page="${this.currentPage - 1}" ${this.currentPage === 1 ? 'disabled' : ''} title="Página anterior">‹</button>
+                        ${pagesHtml}
+                        <button type="button" class="page-btn" data-page="${this.currentPage + 1}" ${this.currentPage === totalPages ? 'disabled' : ''} title="Página siguiente">›</button>
+                        <button type="button" class="page-btn" data-page="${totalPages}" ${this.currentPage === totalPages ? 'disabled' : ''} title="Última página">»</button>
+                    </div>
+                `;
+
+                this.paginationContainer.querySelectorAll('.page-btn:not(:disabled)').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const targetPage = parseInt(btn.dataset.page);
+                        if (!isNaN(targetPage) && targetPage !== this.currentPage) {
+                            this.currentPage = targetPage;
+                            this.renderReportes(this.filteredReportes || this.allReportes);
+                            const rect = this.reportesContainer.getBoundingClientRect();
+                            if (rect.top < 0) {
+                                this.reportesContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                        }
+                    });
+                });
+            }
+
+            getTipoReporte(reporte) {
+                return reporte.tipo_reporte || 'pisada';
+            }
+
+            getTipoLabel(tipo) {
+                return tipo === 'piso_pelvico' ? 'Piso Pélvico' : 'Fisioterapia Deportiva';
+            }
+
+            getTipoColor(tipo) {
+                return tipo === 'piso_pelvico' ? '#8E24AA' : '#0A94B0';
+            }
+
+            formatFecha(fechaRaw) {
+                if (!fechaRaw) return '';
+                try {
+                    const d = new Date(fechaRaw);
+                    if (!isNaN(d.getTime())) {
+                        const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                        return `${d.getDate()} ${meses[d.getMonth()]} ${d.getFullYear()}`;
+                    }
+                } catch(e) {}
+                return '';
+            }
+
+            buildAtendidoHtml(reporte, tipoColor) {
+                const atendidoPor = this.getAtendidoPor(reporte);
+                let json = reporte.reporte_json;
+                if (typeof json === 'string') {
+                    try { json = JSON.parse(json); } catch(e) { json = {}; }
+                }
+                json = json || {};
+                const modificadoPor = reporte.modificado_por || json.modificado_por;
+                let modHtml = '';
+                if (modificadoPor) {
+                    modHtml = ` <span style="font-size: 0.72rem; color: #7f8c8d; font-weight: normal;" title="Última modificación por ${this.escapeHtml(modificadoPor)}">(Mod: ${this.escapeHtml(modificadoPor)})</span>`;
+                }
+
+                if (atendidoPor) {
+                    return `Atendido por: <strong style="color: ${tipoColor};">${this.escapeHtml(atendidoPor)}</strong>${modHtml}`;
+                } else {
+                    return `Atendido por: <span style="color: #95a5a6; font-style: italic;">No registrado</span>${modHtml}`;
+                }
+            }
+
+            buildReportBodyHtml(reporte, tipo) {
+                const isPelvico = tipo === 'piso_pelvico';
+                let json = reporte.reporte_json;
+                if (typeof json === 'string') {
+                    try { json = JSON.parse(json); } catch(e) { json = {}; }
+                }
+                json = json || {};
+
+                const peso = json.peso ? `${json.peso} kg` : (this.getPeso(reporte) !== null ? `${this.getPeso(reporte)} kg` : '');
+                const talla = json.talla ? `${json.talla} cm` : '';
+                const imc = json.imc ? `${json.imc}` : '';
+
+                if (!isPelvico) {
+                    // --- 1. FISIOTERAPIA DEPORTIVA ---
+                    let motivoHtml = '';
+                    if (json.motivoConsulta && json.motivoConsulta.trim()) {
+                        motivoHtml = `
+                            <div class="patient-block">
+                                <div class="patient-block-label">MOTIVO DE CONSULTA</div>
+                                <div class="patient-block-content" title="${this.escapeHtml(json.motivoConsulta.trim())}">${this.escapeHtml(json.motivoConsulta.trim())}</div>
+                            </div>
+                        `;
+                    }
+
+                    const metrics = [];
+                    if (json.escalaDolor) {
+                        metrics.push(`<span class="metric-chip chip-pain">⚡ Dolor: <strong>${this.escapeHtml(json.escalaDolor)}/10</strong></span>`);
+                    }
+                    if (json.localizacionDolor && json.localizacionDolor.trim()) {
+                        metrics.push(`<span class="metric-chip">📍 <strong>${this.escapeHtml(json.localizacionDolor.trim())}</strong></span>`);
+                    }
+                    if (peso) {
+                        metrics.push(`<span class="metric-chip">⚖️ Peso: <strong>${this.escapeHtml(peso)}</strong></span>`);
+                    }
+                    if (talla) {
+                        metrics.push(`<span class="metric-chip">📏 Talla: <strong>${this.escapeHtml(talla)}</strong></span>`);
+                    }
+                    if (imc) {
+                        metrics.push(`<span class="metric-chip">IMC: <strong>${this.escapeHtml(imc)}</strong></span>`);
+                    }
+
+                    const metricsHtml = metrics.length > 0 
+                        ? `<div class="metrics-chips-row">${metrics.join('')}</div>`
+                        : '';
+
+                    const sportParts = [];
+                    if (json.deporte && json.deporte.trim()) {
+                        sportParts.push(`⚽ <strong>${this.escapeHtml(json.deporte.trim())}</strong>`);
+                    }
+                    if (json.tiempoDeporte && json.tiempoDeporte.trim()) {
+                        sportParts.push(`${this.escapeHtml(json.tiempoDeporte.trim())}`);
+                    }
+                    if (json.rol && json.rol.trim()) {
+                        sportParts.push(`Rol: ${this.escapeHtml(json.rol.trim())}`);
+                    }
+
+                    let competenciaHtml = '';
+                    if (json.competencia && json.competencia.trim()) {
+                        competenciaHtml = `<div class="patient-competencia-row">🏆 <strong>Competencia en preparación:</strong> ${this.escapeHtml(json.competencia.trim())}</div>`;
+                    }
+
+                    let sportSectionHtml = '';
+                    if (sportParts.length > 0 || competenciaHtml) {
+                        sportSectionHtml = `
+                            <div class="patient-sport-section">
+                                ${sportParts.length > 0 ? `<div class="patient-sport-row">${sportParts.join(' · ')}</div>` : ''}
+                                ${competenciaHtml}
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        ${motivoHtml}
+                        ${metricsHtml}
+                        ${sportSectionHtml}
+                    `;
+                } else {
+                    // --- 2. PISO PÉLVICO ---
+                    let dxHtml = '';
+                    if (json.dxMedico && json.dxMedico.trim()) {
+                        dxHtml = `
+                            <div class="patient-block">
+                                <div class="patient-block-label">DX MÉDICO</div>
+                                <div class="patient-block-content" title="${this.escapeHtml(json.dxMedico.trim())}">${this.escapeHtml(json.dxMedico.trim())}</div>
+                            </div>
+                        `;
+                    }
+
+                    const metrics = [];
+                    if (peso) metrics.push(`<span class="metric-chip">⚖️ Peso: <strong>${this.escapeHtml(peso)}</strong></span>`);
+                    if (talla) metrics.push(`<span class="metric-chip">📏 Talla: <strong>${this.escapeHtml(talla)}</strong></span>`);
+                    if (imc) metrics.push(`<span class="metric-chip">IMC: <strong>${this.escapeHtml(imc)}</strong></span>`);
+                    if (json.cicloTerapia && json.cicloTerapia.trim()) {
+                        metrics.push(`<span class="metric-chip">🔄 Ciclo: <strong>${this.escapeHtml(json.cicloTerapia.trim())}</strong></span>`);
+                    }
+                    if (json.numSesiones && json.numSesiones.trim()) {
+                        metrics.push(`<span class="metric-chip">Sesiones: <strong>${this.escapeHtml(json.numSesiones.trim())}</strong></span>`);
+                    }
+                    if (json.frecuenciaSesiones && json.frecuenciaSesiones.trim()) {
+                        metrics.push(`<span class="metric-chip">📅 Frecuencia: <strong>${this.escapeHtml(json.frecuenciaSesiones.trim())}</strong></span>`);
+                    }
+
+                    const metricsHtml = metrics.length > 0
+                        ? `<div class="metrics-chips-row">${metrics.join('')}</div>`
+                        : '';
+
+                    const clinicalDetails = [];
+                    if (json.refiereDolor && json.refiereDolor.trim()) {
+                        clinicalDetails.push(`<div><strong>Refiere dolor / molestia:</strong> ${this.escapeHtml(json.refiereDolor.trim())}</div>`);
+                    }
+                    if (json.especialistaRemite && json.especialistaRemite.trim()) {
+                        clinicalDetails.push(`<div><strong>Especialista que remite:</strong> ${this.escapeHtml(json.especialistaRemite.trim())}</div>`);
+                    }
+                    if (json.expectativaPaciente && json.expectativaPaciente.trim()) {
+                        clinicalDetails.push(`<div><strong>Expectativa del paciente:</strong> ${this.escapeHtml(json.expectativaPaciente.trim())}</div>`);
+                    }
+
+                    const detailsHtml = clinicalDetails.length > 0
+                        ? `<div class="patient-details-list">${clinicalDetails.join('')}</div>`
+                        : '';
+
+                    const secIndicators = [];
+                    if (json.miccionesDia !== undefined && json.miccionesDia !== null && json.miccionesDia !== '') {
+                        secIndicators.push(`Micciones día: <strong>${this.escapeHtml(json.miccionesDia)}</strong>`);
+                    }
+                    if (json.miccionesNoche !== undefined && json.miccionesNoche !== null && json.miccionesNoche !== '') {
+                        secIndicators.push(`Noche: <strong>${this.escapeHtml(json.miccionesNoche)}</strong>`);
+                    }
+                    const deseoMicc = json.radioGroups?.deseoMiccional || json.deseoMiccional;
+                    if (deseoMicc) {
+                        secIndicators.push(`Deseo: <strong>${this.escapeHtml(deseoMicc)}</strong>`);
+                    }
+                    const hasIncont = (json.checkboxGroups?.formaMiccion && json.checkboxGroups.formaMiccion.includes('Incontinencia')) || json.incontinencia === 'Sí' || json.incontinencia === true;
+                    if (hasIncont) {
+                        secIndicators.push(`Incontinencia: <strong style="color: #c0392b;">Sí</strong>`);
+                    }
+                    if (json.defecacionesDia !== undefined && json.defecacionesDia !== null && json.defecacionesDia !== '') {
+                        secIndicators.push(`Defecaciones: <strong>${this.escapeHtml(json.defecacionesDia)}/día</strong>`);
+                    }
+                    if (json.escalaBristol && json.escalaBristol.trim()) {
+                        secIndicators.push(`Bristol: <strong>${this.escapeHtml(json.escalaBristol.trim())}</strong>`);
+                    }
+                    const obstetrics = [];
+                    if (json.numEmbarazos !== undefined && json.numEmbarazos !== null && json.numEmbarazos !== '') {
+                        obstetrics.push(`Embarazos: <strong>${this.escapeHtml(json.numEmbarazos)}</strong>`);
+                    }
+                    if (json.numPartos !== undefined && json.numPartos !== null && json.numPartos !== '') {
+                        obstetrics.push(`Partos: <strong>${this.escapeHtml(json.numPartos)}</strong>`);
+                    }
+                    if (json.numCesareas !== undefined && json.numCesareas !== null && json.numCesareas !== '') {
+                        obstetrics.push(`Cesáreas: <strong>${this.escapeHtml(json.numCesareas)}</strong>`);
+                    }
+                    if (obstetrics.length > 0) {
+                        secIndicators.push(obstetrics.join(' · '));
+                    }
+
+                    const secHtml = secIndicators.length > 0
+                        ? `
+                            <div class="patient-sec-indicators">
+                                <span class="patient-sec-label">Indicadores clínicos:</span>
+                                <div class="patient-sec-pills">
+                                    ${secIndicators.map(i => `<span class="sec-pill">${i}</span>`).join('')}
+                                </div>
+                            </div>
+                        `
+                        : '';
+
+                    return `
+                        ${dxHtml}
+                        ${metricsHtml}
+                        ${detailsHtml}
+                        ${secHtml}
+                    `;
+                }
+            }
+
+            createPatientCard(records) {
+                const list = Array.isArray(records) ? records : [records];
+                let activeIndex = 0;
+                let activeReport = list[activeIndex];
+                let activeTipo = this.getTipoReporte(activeReport);
+                let activeColor = this.getTipoColor(activeTipo);
+
+                let baseJson = activeReport.reporte_json;
+                if (typeof baseJson === 'string') {
+                    try { baseJson = JSON.parse(baseJson); } catch(e) { baseJson = {}; }
+                }
+                baseJson = baseJson || {};
+
+                // Find best patient name & cedula across records
+                let patientNombre = '';
+                let patientApellido = '';
+                let patientCedula = '';
+                for (const r of list) {
+                    let j = r.reporte_json;
+                    if (typeof j === 'string') { try { j = JSON.parse(j); } catch(e) { j = {}; } }
+                    j = j || {};
+                    if (!patientNombre && (r.nombre || j.nombre)) patientNombre = r.nombre || j.nombre;
+                    if (!patientApellido && (r.apellido || j.apellido)) patientApellido = r.apellido || j.apellido;
+                    if (!patientCedula && (r.cedula || j.cc || j.cedula)) patientCedula = r.cedula || j.cc || j.cedula;
+                }
+
+                const nombreCompleto = `${patientNombre} ${patientApellido}`.trim() || 'Paciente sin nombre';
+                const cedula = patientCedula || '-';
+                const edad = baseJson.edad ? `${baseJson.edad} años` : (this.getEdad(activeReport) !== null ? `${this.getEdad(activeReport)} años` : '');
+                const sexo = baseJson.sexo || this.getSexo(activeReport) || '';
+
+                const metaParts = [`<strong>CC:</strong> ${this.escapeHtml(cedula)}`];
+                if (edad) metaParts.push(this.escapeHtml(edad));
+                if (sexo) metaParts.push(this.escapeHtml(sexo));
+                const metaHtml = metaParts.join(' · ');
+
+                const card = document.createElement('div');
+                card.className = `reporte-card ${activeTipo === 'piso_pelvico' ? 'card-pelvico' : 'card-deportiva'}`;
+                card.style.borderLeftColor = activeColor;
+
+                // Badges / Tabs HTML
+                let badgesHtml = '';
+                if (list.length === 1) {
+                    const singleTipo = this.getTipoReporte(list[0]);
+                    const singleLabel = singleTipo === 'piso_pelvico' ? '🫀 Piso Pélvico' : '🏋️ Fisioterapia Deportiva';
+                    badgesHtml = `<span class="patient-type-badge" style="background: ${this.getTipoColor(singleTipo)};">${singleLabel}</span>`;
+                } else {
+                    const hasBoth = list.some(r => this.getTipoReporte(r) === 'pisada') && list.some(r => this.getTipoReporte(r) === 'piso_pelvico');
+                    badgesHtml = `
+                        <div class="patient-badges-group">
+                            ${list.map((r, idx) => {
+                                const rTipo = this.getTipoReporte(r);
+                                const isPelv = rTipo === 'piso_pelvico';
+                                const isActive = idx === activeIndex;
+                                let label = isPelv ? '🫀 Piso Pélvico' : '🏋️ Fisioterapia Deportiva';
+                                if (!hasBoth) {
+                                    const f = this.formatFecha(r.fecha_modificacion || r.fecha_creacion);
+                                    if (f) label += ` (${f})`;
+                                }
+                                const tabClass = isActive 
+                                    ? (isPelv ? 'tab-active-pelvico' : 'tab-active-deportiva')
+                                    : (isPelv ? 'tab-inactive-pelvico' : 'tab-inactive-deportiva');
+                                return `<button type="button" class="patient-type-badge patient-type-tab ${tabClass}" data-tab-idx="${idx}">${label}</button>`;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+
+                // Date
+                const fechaStr = this.formatFecha(activeReport.fecha_modificacion || activeReport.fecha_creacion);
+
+                // Footer Buttons
+                let footerButtonsHtml = '';
+                if (list.length === 1) {
+                    footerButtonsHtml = `<button type="button" class="open-btn ${activeTipo === 'piso_pelvico' ? 'open-btn-pelvico' : 'open-btn-deportiva'}" data-btn-idx="0">📄 Ver valoración</button>`;
+                } else {
+                    const hasBoth = list.some(r => this.getTipoReporte(r) === 'pisada') && list.some(r => this.getTipoReporte(r) === 'piso_pelvico');
+                    footerButtonsHtml = list.map((r, idx) => {
+                        const rTipo = this.getTipoReporte(r);
+                        const isPelv = rTipo === 'piso_pelvico';
+                        let btnText = isPelv ? '📄 Piso Pélvico' : '📄 Fisioterapia Deportiva';
+                        if (!hasBoth) {
+                            const f = this.formatFecha(r.fecha_modificacion || r.fecha_creacion);
+                            if (f) btnText += ` (${f})`;
+                        }
+                        const btnClass = isPelv ? 'open-btn-pelvico' : 'open-btn-deportiva';
+                        return `<button type="button" class="open-btn ${btnClass}" data-btn-idx="${idx}">${btnText}</button>`;
+                    }).join('');
+                }
+
+                card.innerHTML = `
+                    <div class="patient-card-header">
+                        <div class="patient-header-main">
+                            <div class="patient-name-row">
+                                <span class="patient-name">${this.escapeHtml(nombreCompleto)}</span>
+                                ${badgesHtml}
+                            </div>
+                            <div class="patient-atendido">${this.buildAtendidoHtml(activeReport, activeColor)}</div>
+                            <div class="patient-demographics">${metaHtml}</div>
+                        </div>
+                        <div class="patient-card-date" style="${fechaStr ? '' : 'display:none;'}">${fechaStr ? `📅 ${this.escapeHtml(fechaStr)}` : ''}</div>
+                    </div>
+                    <div class="patient-card-body">
+                        ${this.buildReportBodyHtml(activeReport, activeTipo)}
+                    </div>
+                    <div class="patient-card-footer">
+                        ${footerButtonsHtml}
+                    </div>
+                `;
+
+                // Interactive tab switching
+                if (list.length > 1) {
+                    const tabs = card.querySelectorAll('.patient-type-tab');
+                    tabs.forEach(tab => {
+                        tab.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const clickedIdx = parseInt(tab.dataset.tabIdx);
+                            if (clickedIdx === activeIndex) return;
+                            activeIndex = clickedIdx;
+                            activeReport = list[activeIndex];
+                            activeTipo = this.getTipoReporte(activeReport);
+                            activeColor = this.getTipoColor(activeTipo);
+
+                            // Card border & classes
+                            if (activeTipo === 'piso_pelvico') {
+                                card.classList.add('card-pelvico');
+                                card.classList.remove('card-deportiva');
+                            } else {
+                                card.classList.add('card-deportiva');
+                                card.classList.remove('card-pelvico');
+                            }
+                            card.style.borderLeftColor = activeColor;
+
+                            // Update tab styling
+                            tabs.forEach((t, i) => {
+                                const tTipo = this.getTipoReporte(list[i]);
+                                const tIsPelv = tTipo === 'piso_pelvico';
+                                t.className = `patient-type-badge patient-type-tab ${i === activeIndex 
+                                    ? (tIsPelv ? 'tab-active-pelvico' : 'tab-active-deportiva')
+                                    : (tIsPelv ? 'tab-inactive-pelvico' : 'tab-inactive-deportiva')}`;
+                            });
+
+                            // Update Atendido por
+                            const atendidoEl = card.querySelector('.patient-atendido');
+                            if (atendidoEl) {
+                                atendidoEl.innerHTML = this.buildAtendidoHtml(activeReport, activeColor);
+                            }
+
+                            // Update Date
+                            const dateEl = card.querySelector('.patient-card-date');
+                            if (dateEl) {
+                                const f = this.formatFecha(activeReport.fecha_modificacion || activeReport.fecha_creacion);
+                                dateEl.innerHTML = f ? `📅 ${this.escapeHtml(f)}` : '';
+                                dateEl.style.display = f ? 'inline-block' : 'none';
+                            }
+
+                            // Update summary body
+                            const bodyEl = card.querySelector('.patient-card-body');
+                            if (bodyEl) {
+                                bodyEl.innerHTML = this.buildReportBodyHtml(activeReport, activeTipo);
+                            }
+                        });
+                    });
+                }
+
+                // Attach click listeners to open buttons
+                card.querySelectorAll('.open-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const idx = parseInt(btn.dataset.btnIdx) || 0;
+                        const reportToOpen = list[idx] || activeReport;
+                        this.abrirReporte(reportToOpen, btn);
+                    });
+                });
+
+                return card;
+            }
+
+            parseAdjuntos(raw, tipoRaw) {
+                if (!raw) return [];
+                if (Array.isArray(raw)) return raw;
+                if (typeof raw === 'string') {
+                    try {
+                        const parsed = JSON.parse(raw);
+                        if (Array.isArray(parsed)) return parsed;
+                    } catch (err) {
+                        if (raw.startsWith('data:')) {
+                            return [{ nombre: 'adjunto', tipo: tipoRaw || 'application/octet-stream', data: raw }];
+                        }
+                    }
+                }
+                return [];
+            }
+
+            async abrirReporte(reporte, btnElement) {
+                const tipo = this.getTipoReporte(reporte);
+                const targetPage = tipo === 'piso_pelvico' ? 'reporte-piso-pelvico.html' : 'index.html';
+                
+                // Mostrar loading en el botón
+                const btn = btnElement || event?.target?.closest('button');
+                const origText = btn ? btn.textContent : '';
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = '⏳ Cargando...';
+                }
+
+                try {
+                    // Fetch reporte completo con reporte_json
+                    const reporteCompleto = await window.supabaseClient.getReporteById(reporte.id);
+                    let json = reporteCompleto.reporte_json;
+                    if (typeof json === 'string') {
+                        try { json = JSON.parse(json); } catch(e) { json = {}; }
+                    }
+                    const atendidoVal = reporteCompleto.atendido_por || json?.atendidoPor || json?.atendido_por || (tipo === 'piso_pelvico' ? 'Nataly' : '');
+                    const jsonToSave = {
+                        ...(json || {}),
+                        nombre: reporteCompleto.nombre || json?.nombre || '',
+                        apellido: reporteCompleto.apellido || json?.apellido || '',
+                        cc: reporteCompleto.cedula || json?.cc || '',
+                        atendidoPor: atendidoVal,
+                        atendido_por: atendidoVal
+                    };
+                    sessionStorage.setItem('reportToLoad', JSON.stringify(jsonToSave));
+                    const adjuntos = this.parseAdjuntos(reporteCompleto.archivo_adjunto, reporteCompleto.tipo_archivo_adjunto);
+                    if (adjuntos.length > 0) {
+                        sessionStorage.setItem('adjuntosToLoad', JSON.stringify(adjuntos));
+                    }
+                    setTimeout(() => { window.location.href = targetPage; }, 100);
+                } catch (error) {
+                    console.error('Error cargando reporte completo:', error);
+                    this.showError('Error al cargar el reporte: ' + error.message);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = origText || '📄 Ver valoración';
+                    }
+                }
+            }
+
+            showError(message) {
+                this.errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+                this.reportesContainer.innerHTML = '<div class="no-results">No se pudieron cargar los reportes</div>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new ReportesViewer();
+        });
+    </script>
+</body>
+</html>

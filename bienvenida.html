@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Médico - Sistema</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #003A5D 0%, #00C8D4 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .home-container {
+            max-width: 500px;
+            width: 100%;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 58, 93, 0.3);
+            overflow: hidden;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #003A5D 0%, #005073 100%);
+            color: white;
+            padding: 50px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .info-box {
+            background: #F7FBFD;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #00C8D4;
+            margin-bottom: 30px;
+            color: #666666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 16px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-new {
+            background: linear-gradient(135deg, #00C8D4 0%, #00a8c4 100%);
+            color: white;
+        }
+
+        .btn-new:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 200, 212, 0.3);
+        }
+
+        .btn-view {
+            background: linear-gradient(135deg, #003A5D 0%, #005073 100%);
+            color: white;
+        }
+
+        .btn-view:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 58, 93, 0.3);
+        }
+
+        .footer {
+            background: #F7FBFD;
+            padding: 20px;
+            text-align: center;
+            color: #999999;
+            font-size: 12px;
+            border-top: 1px solid #E8F4F8;
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+
+        .user-info {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .user-info img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 40px 20px;
+            }
+
+            .header h1 {
+                font-size: 28px;
+            }
+
+            .content {
+                padding: 30px 20px;
+            }
+
+            .btn {
+                font-size: 14px;
+            }
+        }
+    </style>
+    <script src="env-config.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth-guard.js"></script>
+    <script>
+        // Proteger página: verificar que esté logueado
+        window.addEventListener('load', () => {
+            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+            if (isLoggedIn) {
+                // Mostrar info del usuario
+                const userName = sessionStorage.getItem('userName');
+                const userPicture = sessionStorage.getItem('userPicture');
+                const userInfoDiv = document.getElementById('userInfo');
+                
+                if (userInfoDiv && userName) {
+                    let html = `<span>${userName}</span>`;
+                    if (userPicture) {
+                        html = `<img src="${userPicture}" alt="Avatar"> ${html}`;
+                    }
+                    userInfoDiv.innerHTML = html;
+                }
+
+                // Preload reportes data in background
+                preloadReportesData();
+            }
+        });
+
+        async function preloadReportesData() {
+            // Wait for Supabase to be ready
+            let attempts = 0;
+            while ((!window.supabaseClient || !window.supabaseClient.supabase) && attempts < 20) {
+                await new Promise(resolve => setTimeout(resolve, 250));
+                attempts++;
+            }
+            if (!window.supabaseClient || !window.supabaseClient.supabase) {
+                console.log('Preload: Supabase no disponible');
+                return;
+            }
+
+            try {
+                // Precargar lista de reportes en segundo plano (sin archivo_adjunto masivo)
+                const data = await window.supabaseClient.getAllReportes();
+                if (data && data.length > 0) {
+                    try {
+                        const cache = { data, timestamp: Date.now() };
+                        localStorage.setItem('preloadedReportes', JSON.stringify(cache));
+                        console.log('✓ Preloaded', data.length, 'reportes in background (localStorage, 30min TTL)');
+                    } catch (quotaErr) {
+                        console.warn('Preload: No se pudo guardar en localStorage (cuota):', quotaErr.message);
+                    }
+                }
+            } catch (error) {
+                console.log('Preload error:', error.message);
+            }
+        }
+    </script>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+    <div class="home-container">
+        <div class="header">
+            <h1>Reporte Médico</h1>
+            <p>Sistema de Gestión de Reportes</p>
+        </div>
+
+        <div class="content">
+            <div class="user-info" id="userInfo"></div>
+            
+            <div class="info-box">
+                Selecciona una opción para continuar. Todos tus reportes se guardan automáticamente en el sistema.
+            </div>
+
+            <div class="buttons">
+                <a href="index.html" class="btn btn-new">
+                    👣 Valoración por Fisioterapia Deportiva
+                </a>
+                <a href="reporte-piso-pelvico.html" class="btn btn-new" style="background: linear-gradient(135deg, #087D94 0%, #0A94B0 100%);">
+                    🫀 Reporte de Piso Pélvico
+                </a>
+                <a href="ver-reportes.html" class="btn btn-view" style="background: linear-gradient(135deg, #0A94B0 0%, #087D94 100%);">
+                    📊 Reportes y Estadísticas
+                </a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© KinetiqSports - Reporte Médico Digital</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# Ignorar archivos con secrets
+.env
+.env.local
+.env.*.local
+
+# Generado por Vercel desde variables de entorno
+env-config.js
+
+# Carpetas de build
+node_modules/
+build/
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

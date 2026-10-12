@@ -1,0 +1,16 @@
+{
+  "buildCommand": "node -e \"const fs=require('fs');fs.writeFileSync('env-config.js','window.SUPABASE_ANON_KEY='+JSON.stringify(process.env.SUPABASE_ANON_KEY||'')+';\\nwindow.GOOGLE_CLIENT_ID='+JSON.stringify(process.env.GOOGLE_CLIENT_ID||'')+';\\nconsole.log(\\\"env-config loaded\\\");')\"",
+  "outputDirectory": ".",
+  "framework": null,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+      ]
+    }
+  ]
+}

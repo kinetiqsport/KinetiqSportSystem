@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Piso Pélvico - KinetiqSports</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles-piso-pelvico.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth-guard.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="kinetiq_logo.png" alt="Logo Kinetiq" class="logo">
+                </div>
+                <div class="title-section">
+                    <h1 class="main-title">Reporte de<br><span class="line2">Piso Pélvico</span></h1>
+                </div>
+                <div class="date-section">
+                    <div class="info-row">📅 <span class="report-date" id="reportDate"></span></div>
+                    <div class="info-row">👤 <span id="patientName">Paciente</span></div>
+                    <div class="info-row">🏠 <a href="bienvenida.html">Inicio</a></div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <form id="reportForm" class="form-container">
+
+                <!-- SECCIÓN 1: DATOS GENERALES -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>DATOS GENERALES</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="nombre">Nombre:</label>
+                                <input type="text" id="nombre" name="nombre" class="form-control" placeholder="Ingrese nombre">
+                            </div>
+                            <div class="form-group">
+                                <label for="apellido">Apellido:</label>
+                                <input type="text" id="apellido" name="apellido" class="form-control" placeholder="Ingrese apellido">
+                            </div>
+                        </div>
+                        <div class="form-grid-4">
+                            <div class="form-group">
+                                <label for="edad">Edad:</label>
+                                <input type="number" id="edad" name="edad" class="form-control" min="0" max="120" placeholder="años">
+                            </div>
+                            <div class="form-group">
+                                <label for="peso">Peso (kg):</label>
+                                <input type="number" id="peso" name="peso" class="form-control" min="20" step="0.1" placeholder="kg">
+                            </div>
+                            <div class="form-group">
+                                <label for="sexo">Sexo:</label>
+                                <select id="sexo" name="sexo" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Femenino">Femenino</option>
+                                    <option value="Masculino">Masculino</option>
+                                    <option value="No especificado">No especificado</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cc">CC:</label>
+                                <input type="text" id="cc" name="cc" class="form-control" placeholder="Cédula">
+                            </div>
+                        </div>
+                        <div class="form-grid-4">
+                            <div class="form-group">
+                                <label for="talla">Talla (cm):</label>
+                                <input type="number" id="talla" name="talla" class="form-control" min="50" step="0.1" placeholder="cm">
+                            </div>
+                            <div class="form-group">
+                                <label for="imc">IMC:</label>
+                                <input type="number" id="imc" name="imc" class="form-control" readonly placeholder="Cálculo automático">
+                            </div>
+                            <div class="form-group">
+                                <label for="celular">Celular:</label>
+                                <input type="tel" id="celular" name="celular" class="form-control" placeholder="10 dígitos">
+                            </div>
+                            <div class="form-group">
+                                <label for="ocupacion">Ocupación:</label>
+                                <input type="text" id="ocupacion" name="ocupacion" class="form-control" placeholder="Ej. Ingeniero">
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="atendidoPor">Atendido por:</label>
+                                <select id="atendidoPor" name="atendidoPor" class="form-control" style="background-color: #f8fafc; font-weight: 600; color: #6A1B9A; pointer-events: none; cursor: default;" tabindex="-1" title="En piso pélvico la atención es realizada por Nataly">
+                                    <option value="Nataly" selected>Nataly</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="comoNosConociste">¿Cómo nos conociste? *</label>
+                                <select id="comoNosConociste" name="comoNosConociste" class="form-control" required>
+                                    <option value="">Seleccione...</option>
+                                    <option value="redes_sociales">Redes sociales</option>
+                                    <option value="charlas_informativas">Charlas informativas</option>
+                                    <option value="referido_por">Referido por</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="referidoContainer" style="display: none;">
+                                <label for="referidoSeleccionado">Referido por:</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <select id="referidoSeleccionado" name="referidoSeleccionado" class="form-control" style="flex: 1;">
+                                        <option value="">Cargando referidos...</option>
+                                    </select>
+                                    <button type="button" id="btnAbrirReferidos" class="btn-icon" title="Gestionar referidos" style="padding: 0 16px; background: #0A94B0; color: white; border: none; border-radius: 6px; cursor: pointer;">⚙️</button>
+                                </div>
+                            </div>
+                            <div class="form-group" id="otroComoNosConocisteContainer" style="display: none;">
+                                <label for="otroComoNosConociste">Especificar:</label>
+                                <input type="text" id="otroComoNosConociste" name="otroComoNosConociste" class="form-control" placeholder="¿Cómo nos conociste?">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 2: ANAMNESIS -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>ANAMNESIS</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="acompanante">Paciente ingresa en compañía de:</label>
+                                <input type="text" id="acompanante" class="form-control" placeholder="Ej. su esposo, su madre, solo">
+                            </div>
+                            <div class="form-group">
+                                <label for="dxMedico">Dx Médico:</label>
+                                <input type="text" id="dxMedico" class="form-control" placeholder="Diagnóstico médico">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="refiereDolor">Refiere dolor / molestia:</label>
+                            <textarea id="refiereDolor" class="form-control textarea" rows="3" placeholder="Describa el dolor o molestia por la cual consulta..."></textarea>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="especialistaRemite">Especialista que remite:</label>
+                                <input type="text" id="especialistaRemite" class="form-control" placeholder="Ginecólogo / Urólogo">
+                            </div>
+                            <div class="form-group">
+                                <label for="cicloTerapia">Ciclo de terapia:</label>
+                                <input type="text" id="cicloTerapia" class="form-control" placeholder="Ej. 10 sesiones">
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="medicamentos">Medicamentos:</label>
+                                <input type="text" id="medicamentos" class="form-control" placeholder="Medicamentos actuales">
+                            </div>
+                            <div class="form-group">
+                                <label for="examenesComplementarios">Exámenes complementarios:</label>
+                                <input type="text" id="examenesComplementarios" class="form-control" placeholder="Ej. Ecografía pélvica">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Barreras:</label>
+                            <div class="checkbox-group" id="barreras">
+                                <label class="checkbox-label"><input type="checkbox" name="barreras" value="Ansiedad"> Ansiedad</label>
+                                <label class="checkbox-label"><input type="checkbox" name="barreras" value="Depresión"> Depresión</label>
+                                <label class="checkbox-label"><input type="checkbox" name="barreras" value="Estreñimiento"> Estreñimiento</label>
+                                <label class="checkbox-label"><input type="checkbox" name="barreras" value="Hemorroides"> Hemorroides</label>
+                                <label class="checkbox-label"><input type="checkbox" name="barreras" value="Obesidad"> Obesidad</label>
+                                <label class="checkbox-label"><input type="checkbox" name="barreras" value="Otra"> <input type="text" id="barreraOtra" class="form-control-inline" placeholder="Otra..."></label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Facilitadores:</label>
+                            <div class="checkbox-group" id="facilitadores">
+                                <label class="checkbox-label"><input type="checkbox" name="facilitadores" value="Activa físicamente"> Activa físicamente</label>
+                                <label class="checkbox-label"><input type="checkbox" name="facilitadores" value="Buena alimentación"> Buena alimentación</label>
+                                <label class="checkbox-label"><input type="checkbox" name="facilitadores" value="Apoyo familiar"> Apoyo familiar</label>
+                                <label class="checkbox-label"><input type="checkbox" name="facilitadores" value="Actitud positiva"> Actitud positiva</label>
+                                <label class="checkbox-label"><input type="checkbox" name="facilitadores" value="Otra"> <input type="text" id="facilitadorOtra" class="form-control-inline" placeholder="Otra..."></label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="expectativaPaciente">Expectativa del paciente:</label>
+                            <textarea id="expectativaPaciente" class="form-control textarea" rows="2" placeholder="Expectativas del paciente..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 3: ANTECEDENTES OCUPACIONALES -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>ANTECEDENTES OCUPACIONALES</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="desempenoLaboral">Se desempeña como:</label>
+                            <input type="text" id="desempenoLaboral" class="form-control" placeholder="Ocupación / cargo">
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="tipoTrabajo">Tipo de trabajo:</label>
+                                <select id="tipoTrabajo" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Presencial">Presencial</option>
+                                    <option value="Remoto">Remoto</option>
+                                    <option value="Híbrido">Híbrido</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="puestoErgonomico">Puesto de trabajo ergonómico:</label>
+                                <select id="puestoErgonomico" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                    <option value="Parcialmente">Parcialmente</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="pausasActivas">Realiza pausas activas cada:</label>
+                                <input type="text" id="pausasActivas" class="form-control" placeholder="Ej. 2 horas">
+                            </div>
+                            <div class="form-group">
+                                <label for="actividadFisicaLaboral">Actividad física:</label>
+                                <input type="text" id="actividadFisicaLaboral" class="form-control" placeholder="Ej. 3 veces por semana">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Hábitos alimenticios:</label>
+                            <div class="checkbox-group" id="habitosAlimenticios">
+                                <label class="checkbox-label"><input type="checkbox" name="habitosAlimenticios" value="Agua"> Consumo agua</label>
+                                <label class="checkbox-label"><input type="checkbox" name="habitosAlimenticios" value="Energizantes"> Energizantes</label>
+                                <label class="checkbox-label"><input type="checkbox" name="habitosAlimenticios" value="Gaseosas"> Gaseosas</label>
+                                <label class="checkbox-label"><input type="checkbox" name="habitosAlimenticios" value="Te o cafeína"> Té o cafeína</label>
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="consumoCigarrillo">Consumo de cigarrillo:</label>
+                                <select id="consumoCigarrillo" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                    <option value="Ocasional">Ocasional</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="consumoAlcohol">Consumo de alcohol:</label>
+                                <select id="consumoAlcohol" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="No">No</option>
+                                    <option value="Ocasional">Ocasional</option>
+                                    <option value="Frecuente">Frecuente</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 4: DINÁMICA MICCIONAL -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>DINÁMICA MICCIONAL</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="usoProtector">Uso de protector íntimo:</label>
+                                <select id="usoProtector" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                    <option value="Ocasional">Ocasional</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="tipoRopaInterior">Tipo de ropa interior:</label>
+                                <input type="text" id="tipoRopaInterior" class="form-control" placeholder="Ej. Algodón, sintético">
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="miccionesDia">Número de micciones en el día:</label>
+                                <input type="number" id="miccionesDia" class="form-control" min="0" max="30">
+                            </div>
+                            <div class="form-group">
+                                <label for="miccionesNoche">Número de micciones en la noche:</label>
+                                <input type="number" id="miccionesNoche" class="form-control" min="0" max="20">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Deseo miccional:</label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="deseoMiccional" value="Normal"> Normal</label>
+                                <label class="radio-label"><input type="radio" name="deseoMiccional" value="Urgente"> Urgente</label>
+                                <label class="radio-label"><input type="radio" name="deseoMiccional" value="Doloroso"> Doloroso</label>
+                                <label class="radio-label"><input type="radio" name="deseoMiccional" value="Irritativo"> Irritativo</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Postura miccional:</label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="posturaMiccional" value="Sedente"> Sedente</label>
+                                <label class="radio-label"><input type="radio" name="posturaMiccional" value="Bípedo"> Bípedo</label>
+                                <label class="radio-label"><input type="radio" name="posturaMiccional" value="Sedestación Vertical"> Sedestación Vertical</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label><input type="checkbox" id="hiperpresiva" value="Hiperpresiva"> Hiperpresiva</label>
+                        </div>
+                        <div class="form-group">
+                            <label>Forma de micción:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="formaMiccion" value="Constante"> Constante</label>
+                                <label class="checkbox-label"><input type="checkbox" name="formaMiccion" value="Cortada"> Cortada</label>
+                                <label class="checkbox-label"><input type="checkbox" name="formaMiccion" value="Lateralizada"> Lateralizada</label>
+                                <label class="checkbox-label"><input type="checkbox" name="formaMiccion" value="Aspersor"> Aspersor</label>
+                                <label class="checkbox-label"><input type="checkbox" name="formaMiccion" value="Bifurcada"> Bifurcada</label>
+                                <label class="checkbox-label"><input type="checkbox" name="formaMiccion" value="Débil"> Débil</label>
+                                <label class="checkbox-label"><input type="checkbox" name="formaMiccion" value="Pujo inicio"> Pujo para inicio de micción</label>
+                                <label class="checkbox-label"><input type="checkbox" name="formaMiccion" value="Pujo final"> Pujo para finalizar micción</label>
+                                <label class="checkbox-label"><input type="checkbox" name="formaMiccion" value="Incontinencia"> Incontinencia</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="dificultadMiccional">Dificultad:</label>
+                            <textarea id="dificultadMiccional" class="form-control textarea" rows="2" placeholder="Describa la dificultad..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Alteración / Mapa de dolor:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="dolorMiccional" value="Uretra"> Uretra</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorMiccional" value="Introito Vagina"> Introito Vagina</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorMiccional" value="Pubis"> Pubis</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorMiccional" value="Abdomen"> Abdomen</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorMiccional" value="Vulva"> Vulva</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorMiccional" value="Pene"> Pene</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorMiccional" value="Testículo"> Testículo</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorMiccional" value="Periné"> Periné</label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 5: DINÁMICA DEFECATORIA -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>DINÁMICA DEFECATORIA</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="defecacionesDia">Número de defecaciones en el día:</label>
+                                <input type="number" id="defecacionesDia" class="form-control" min="0" max="20">
+                            </div>
+                            <div class="form-group">
+                                <label for="defecacionesNoche">Número de defecaciones en la noche:</label>
+                                <input type="number" id="defecacionesNoche" class="form-control" min="0" max="10">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Deseo defecatorio:</label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="deseoDefecatorio" value="Normal"> Normal</label>
+                                <label class="radio-label"><input type="radio" name="deseoDefecatorio" value="Urgente"> Urgente</label>
+                                <label class="radio-label"><input type="radio" name="deseoDefecatorio" value="Ausente"> Ausente</label>
+                                <label class="radio-label"><input type="radio" name="deseoDefecatorio" value="Irritativo"> Irritativo</label>
+                                <label class="radio-label"><input type="radio" name="deseoDefecatorio" value="Doloroso"> Doloroso</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Postura defecatoria:</label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="posturaDefecatoria" value="Sedestación vertical"> Sedestación vertical</label>
+                                <label class="radio-label"><input type="radio" name="posturaDefecatoria" value="Inclinación hacia adelante"> Inclinación hacia adelante</label>
+                                <label class="radio-label"><input type="radio" name="posturaDefecatoria" value="Cuclillas"> Cuclillas</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Forma de defecación:</label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="formaDefecacion" value="Hiperpresiva"> Hiperpresiva</label>
+                                <label class="radio-label"><input type="radio" name="formaDefecacion" value="Normal"> Normal</label>
+                                <label class="radio-label"><input type="radio" name="formaDefecacion" value="Dolorosa"> Dolorosa</label>
+                                <label class="radio-label"><input type="radio" name="formaDefecacion" value="Cortada"> Cortada</label>
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="vaciadoIncompleto">Sensación de vaciado incompleto:</label>
+                                <select id="vaciadoIncompleto" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cierraAno">Cierra el ano antes de que cierre el vaciado:</label>
+                                <select id="cierraAno" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de dolor:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="tipoDolorDef" value="Local"> Local</label>
+                                <label class="checkbox-label"><input type="checkbox" name="tipoDolorDef" value="Irradiado"> Irradiado</label>
+                                <label class="checkbox-label"><input type="checkbox" name="tipoDolorDef" value="Lacerante"> Lacerante</label>
+                                <label class="checkbox-label"><input type="checkbox" name="tipoDolorDef" value="Ardiente"> Ardiente</label>
+                                <label class="checkbox-label"><input type="checkbox" name="tipoDolorDef" value="Dolor hemorroidal"> Dolor hemorroidal</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Localización del dolor:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="localizacionDolor" value="Ano"> Ano</label>
+                                <label class="checkbox-label"><input type="checkbox" name="localizacionDolor" value="Abdomen"> Abdomen</label>
+                                <label class="checkbox-label"><input type="checkbox" name="localizacionDolor" value="Periné"> Periné</label>
+                                <label class="checkbox-label"><input type="checkbox" name="localizacionDolor" value="Coxis"> Coxis</label>
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="escalaBristol">Escala de Bristol:</label>
+                                <select id="escalaBristol" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Tipo 1">Tipo 1 - Bolitas separadas</option>
+                                    <option value="Tipo 2">Tipo 2 - Forma de salchicha grumosa</option>
+                                    <option value="Tipo 3">Tipo 3 - Forma de salchicha con grietas</option>
+                                    <option value="Tipo 4">Tipo 4 - Forma de salchicha lisa</option>
+                                    <option value="Tipo 5">Tipo 5 - Fragmentos blandos</option>
+                                    <option value="Tipo 6">Tipo 6 - Fragmentos pastosos</option>
+                                    <option value="Tipo 7">Tipo 7 - Líquida</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="gases">Gases:</label>
+                                <select id="gases" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Ausentes">Ausentes</option>
+                                    <option value="Pocos">Pocos</option>
+                                    <option value="Esporádicos">Esporádicos</option>
+                                    <option value="Diarios">Diarios</option>
+                                    <option value="Frecuentes">Frecuentes</option>
+                                    <option value="Constantes">Constantes</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 6: DINÁMICA OBSTETRA -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>DINÁMICA OBSTETRA</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-grid-4">
+                            <div class="form-group">
+                                <label for="numEmbarazos">N° de embarazos:</label>
+                                <input type="number" id="numEmbarazos" class="form-control" min="0" max="20">
+                            </div>
+                            <div class="form-group">
+                                <label for="pesoAntesEmbarazo">Peso antes del embarazo (kg):</label>
+                                <input type="number" id="pesoAntesEmbarazo" class="form-control" min="20" step="0.1" placeholder="kg">
+                            </div>
+                            <div class="form-group">
+                                <label for="pesoDespuesEmbarazo">Peso después del embarazo (kg):</label>
+                                <input type="number" id="pesoDespuesEmbarazo" class="form-control" min="20" step="0.1" placeholder="kg">
+                            </div>
+                            <div class="form-group">
+                                <label for="numPartos">N° de partos:</label>
+                                <input type="number" id="numPartos" class="form-control" min="0" max="20">
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="numCesareas">N° de cesáreas:</label>
+                                <input type="number" id="numCesareas" class="form-control" min="0" max="20">
+                            </div>
+                            <div class="form-group">
+                                <label for="complicacionesObstetricas">Complicaciones obstétricas:</label>
+                                <textarea id="complicacionesObstetricas" class="form-control textarea" rows="2" placeholder="Describa complicaciones..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 7: DINÁMICA MENSTRUAL -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>DINÁMICA MENSTRUAL</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-grid-4">
+                            <div class="form-group">
+                                <label for="edadMenarquia">Edad de menarquia:</label>
+                                <input type="number" id="edadMenarquia" class="form-control" min="8" max="20">
+                            </div>
+                            <div class="form-group">
+                                <label for="edadMenopausia">Edad de menopausia:</label>
+                                <input type="number" id="edadMenopausia" class="form-control" min="30" max="70">
+                            </div>
+                            <div class="form-group">
+                                <label for="diasMenstruacion">Días de menstruación:</label>
+                                <input type="number" id="diasMenstruacion" class="form-control" min="1" max="15">
+                            </div>
+                            <div class="form-group">
+                                <label for="intervaloPeriodo">Intervalo entre periodos (días):</label>
+                                <input type="number" id="intervaloPeriodo" class="form-control" min="15" max="90">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Característica del sangrado:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="caractSangrado" value="Fluido"> Fluido</label>
+                                <label class="checkbox-label"><input type="checkbox" name="caractSangrado" value="Coágulo"> Coágulo</label>
+                                <label class="checkbox-label"><input type="checkbox" name="caractSangrado" value="Olor a sangre"> Olor a sangre</label>
+                                <label class="checkbox-label"><input type="checkbox" name="caractSangrado" value="Espeso"> Espeso</label>
+                                <label class="checkbox-label"><input type="checkbox" name="caractSangrado" value="Oxidado"> Oxidado</label>
+                                <label class="checkbox-label"><input type="checkbox" name="caractSangrado" value="Entrecortado"> Entrecortado</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Dolor durante el periodo menstrual:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="dolorMenstrual" value="Todos los días"> Todos los días</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorMenstrual" value="Síndrome ovulatorio"> Síndrome ovulatorio</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorMenstrual" value="Síndrome premenstrual"> Síndrome premenstrual</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de anticonceptivo:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="anticonceptivo" value="Píldora"> Píldora</label>
+                                <label class="checkbox-label"><input type="checkbox" name="anticonceptivo" value="Preservativo"> Preservativo</label>
+                                <label class="checkbox-label"><input type="checkbox" name="anticonceptivo" value="Diafragma"> Diafragma</label>
+                                <label class="checkbox-label"><input type="checkbox" name="anticonceptivo" value="DIU"> DIU</label>
+                                <label class="checkbox-label"><input type="checkbox" name="anticonceptivo" value="Parches"> Parches</label>
+                                <label class="checkbox-label"><input type="checkbox" name="anticonceptivo" value="Anillo vaginal"> Anillo vaginal</label>
+                                <label class="checkbox-label"><input type="checkbox" name="anticonceptivo" value="Ninguno"> Ninguno</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="observacionesMenstruales">Observaciones:</label>
+                            <textarea id="observacionesMenstruales" class="form-control textarea" rows="2" placeholder="Observaciones adicionales..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 8: DINÁMICA SEXUAL -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>DINÁMICA SEXUAL</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label>Lubricación:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="lubricacion" value="Líquido blanquecino"> Líquido blanquecino</label>
+                                <label class="checkbox-label"><input type="checkbox" name="lubricacion" value="Mal olor"> Mal olor</label>
+                                <label class="checkbox-label"><input type="checkbox" name="lubricacion" value="Ausente"> Ausente</label>
+                                <label class="checkbox-label"><input type="checkbox" name="lubricacion" value="Densa granulada"> Densa granulada</label>
+                                <label class="checkbox-label"><input type="checkbox" name="lubricacion" value="Adecuada"> Adecuada</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Orgasmos:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="orgasmos" value="Ausentes"> Ausentes</label>
+                                <label class="checkbox-label"><input type="checkbox" name="orgasmos" value="Orgasmo múltiple"> Orgasmo múltiple</label>
+                                <label class="checkbox-label"><input type="checkbox" name="orgasmos" value="Doloroso"> Doloroso</label>
+                                <label class="checkbox-label"><input type="checkbox" name="orgasmos" value="Orgasmo único"> Orgasmo único</label>
+                                <label class="checkbox-label"><input type="checkbox" name="orgasmos" value="Corto"> Corto</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Eyaculación:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="eyaculacion" value="Nunca"> Nunca</label>
+                                <label class="checkbox-label"><input type="checkbox" name="eyaculacion" value="Impulsiva"> Impulsiva</label>
+                                <label class="checkbox-label"><input type="checkbox" name="eyaculacion" value="No controlada"> No controlada</label>
+                                <label class="checkbox-label"><input type="checkbox" name="eyaculacion" value="Orina en la eyaculación"> Orina en la eyaculación</label>
+                                <label class="checkbox-label"><input type="checkbox" name="eyaculacion" value="Retrasada"> Retrasada</label>
+                                <label class="checkbox-label"><input type="checkbox" name="eyaculacion" value="Rápida"> Rápida</label>
+                                <label class="checkbox-label"><input type="checkbox" name="eyaculacion" value="Babeante"> Babeante</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Disfunción orgásmica:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="disfuncionOrganica" value="No siente"> No siente</label>
+                                <label class="checkbox-label"><input type="checkbox" name="disfuncionOrganica" value="Excitación sin resolución"> Excitación sin resolución</label>
+                                <label class="checkbox-label"><input type="checkbox" name="disfuncionOrganica" value="No excitación y no resolución"> No excitación y no resolución</label>
+                                <label class="checkbox-label"><input type="checkbox" name="disfuncionOrganica" value="Dolor que inhibe el orgasmo"> Dolor que inhibe el orgasmo</label>
+                                <label class="checkbox-label"><input type="checkbox" name="disfuncionOrganica" value="No se logra el clímax"> No se logra el clímax</label>
+                                <label class="checkbox-label"><input type="checkbox" name="disfuncionOrganica" value="Rigidez"> Rigidez</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de relación y dinámica sexual con la pareja:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Conflicto"> Conflicto</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Falta de libido"> Falta de libido</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Promiscuo"> Promiscuo</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Sin pareja"> Sin pareja</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Pareja a distancia"> Pareja a distancia</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Masturbación propia"> Masturbación propia</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Oral"> Oral</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Vaginal"> Vaginal</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Anal"> Anal</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Tántrico"> Tántrico</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Bisexual"> Bisexual</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Heterosexual"> Heterosexual</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dinamicaSexual" value="Homosexual"> Homosexual</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Alteración sensitiva:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="alteracionSensitiva" value="Dispareunia"> Dispareunia</label>
+                                <label class="checkbox-label"><input type="checkbox" name="alteracionSensitiva" value="Alodinia"> Alodinia</label>
+                                <label class="checkbox-label"><input type="checkbox" name="alteracionSensitiva" value="Hiperalgesia"> Hiperalgesia</label>
+                                <label class="checkbox-label"><input type="checkbox" name="alteracionSensitiva" value="Ardor"> Ardor</label>
+                                <label class="checkbox-label"><input type="checkbox" name="alteracionSensitiva" value="Picazón"> Picazón</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Dolor a la penetración:</label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="dolorPenetracion" value="No cede con la penetración"> No cede con la penetración</label>
+                                <label class="radio-label"><input type="radio" name="dolorPenetracion" value="Cede progresivamente"> Cede progresivamente</label>
+                                <label class="radio-label"><input type="radio" name="dolorPenetracion" value="Dolor que imposibilita la penetración inicial"> Dolor que imposibilita la penetración inicial</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Dolor al fondo de la penetración:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="dolorFondo" value="Dolor a la penetración profunda"> Dolor a la penetración profunda</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorFondo" value="Dolor irradiado a los ovarios"> Dolor irradiado a los ovarios</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorFondo" value="Dolor profundo según la postura"> Dolor profundo según la postura</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorFondo" value="Dolor abdominal"> Dolor abdominal</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Dolor irradiado a:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="dolorIrradiado" value="Vejiga"> Vejiga</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorIrradiado" value="Vulva"> Vulva</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorIrradiado" value="Perineal completo"> Perineal completo</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorIrradiado" value="Uretra arde tras relaciones"> Uretra arde tras relaciones</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorIrradiado" value="Irradiación hacia los testículos"> Irradiación hacia los testículos</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorIrradiado" value="Dolor clitoriano"> Dolor clitoriano</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorIrradiado" value="Vejiga hiperactiva tras relaciones"> Vejiga hiperactiva tras relaciones</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorIrradiado" value="Irradiación hacia el ano"> Irradiación hacia el ano</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorIrradiado" value="Dolor en el glande del pene"> Dolor en el glande del pene</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Vaginismo:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="vaginismo" value="Conflicto central somatizado"> Conflicto central somatizado</label>
+                                <label class="checkbox-label"><input type="checkbox" name="vaginismo" value="Vaginismo secundario"> Vaginismo secundario</label>
+                                <label class="checkbox-label"><input type="checkbox" name="vaginismo" value="Vaginismo primario"> Vaginismo primario</label>
+                                <label class="checkbox-label"><input type="checkbox" name="vaginismo" value="Hiperactividad vaginal post-traumatismos obstétrico"> Hiperactividad vaginal post-traumatismos obstétrico</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Dolor peneal / testicular:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" name="dolorPeneal" value="Localizado"> Localizado</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorPeneal" value="Irradiado"> Irradiado</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorPeneal" value="Asociado a orgasmo"> Asociado a orgasmo</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorPeneal" value="Imposibilita las relaciones"> Imposibilita las relaciones</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorPeneal" value="Asociado a excitación"> Asociado a excitación</label>
+                                <label class="checkbox-label"><input type="checkbox" name="dolorPeneal" value="Tras las relaciones"> Tras las relaciones</label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 9: ESTADO DEL PACIENTE -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>ESTADO DEL PACIENTE</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="estadoPaciente">Valoración general:</label>
+                            <textarea id="estadoPaciente" class="form-control textarea" rows="5" placeholder="Patrón respiratorio, arcadas diafragmáticas, puntos de tensión, diástasis, cicatriz, debilidad muscular, retracciones, postura..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 10: GENITOURINARIO -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>GENITOURINARIO</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-grid-3">
+                            <div class="form-group">
+                                <label for="genitoColor">Color:</label>
+                                <select id="genitoColor" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Hiperpigmentado">Hiperpigmentado</option>
+                                    <option value="Rosa">Rosa</option>
+                                    <option value="Pálida">Pálida</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="genitoHidratacion">Hidratación:</label>
+                                <select id="genitoHidratacion" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Hidratada">Hidratada</option>
+                                    <option value="Irritada">Irritada</option>
+                                    <option value="Seca">Seca</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="genitoLubricacion">Lubricación:</label>
+                                <select id="genitoLubricacion" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Disminuida">Disminuida</option>
+                                    <option value="Aumentada">Aumentada</option>
+                                    <option value="Adecuada">Adecuada</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="genitoCicatrices">Cicatrices:</label>
+                                <input type="text" id="genitoCicatrices" class="form-control" placeholder="Describa cicatrices">
+                            </div>
+                            <div class="form-group">
+                                <label for="genitoClitoris">Clítoris:</label>
+                                <input type="text" id="genitoClitoris" class="form-control" placeholder="Ej. Capuchón móvil">
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="genitoUretra">Uretra:</label>
+                                <input type="text" id="genitoUretra" class="form-control" placeholder="Ej. Cerrada, óptimas glándulas skene">
+                            </div>
+                            <div class="form-group">
+                                <label for="genitoVagina">Vagina:</label>
+                                <input type="text" id="genitoVagina" class="form-control" placeholder="Ej. Oclusión, glándulas de bartolino">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="genitoProlapso">Prolapso:</label>
+                            <input type="text" id="genitoProlapso" class="form-control" placeholder="Describa si hay prolapso">
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="genitoTosEstornudo">Tos y estornudo:</label>
+                                <textarea id="genitoTosEstornudo" class="form-control textarea" rows="2" placeholder="Periné se abomba, presenta fugas, apertura del esfínter..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="genitoNFCP">NFCP (cm):</label>
+                                <input type="number" id="genitoNFCP" class="form-control" min="0" step="0.1" placeholder="Ej. 2">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="genitoAno">Ano:</label>
+                            <textarea id="genitoAno" class="form-control textarea" rows="2" placeholder="Pliegues conservados, hemorroides..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Valoración neuromotriz:</label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="reflejos" value="Conservados"> Conservados</label>
+                                <label class="radio-label"><input type="radio" name="reflejos" value="Disminuidos"> Disminuidos</label>
+                                <label class="radio-label"><input type="radio" name="reflejos" value="Ausentes"> Ausentes</label>
+                            </div>
+                            <div class="checkbox-group" style="margin-top: 8px;">
+                                <label class="checkbox-label"><input type="checkbox" name="reflejosPresentes" value="Reflejo bulbocavernoso"> Reflejo bulbocavernoso</label>
+                                <label class="checkbox-label"><input type="checkbox" name="reflejosPresentes" value="Reflejo anal"> Reflejo anal</label>
+                                <label class="checkbox-label"><input type="checkbox" name="reflejosPresentes" value="Roling test"> Roling test</label>
+                                <label class="checkbox-label"><input type="checkbox" name="reflejosPresentes" value="Test de Tinel externo"> Test de Tinel externo</label>
+                                <label class="checkbox-label"><input type="checkbox" name="reflejosPresentes" value="Signo de Tinel interno"> Signo de Tinel interno</label>
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="puntosTension">Puntos de tensión:</label>
+                                <input type="text" id="puntosTension" class="form-control" placeholder="Ej. Cúpula vaginal derecha">
+                            </div>
+                            <div class="form-group">
+                                <label for="dolorSuperficial">Dolor superficial:</label>
+                                <input type="text" id="dolorSuperficial" class="form-control" placeholder="EAV / descripción">
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="dolorProfundo">Dolor profundo:</label>
+                                <input type="text" id="dolorProfundo" class="form-control" placeholder="EAV / descripción">
+                            </div>
+                            <div class="form-group">
+                                <label for="perfectScore">PERFECT:</label>
+                                <input type="text" id="perfectScore" class="form-control" placeholder="Ej. 2-1-0-5">
+                            </div>
+                        </div>
+                        <div class="form-grid-3">
+                            <div class="form-group">
+                                <label for="movilidadCoxis">Movilidad del coxis (cm):</label>
+                                <input type="number" id="movilidadCoxis" class="form-control" min="0" max="10" step="0.1" placeholder="cm">
+                            </div>
+                            <div class="form-group">
+                                <label for="movilidadColumna">Movilidad columna lumbar:</label>
+                                <input type="text" id="movilidadColumna" class="form-control" placeholder="Descripción">
+                            </div>
+                            <div class="form-group">
+                                <label for="movilidadPelvis">Movilidad pelvis:</label>
+                                <input type="text" id="movilidadPelvis" class="form-control" placeholder="Descripción">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 11: DESARROLLO DE LA ACTIVIDAD -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>DESARROLLO DE LA ACTIVIDAD</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="desarrolloActividad">Descripción:</label>
+                            <textarea id="desarrolloActividad" class="form-control textarea" rows="4" placeholder="Se realiza valoración de piso pélvico, se explica plan de trabajo y se realiza firma de consentimiento informado..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 12: NOTAS DE ANÁLISIS Y PLAN -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>NOTAS DE ANÁLISIS Y PLAN</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="notasAnalisis">Notas de análisis:</label>
+                            <textarea id="notasAnalisis" class="form-control textarea" rows="5" placeholder="(DARLE TAB PARA LLENAR CON EL TEXTO DE EJEMPLO) Paciente con Dx médico de ... presenta patología aguda/crónica, alteración osteomuscular pélvica leve/moderada/severa, limitación para sus actividades de la vida diaria..." data-example="Paciente con Dx médico de ... presenta patología aguda/crónica, alteración osteomuscular pélvica leve/moderada/severa, limitación para sus actividades de la vida diaria..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 13: OBJETIVOS -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>OBJETIVOS</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="objetivos">Objetivos del tratamiento:</label>
+                            <textarea id="objetivos" class="form-control textarea" rows="8" placeholder="(DARLE TAB PARA LLENAR CON EL TEXTO DE EJEMPLO)&#10;- Manejo de dolor localizado con técnicas manuales&#10;- Manejo de cicatrices&#10;- Relajación de musculatura superficial&#10- Entrenamiento muscular con biofeedback&#10- Estiramientos perineales y movilidad pélvica&#10- Fortalecimiento de CALLP&#10;- Trabajo postural y equilibrio" data-example="- Manejo de dolor localizado con técnicas manuales&#10;- Manejo de cicatrices&#10;- Relajación de musculatura superficial&#10- Entrenamiento muscular con biofeedback&#10- Estiramientos perineales y movilidad pélvica&#10- Fortalecimiento de CALLP&#10;- Trabajo postural y equilibrio"></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 14: ATENCIÓN EN MÓDULO DE PISO PÉLVICO -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>ATENCIÓN EN MÓDULO DE PISO PÉLVICO</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="numSesiones">Número de sesiones:</label>
+                                <input type="text" id="numSesiones" class="form-control" placeholder="Ej. 10 sesiones">
+                            </div>
+                            <div class="form-group">
+                                <label for="frecuenciaSesiones">Frecuencia semanal:</label>
+                                <input type="text" id="frecuenciaSesiones" class="form-control" placeholder="Ej. 2 a 3 veces por semana">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="planTratamiento">Plan de tratamiento:</label>
+                            <textarea id="planTratamiento" class="form-control textarea" rows="4" placeholder="Descripción del plan de tratamiento en rehabilitación de piso pélvico..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 15: RECOMENDACIONES -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>RECOMENDACIONES</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="recomendacionesIncontinencia">Recomendaciones para incontinencia:</label>
+                            <textarea id="recomendacionesIncontinencia" class="form-control textarea" rows="6" placeholder="(DARLE TAB PARA LLENAR CON EL TEXTO DE EJEMPLO)&#10;- Ir al baño cada 2 a 3 horas&#10;- No aguantar la orina&#10;- Evitar bebidas 2 horas antes de dormir&#10;- No pujar al inicio ni al final de la micción&#10;- No usar protectores" data-example="- Ir al baño cada 2 a 3 horas&#10;- No aguantar la orina&#10;- Evitar bebidas 2 horas antes de dormir&#10;- No pujar al inicio ni al final de la micción&#10;- No usar protectores"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="recomendacionesEstrenimiento">Recomendaciones para estreñimiento:</label>
+                            <textarea id="recomendacionesEstrenimiento" class="form-control textarea" rows="5" placeholder="(DARLE TAB PARA LLENAR CON EL TEXTO DE EJEMPLO)&#10;- Uso de banco defecatorio&#10;- No realizar pujo, emplear técnicas respiratorias&#10;- Incrementar consumo de agua y fibra&#10;- Limpieza con paños húmedos" data-example="- Uso de banco defecatorio&#10;- No realizar pujo, emplear técnicas respiratorias&#10;- Incrementar consumo de agua y fibra&#10;- Limpieza con paños húmedos"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="recomendacionesDispareunia">Recomendaciones para dispareunia:</label>
+                            <textarea id="recomendacionesDispareunia" class="form-control textarea" rows="3" placeholder="(DARLE TAB PARA LLENAR CON EL TEXTO DE EJEMPLO)&#10;- Aplicación de calor húmedo en zona perineal 15-20 min&#10;- Pausas activas cada 2 horas" data-example="- Aplicación de calor húmedo en zona perineal 15-20 min&#10;- Pausas activas cada 2 horas"></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 16: SIGNOS DE ALARMA -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>SIGNOS DE ALARMA</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="signosAlarma">Signos de alarma:</label>
+                            <textarea id="signosAlarma" class="form-control textarea" rows="5" placeholder="(DARLE TAB PARA LLENAR CON EL TEXTO DE EJEMPLO)&#10;- Aumento de dolor no controlado&#10;- Sensación de hormigueo&#10;- Reacción alérgica&#10;- Inflamación severa en zona pélvica" data-example="- Aumento de dolor no controlado&#10;- Sensación de hormigueo&#10;- Reacción alérgica&#10;- Inflamación severa en zona pélvica"></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN: ADJUNTOS -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>ADJUNTOS (OPCIONAL)</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="pdfImagenInput">Adjuntar PDF o Imagen:</label>
+                            <div class="file-upload-card">
+                                <input type="file" id="pdfImagenInput" accept=".pdf,.jpg,.jpeg,.png,.gif" class="file-upload-input" aria-label="Adjuntar PDF o imagen" multiple>
+                                <label for="pdfImagenInput" class="file-upload-label">
+                                    <div class="file-upload-icon">📎</div>
+                                    <div class="file-upload-text">
+                                        <strong>Sube tu archivo</strong>
+                                        <span>PDF, JPG, PNG o GIF · Máx. 10MB</span>
+                                    </div>
+                                    <div class="file-upload-cta">Explorar</div>
+                                </label>
+                            </div>
+                            <div id="adjuntoInfo" style="margin-top: 10px; padding: 10px; background: #f0f4f8; border-radius: 6px; display: none;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <p style="margin: 0; color: #333;"><strong>Archivo adjunto:</strong> <span id="adjuntoNombre"></span></p>
+                                        <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Este archivo se agregará al PDF cuando descargues el reporte.</p>
+                                    </div>
+                                    <button type="button" id="borrarAdjuntoBtn" style="padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">🗑️ Borrar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </form>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; KinetiqSports. Reporte de Piso Pélvico. Diseñado para profesionales de la salud.</p>
+        </footer>
+    </div>
+
+    <input type="file" id="fileInput" accept=".json" style="display: none;">
+
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon">📄</div>
+            <h2 class="modal-title">¿Descargar y Guardar Reporte?</h2>
+            <p class="modal-message">
+                Se descargará el PDF y los datos del paciente se guardarán en la base de datos de forma segura.
+            </p>
+            <div class="modal-loading">
+                <div class="spinner"></div>
+                <p style="color: #7f8c8d;">Guardando datos...</p>
+            </div>
+            <div class="modal-buttons">
+                <button id="modalCancel" class="modal-btn modal-btn-cancel">Cancelar</button>
+                <button id="modalConfirm" class="modal-btn modal-btn-confirm">Sí, Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de campos faltantes -->
+    <div id="missingFieldsModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-icon">⚠️</div>
+            <h2 class="modal-title">Campos sin completar</h2>
+            <div id="missingFieldsList">
+            </div>
+            <div id="missingFieldsRequiredMsg" style="display:none;color:#721c24;background:#fff5f5;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-weight:500;">❗ Completa los campos obligatorios para continuar</div>
+            <div class="modal-buttons">
+                <button id="missingFieldsClose" class="modal-btn modal-btn-cancel">Cerrar</button>
+                <button id="missingFieldsProceed" class="modal-btn modal-btn-confirm" style="display:none;">Guardar de todas formas</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de gestión de referidos -->
+    <div id="referidosModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-icon">👥</div>
+            <h2 class="modal-title">Gestionar Referidos</h2>
+            <div style="margin-bottom: 16px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <input type="text" id="nuevoReferidoNombre" class="form-control" placeholder="Nombre del referido" style="flex: 1;">
+                    <input type="text" id="nuevoReferidoContacto" class="form-control" placeholder="Contacto (opcional)" style="flex: 1;">
+                    <button type="button" id="btnAgregarReferido" class="modal-btn modal-btn-confirm" style="padding: 14px 20px;">+ Agregar</button>
+                </div>
+            </div>
+            <div id="referidosList" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
+                <p style="color: #7f8c8d; text-align: center; padding: 20px;">Cargando referidos...</p>
+            </div>
+            <div class="modal-buttons">
+                <button id="referidosClose" class="modal-btn modal-btn-cancel">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de búsqueda de paciente -->
+    <div id="searchModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-icon">🔍</div>
+            <h2 class="modal-title">Buscar Paciente</h2>
+            <div style="margin-bottom: 20px;">
+                <input type="text" id="searchPatientInput" class="form-control" placeholder="Buscar por nombre, apellido o cédula..." style="font-size: 16px; padding: 14px;">
+            </div>
+            <div id="searchResults" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
+                <p style="color: #7f8c8d; text-align: center; padding: 20px;">Escribe para buscar pacientes...</p>
+            </div>
+            <div class="modal-buttons">
+                <button id="searchCancel" class="modal-btn modal-btn-cancel">Cerrar</button>
+            </div>
+            <div class="modal-loading" id="searchLoading" style="display: none;">
+                <div class="spinner"></div>
+                <p style="color: #7f8c8d;">Buscando...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- BARRA LATERAL FLOTANTE -->
+    <div class="floating-sidebar">
+        <a href="bienvenida.html" class="action-button warning" title="Volver al inicio">
+            <span style="font-size: 28px;">🏠</span>
+            <div class="action-button-label">Inicio</div>
+        </a>
+        <button type="button" id="checkPatientBtn" class="action-button" title="Buscar paciente existente">
+            <span style="font-size: 28px;">🔍</span>
+            <div class="action-button-label">Buscar Pac.</div>
+        </button>
+        <button type="reset" form="reportForm" class="action-button neutral" title="Limpiar formulario">
+            <span style="font-size: 28px;">🔄</span>
+            <div class="action-button-label">Limpiar</div>
+        </button>
+        <button type="button" id="loadFileBtn" class="action-button" title="Cargar reporte anterior">
+            <span style="font-size: 28px;">📥</span>
+            <div class="action-button-label">Cargar</div>
+        </button>
+        <button type="button" id="saveBtn" class="action-button success" title="Guardar en la base de datos">
+            <span style="font-size: 28px;">💾</span>
+            <div class="action-button-label">Guardar</div>
+        </button>
+        <button type="button" id="printBtn" class="action-button info" title="Descargar PDF y guardar">
+            <span style="font-size: 28px;">📄</span>
+            <div class="action-button-label">Descargar</div>
+        </button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="script-piso-pelvico.js?v=20261012_v5"></script>
+    <script>
+        document.querySelectorAll('textarea[data-example]').forEach(ta => {
+            ta.addEventListener('keydown', e => {
+                if (e.key === 'Tab' && !ta.value.trim()) {
+                    e.preventDefault();
+                    ta.value = ta.dataset.example;
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    ta.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        });
+    </script>
+</body>
+</html>

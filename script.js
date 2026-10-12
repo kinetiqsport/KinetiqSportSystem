@@ -1,0 +1,2245 @@
+// =========================================================================
+// REPORTE MÉDICO - SCRIPT PRINCIPAL
+// =========================================================================
+
+class ReporteMedico {
+    constructor() {
+        try {
+            console.log('Script cargado, inicializando ReporteMedico...');
+            
+            this.form = document.getElementById('reportForm');
+            this.pesoInput = document.getElementById('peso');
+            this.tallaInput = document.getElementById('talla');
+            this.imcInput = document.getElementById('imc');
+            this.reportDateElement = document.getElementById('reportDate');
+            
+            // Almacenar archivos adjuntos
+            this.adjuntos = [];
+            this.adjuntosEliminadosFlag = false; // Bandera para eliminar adjuntos de DB al guardar
+            
+            if (!this.form || !this.pesoInput || !this.tallaInput || !this.imcInput) {
+                console.error('Elementos del formulario no encontrados');
+                return;
+            }
+            
+            this.init();
+        } catch (error) {
+            console.error('Error en constructor:', error);
+        }
+    }
+
+    init() {
+        try {
+            console.log('🔍 INIT llamado');
+            this.setupEventListeners();
+            console.log('🔍 setupEventListeners() completado');
+            this.setReportDate();
+            console.log('🔍 setReportDate() completado');
+            this.calculateIMC();
+            console.log('🔍 calculateIMC() completado');
+            this.waitForSupabaseAndLoadReferidos();
+            console.log('🔍 loadReferidos() iniciado');
+            console.log('🔍 Antes de checkImportedDataFromStorage()');
+            this.checkImportedDataFromStorage();
+            console.log('🔍 checkImportedDataFromStorage() completado');
+            console.log('ReporteMedico inicializado');
+        } catch (error) {
+            console.error('❌ ERROR EN INIT:', error);
+        }
+    }
+
+    waitForSupabaseAndLoadReferidos(attempts = 0) {
+        if (window.supabaseClient) {
+            this.loadReferidos().then(() => {
+                // Si hay un valor guardado para referidoSeleccionado, reaplicarlo
+                if (this._pendingReferidoValue) {
+                    const select = document.getElementById('referidoSeleccionado');
+                    if (select) {
+                        select.value = this._pendingReferidoValue;
+                        this._pendingReferidoValue = null;
+                    }
+                }
+            });
+        } else if (attempts < 50) { // 5 segundos max
+            setTimeout(() => this.waitForSupabaseAndLoadReferidos(attempts + 1), 100);
+        } else {
+            console.warn('Supabase no disponible para cargar referidos');
+        }
+    }
+
+    async loadReferidos() {
+        try {
+            if (!window.supabaseClient) return;
+            this.referidos = await window.supabaseClient.getReferidos();
+            this.updateReferidosSelect();
+        } catch (error) {
+            console.error('Error cargando referidos:', error);
+        }
+    }
+
+    updateReferidosSelect() {
+        const select = document.getElementById('referidoSeleccionado');
+        if (!select) return;
+        
+        select.innerHTML = '<option value="">Seleccione un referido...</option>';
+        if (this.referidos && this.referidos.length > 0) {
+            this.referidos.forEach(r => {
+                const option = document.createElement('option');
+                option.value = r.id;
+                option.textContent = r.nombre + (r.contacto ? ` (${r.contacto})` : '');
+                select.appendChild(option);
+            });
+        } else {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No hay referidos registrados';
+            option.disabled = true;
+            select.appendChild(option);
+        }
+    }
+
+    handleComoNosConocisteChange(value) {
+        const referidoContainer = document.getElementById('referidoContainer');
+        const otroContainer = document.getElementById('otroComoNosConocisteContainer');
+        const referidoSelect = document.getElementById('referidoSeleccionado');
+        
+        if (value === 'referido_por') {
+            if (referidoContainer) referidoContainer.style.display = 'block';
+            if (otroContainer) otroContainer.style.display = 'none';
+            if (referidoSelect) referidoSelect.required = true;
+        } else if (value === 'otro') {
+            if (referidoContainer) referidoContainer.style.display = 'none';
+            if (otroContainer) otroContainer.style.display = 'block';
+            if (referidoSelect) referidoSelect.required = false;
+        } else {
+            if (referidoContainer) referidoContainer.style.display = 'none';
+            if (otroContainer) otroContainer.style.display = 'none';
+            if (referidoSelect) referidoSelect.required = false;
+        }
+    }
+
+    openReferidosModal() {
+        const modal = document.getElementById('referidosModal');
+        if (!modal) return;
+        this.renderReferidosList();
+        modal.classList.add('active');
+        
+        const closeBtn = document.getElementById('referidosClose');
+        const addBtn = document.getElementById('btnAgregarReferido');
+        const nombreInput = document.getElementById('nuevoReferidoNombre');
+        const contactoInput = document.getElementById('nuevoReferidoContacto');
+        
+        const closeModal = () => {
+            modal.classList.remove('active');
+            this.cleanupReferidosListeners();
+        };
+        
+        const handleAdd = async () => {
+            const nombre = nombreInput?.value?.trim();
+            const contacto = contactoInput?.value?.trim();
+            if (!nombre) {
+                this.showAlert('Ingrese el nombre del referido', 'error');
+                return;
+            }
+            try {
+                if (!window.supabaseClient) throw new Error('Supabase no disponible');
+                await window.supabaseClient.saveReferido({ nombre, contacto: contacto || null, activo: true });
+                nombreInput.value = '';
+                contactoInput.value = '';
+                await this.loadReferidos();
+                this.renderReferidosList();
+                this.showAlert('✓ Referido agregado', 'success');
+            } catch (error) {
+                console.error('Error agregando referido:', error);
+                this.showAlert('Error al agregar referido: ' + error.message, 'error');
+            }
+        };
+        
+        const handleDelete = async (id) => {
+            if (!confirm('¿Eliminar este referido?')) return;
+            try {
+                if (!window.supabaseClient) throw new Error('Supabase no disponible');
+                await window.supabaseClient.deleteReferido(id);
+                await this.loadReferidos();
+                this.renderReferidosList();
+                this.showAlert('✓ Referido eliminado', 'success');
+            } catch (error) {
+                console.error('Error eliminando referido:', error);
+                this.showAlert('Error al eliminar referido: ' + error.message, 'error');
+            }
+        };
+        
+        this._referidosListeners = [
+            { el: closeBtn, type: 'click', fn: closeModal },
+            { el: addBtn, type: 'click', fn: handleAdd },
+            { el: modal, type: 'click', fn: (e) => { if (e.target === modal) closeModal(); } },
+            { el: nombreInput, type: 'keydown', fn: (e) => { if (e.key === 'Enter') handleAdd(); } },
+        ];
+        
+        this._referidosListeners.forEach(({ el, type, fn }) => el?.addEventListener(type, fn));
+        setTimeout(() => nombreInput?.focus(), 100);
+    }
+
+    renderReferidosList() {
+        const container = document.getElementById('referidosList');
+        if (!container) return;
+        
+        if (!this.referidos || this.referidos.length === 0) {
+            container.innerHTML = '<p style="color: #7f8c8d; text-align: center; padding: 20px;">No hay referidos registrados. Agregue uno nuevo arriba.</p>';
+            return;
+        }
+        
+        container.innerHTML = this.referidos.map(r => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #e0e4e8; border-radius: 8px; margin-bottom: 8px; background: #f8fafc;">
+                <div>
+                    <strong style="color: #0A94B0;">${r.nombre}</strong>
+                    ${r.contacto ? `<div style="font-size: 12px; color: #95a5a6;">${r.contacto}</div>` : ''}
+                </div>
+                <button type="button" data-referido-id="${r.id}" class="btn-delete-referido" style="padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Eliminar</button>
+            </div>
+        `).join('');
+        
+        container.querySelectorAll('.btn-delete-referido').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.target.getAttribute('data-referido-id');
+                this.handleDeleteReferido(id);
+            });
+        });
+    }
+
+    handleDeleteReferido(id) {
+        if (!confirm('¿Eliminar este referido?')) return;
+        this.deleteReferido(id);
+    }
+
+    async deleteReferido(id) {
+        try {
+            if (!window.supabaseClient) throw new Error('Supabase no disponible');
+            await window.supabaseClient.deleteReferido(id);
+            await this.loadReferidos();
+            this.renderReferidosList();
+            this.showAlert('✓ Referido eliminado', 'success');
+        } catch (error) {
+            console.error('Error eliminando referido:', error);
+            this.showAlert('Error al eliminar referido: ' + error.message, 'error');
+        }
+    }
+
+    cleanupReferidosListeners() {
+        if (this._referidosListeners) {
+            this._referidosListeners.forEach(({ el, type, fn }) => el?.removeEventListener(type, fn));
+            this._referidosListeners = null;
+        }
+    }
+
+    checkImportedDataFromStorage() {
+        console.log('🔍 checkImportedDataFromStorage() llamado');
+        const reportToLoad = sessionStorage.getItem('reportToLoad');
+        console.log('🔍 reportToLoad:', reportToLoad ? 'SI existe' : 'NO existe');
+        
+        // Cargar adjuntos SIEMPRE, independientemente de si hay error al cargar datos
+        const adjuntosToLoad = sessionStorage.getItem('adjuntosToLoad');
+        console.log('🔍 adjuntosToLoad desde sessionStorage:', adjuntosToLoad);
+        if (adjuntosToLoad) {
+            try {
+                this.adjuntos = JSON.parse(adjuntosToLoad);
+                console.log('✓ Adjuntos cargados:', this.adjuntos);
+                this.mostrarAdjuntosCargados();
+            } catch (err) {
+                console.error('Error parseando adjuntos:', err);
+            }
+            sessionStorage.removeItem('adjuntosToLoad');
+        } else {
+            console.log('❌ No hay adjuntosToLoad en sessionStorage');
+        }
+        
+        // Cargar datos del reporte
+        if (reportToLoad) {
+            try {
+                console.log('🔍 reportToLoad raw:', reportToLoad);
+                console.log('🔍 tipo:', typeof reportToLoad);
+                // Validar strings problemáticos
+                if (reportToLoad === 'undefined' || reportToLoad === 'null' || reportToLoad.trim() === '') {
+                    console.log('🔍 reportToLoad inválido, limpiando');
+                    sessionStorage.removeItem('reportToLoad');
+                    return;
+                }
+                let data = reportToLoad;
+                // Si ya es un objeto, no parsear
+                if (typeof data === 'string') {
+                    data = data.trim();
+                    if (data) {
+                        data = JSON.parse(data);
+                    } else {
+                        throw new Error('Datos vacíos');
+                    }
+                }
+                // Validar que sea un objeto válido
+                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                    this.loadDataFromObject(data);
+                    this.showAlert('✓ Reporte cargado correctamente', 'success');
+                } else {
+                    throw new Error('Formato de datos inválido');
+                }
+                sessionStorage.removeItem('reportToLoad');
+                return;
+            } catch (error) {
+                console.error('Error en checkImportedDataFromStorage:', error);
+                console.error('🔍 reportToLoad que falló:', reportToLoad);
+                this.showAlert('Error al cargar el reporte: ' + error.message, 'error');
+                sessionStorage.removeItem('reportToLoad'); // Limpiar basura
+            }
+        }
+    }
+
+    loadDataFromObject(data) {
+        console.log('loadDataFromObject() llamado con data:', data);
+        Object.keys(data).forEach(key => {
+            if (key === 'saltos' || key === 'unipodal') return;
+            
+            const element = document.getElementById(key);
+            if (element) {
+                if (element.type === 'checkbox') {
+                    element.checked = data[key];
+                } else if (key === 'referidoSeleccionado') {
+                    // Guardar para aplicar después de cargar referidos
+                    this._pendingReferidoValue = data[key];
+                } else {
+                    element.value = data[key];
+                }
+                console.log(`Campo ${key} cargado con valor:`, data[key]);
+            }
+        });
+
+        if (data.atendido_por && !data.atendidoPor) {
+            const el = document.getElementById('atendidoPor');
+            if (el) el.value = data.atendido_por;
+        }
+
+        if (data.unipodal) {
+            Object.keys(data.unipodal).forEach(unipodalType => {
+                const unipodalData = data.unipodal[unipodalType];
+                const inputs = document.querySelectorAll(`input[data-unipodal="${unipodalType}"]`);
+                inputs.forEach(input => {
+                    const col = input.getAttribute('data-col');
+                    if (unipodalData[col] !== undefined && unipodalData[col] !== null) {
+                        input.value = unipodalData[col];
+                    }
+                });
+            });
+        }
+
+        this.calculateIMC();
+        
+        // Trigger the comoNosConociste change handler to show/hide appropriate containers
+        const comoNosConociste = document.getElementById('comoNosConociste');
+        if (comoNosConociste && comoNosConociste.value) {
+            this.handleComoNosConocisteChange(comoNosConociste.value);
+        }
+    }
+
+    getRequiredFields() {
+        return [
+            { id: 'nombre', label: 'Nombre' },
+            { id: 'apellido', label: 'Apellido' },
+            { id: 'cc', label: 'Cédula' },
+            { id: 'atendidoPor', label: 'Atendido por' },
+            { id: 'comoNosConociste', label: '¿Cómo nos conociste?' }
+        ];
+    }
+
+    initFieldTracking() {
+        document.querySelectorAll('.form-control').forEach(el => {
+            el.addEventListener('input', () => {
+                if (el.value.trim()) {
+                    el.classList.remove('field-missing');
+                    el.classList.add('field-filled');
+                } else {
+                    el.classList.remove('field-filled');
+                }
+            });
+            if (el.value.trim()) {
+                el.classList.add('field-filled');
+            }
+        });
+
+        document.querySelectorAll('select.form-control').forEach(el => {
+            el.addEventListener('change', () => {
+                if (el.value) {
+                    el.classList.remove('field-missing');
+                    el.classList.add('field-filled');
+                } else {
+                    el.classList.remove('field-filled');
+                }
+            });
+            if (el.value) el.classList.add('field-filled');
+        });
+    }
+
+    validateRequiredFields() {
+        const missing = [];
+        this.getRequiredFields().forEach(f => {
+            const el = document.getElementById(f.id);
+            if (!el || !el.value.trim()) {
+                missing.push(f.label);
+                if (el) el.classList.add('field-missing');
+            } else {
+                el.classList.remove('field-missing');
+                el.classList.add('field-filled');
+            }
+        });
+        return missing;
+    }
+
+    clearFieldHighlights() {
+        document.querySelectorAll('.field-missing').forEach(el => el.classList.remove('field-missing'));
+    }
+
+    validateAll() {
+        this.validateNombre();
+        this.validateApellido();
+        this.validateCC();
+        this.validateEdad();
+        this.validatePeso();
+        this.validateTalla();
+        this.validateCelular();
+    }
+
+    getValidationErrors() {
+        this.validateAll();
+        const errors = [];
+        document.querySelectorAll('.input-error').forEach(el => {
+            const id = el.id;
+            let label = '';
+            const labelEl = document.querySelector(`label[for="${id}"]`);
+            if (labelEl) {
+                label = labelEl.textContent.trim().replace(/\s*\*$/, '');
+            } else {
+                label = id.charAt(0).toUpperCase() + id.slice(1);
+            }
+            errors.push({ id, label });
+        });
+        return errors;
+    }
+
+    getAllEmptyFields() {
+        const empty = [];
+        document.querySelectorAll('.form-control').forEach(el => {
+            if (el.value == null || el.value.toString().trim() === '') {
+                const id = el.id;
+                let label = '';
+                const labelEl = document.querySelector(`label[for="${id}"]`);
+                if (labelEl) {
+                    label = labelEl.textContent.trim().replace(/\s*\*$/, '');
+                } else if (el.placeholder) {
+                    label = el.placeholder;
+                } else if (el.name) {
+                    label = el.name.charAt(0).toUpperCase() + el.name.slice(1);
+                } else {
+                    label = id.charAt(0).toUpperCase() + id.slice(1);
+                }
+                empty.push({ id, label });
+            }
+        });
+        return empty;
+    }
+
+    setupEventListeners() {
+        try {
+            this.initFieldTracking();
+
+            // Validaciones para Datos Generales
+            const nombreInput = document.getElementById('nombre');
+            const apellidoInput = document.getElementById('apellido');
+            const edadInput = document.getElementById('edad');
+            const ccInput = document.getElementById('cc');
+            const celularInput = document.getElementById('celular');
+
+            if (nombreInput) nombreInput.addEventListener('input', () => { this.validateNombre(); this.updateHeaderPatient(); });
+            if (apellidoInput) apellidoInput.addEventListener('input', () => { this.validateApellido(); this.updateHeaderPatient(); });
+            if (edadInput) {
+                edadInput.addEventListener('input', () => {
+                    this.restrictToNumbers(edadInput);
+                    this.validateEdad();
+                });
+            }
+            if (ccInput) {
+                ccInput.addEventListener('input', () => {
+                    this.restrictToNumbers(ccInput);
+                    this.validateCC();
+                });
+                ccInput.addEventListener('blur', () => {
+                    const cedula = ccInput.value.trim();
+                    if (cedula.length < 6 || !window.supabaseClient?.supabase) return;
+                    window.supabaseClient.supabase.from('reportes').select('*').eq('cedula', cedula).then(({ data }) => {
+                        if (!data || data.length === 0) return;
+                        if (confirm('Este paciente ya está registrado. ¿Desea cargar sus datos automáticamente?')) {
+                            this.prefillFromPaciente(data[0]);
+                            this.showAlert('✔ Datos cargados correctamente', 'success');
+                        }
+                    }).catch(() => {});
+                });
+            }
+            if (celularInput) {
+                celularInput.addEventListener('input', () => {
+                    this.restrictToNumbers(celularInput);
+                    this.validateCelular();
+                });
+            }
+
+            // Listener para "¿Cómo nos conociste?"
+            const comoNosConocisteSelect = document.getElementById('comoNosConociste');
+            if (comoNosConocisteSelect) {
+                comoNosConocisteSelect.addEventListener('change', (e) => {
+                    this.handleComoNosConocisteChange(e.target.value);
+                });
+                console.log('Select "Cómo nos conociste" vinculado');
+            }
+
+            // Listener para botón gestionar referidos
+            const btnAbrirReferidos = document.getElementById('btnAbrirReferidos');
+            if (btnAbrirReferidos) {
+                btnAbrirReferidos.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.openReferidosModal();
+                });
+                console.log('Botón Gestionar Referidos vinculado');
+            }
+            
+            // Agregar restricción numérica a peso y talla
+            this.pesoInput.addEventListener('input', () => {
+                this.restrictToNumbers(this.pesoInput, true);
+                this.calculateIMC();
+                this.validatePeso();
+            });
+            this.tallaInput.addEventListener('input', () => {
+                this.restrictToNumbers(this.tallaInput, true);
+                this.calculateIMC();
+                this.validateTalla();
+            });
+
+            // Validaciones para campos de días en Actividad Física
+            const diasEntrenamientoInput = document.getElementById('diasEntrenamiento');
+            const diasGimnasioInput = document.getElementById('diasGimnasio');
+            const diasDescansoInput = document.getElementById('diasDescanso');
+
+            if (diasEntrenamientoInput) {
+                diasEntrenamientoInput.addEventListener('input', () => {
+                    this.restrictToNumbers(diasEntrenamientoInput);
+                    this.validateDias(diasEntrenamientoInput);
+                });
+            }
+            if (diasGimnasioInput) {
+                diasGimnasioInput.addEventListener('input', () => {
+                    this.restrictToNumbers(diasGimnasioInput);
+                    this.validateDias(diasGimnasioInput);
+                });
+            }
+            if (diasDescansoInput) {
+                diasDescansoInput.addEventListener('input', () => {
+                    this.restrictToNumbers(diasDescansoInput);
+                    this.validateDias(diasDescansoInput);
+                });
+            }
+
+            // Validaciones para campos de Análisis Biomecánico (Ojos Abiertos)
+            const bioFieldsOA = [
+                'areaElipseIzq', 'areaElipseDer', 'areaElipseAsim',
+                'desvIntIzq', 'desvIntDer', 'desvIntAsim',
+                'bipodLateralIzq', 'bipodLateralDer', 'bipodLateralAsim',
+                'distPesoTalonIzq', 'distPesoTalonDer', 'distPesoDedosIzq', 'distPesoDedosDer',
+                'asimAmpTalonDedosIzq', 'asimAmpTalonDedosDer'
+            ];
+
+            bioFieldsOA.forEach(fieldId => {
+                const input = document.getElementById(fieldId);
+                if (input) {
+                    input.addEventListener('input', () => {
+                        this.restrictToNumbers(input, true);
+                    });
+                }
+            });
+
+            // Validaciones para campos de Análisis Biomecánico (Ojos Cerrados)
+            const bioFieldsCC = [
+                'areaElipseIzqCC', 'areaElipseDerCC', 'areaElipseAsimCC',
+                'desvIntIzqCC', 'desvIntDerCC', 'desvIntAsimCC',
+                'bipodLateralIzqCC', 'bipodLateralDerCC', 'bipodLateralAsimCC',
+                'distPesoTalonIzqCC', 'distPesoTalonDerCC', 'distPesoDedosIzqCC', 'distPesoDedosDerCC',
+                'asimAmpTalonDedosIzqCC', 'asimAmpTalonDedosDerCC'
+            ];
+
+            bioFieldsCC.forEach(fieldId => {
+                const input = document.getElementById(fieldId);
+                if (input) {
+                    input.addEventListener('input', () => {
+                        this.restrictToNumbers(input, true);
+                    });
+                }
+            });
+
+            // Validaciones para Distribución de Peso Unipodal
+            const unipodalInputs = document.querySelectorAll('.unipodal-input');
+            unipodalInputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    this.restrictToNumbers(input, true);
+                });
+            });
+
+            // Validaciones para Sentadilla
+            const sentadillaFields = [
+                'sentNumSentadillas', 'sentDistPesoIzq', 'sentDistPesoDer',
+                'sentFuerzaIzqKg', 'sentFuerzaDerKg', 'sentAsimPorcentaje'
+            ];
+            sentadillaFields.forEach(fieldId => {
+                const input = document.getElementById(fieldId);
+                if (input) {
+                    const allowDecimals = fieldId !== 'sentNumSentadillas';
+                    input.addEventListener('input', () => {
+                        this.restrictToNumbers(input, allowDecimals);
+                    });
+                }
+            });
+
+            // Validaciones para Flexiones
+            const flexionesFields = [
+                'flexNumReps', 'flexDistPesoIzq', 'flexDistPesoDer',
+                'flexFuerzaIzqKg', 'flexFuerzaDerKg', 'flexAsimPorcentaje'
+            ];
+            flexionesFields.forEach(fieldId => {
+                const input = document.getElementById(fieldId);
+                if (input) {
+                    const allowDecimals = fieldId !== 'flexNumReps';
+                    input.addEventListener('input', () => {
+                        this.restrictToNumbers(input, allowDecimals);
+                    });
+                }
+            });
+
+            // Buscar o crear input file
+            let fileInput = document.getElementById('fileInput');
+            if (!fileInput) {
+                fileInput = document.createElement('input');
+                fileInput.id = 'fileInput';
+                fileInput.type = 'file';
+                fileInput.accept = '.json';
+                fileInput.style.display = 'none';
+                document.body.appendChild(fileInput);
+                console.log('Input file creado');
+            } else {
+                console.log('fileInput ya existe, agregando listener');
+            }
+            
+            // Agregar listener (o reemplazarlo)
+            fileInput.addEventListener('change', (event) => {
+                console.log('Evento change disparado en fileInput');
+                console.log('Archivos seleccionados:', event.target.files);
+                this.handleFileSelect(event);
+            });
+            console.log('Listener change agregado a fileInput');
+
+            // Botón Buscar Paciente
+            const checkPatientBtn = document.getElementById('checkPatientBtn');
+            if (checkPatientBtn) {
+                checkPatientBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.buscarPacienteExistente();
+                });
+            }
+
+            // Solo agregar listeners a botones que existen
+            const loadFileBtn = document.getElementById('loadFileBtn');
+            if (loadFileBtn) {
+                loadFileBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    console.log('Botón Cargar clickeado');
+                    this.loadFile();
+                });
+                console.log('Botón Cargar vinculado');
+            }
+
+            // Listener para archivo adjunto (PDF/Imagen)
+            const pdfImagenInput = document.getElementById('pdfImagenInput');
+            if (pdfImagenInput) {
+                pdfImagenInput.addEventListener('change', (e) => {
+                    this.handlePdfImagenSelect(e);
+                });
+                console.log('Input PDF/Imagen vinculado');
+            }
+
+            const saveBtn = document.getElementById('saveBtn');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.saveReportToDB();
+                });
+                console.log('Botón Guardar vinculado');
+            }
+
+            const printBtn = document.getElementById('printBtn');
+            if (printBtn) {
+                printBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.printReport();
+                });
+                console.log('Botón Descargar PDF vinculado');
+            }
+
+            // Agregar listener para botón Borrar adjuntos
+            const borrarAdjuntoBtn = document.getElementById('borrarAdjuntoBtn');
+            if (borrarAdjuntoBtn) {
+                borrarAdjuntoBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.borrarAdjuntos();
+                });
+                console.log('Botón Borrar Adjuntos vinculado');
+            }
+
+            // Agregar listener para botón Limpiar en sidebar flotante
+            const cleanBtns = document.querySelectorAll('.floating-sidebar button[type="reset"]');
+            cleanBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    // Limpiar el formulario
+                    if (this.form) {
+                        this.form.reset();
+                    }
+                    document.querySelectorAll('.field-filled, .field-missing').forEach(el => {
+                        el.classList.remove('field-filled', 'field-missing');
+                    });
+                    // Limpiar archivos adjuntos
+                    this.adjuntos = [];
+                    const pdfImagenInput = document.getElementById('pdfImagenInput');
+                    if (pdfImagenInput) {
+                        pdfImagenInput.value = '';
+                    }
+                    const adjuntoInfo = document.getElementById('adjuntoInfo');
+                    if (adjuntoInfo) {
+                        adjuntoInfo.style.display = 'none';
+                    }
+                    // Recalcular IMC en caso de que se haya completado
+                    this.setReportDate();
+                    this.showAlert('✓ Formulario limpiado correctamente', 'success');
+                    console.log('Formulario limpiado');
+                });
+            });
+            console.log('Botón Limpiar en sidebar vinculado');
+        } catch (error) {
+            console.error('Error en setupEventListeners:', error);
+        }
+    }
+
+    calculateIMC() {
+        const peso = parseFloat(this.pesoInput.value) || 0;
+        const talla = parseFloat(this.tallaInput.value) || 0;
+
+        if (peso > 0 && talla > 0) {
+            const talla_m = talla / 100;
+            const imc = peso / (talla_m * talla_m);
+            this.imcInput.value = imc.toFixed(1);
+        } else {
+            this.imcInput.value = '';
+        }
+    }
+
+    // ==================== VALIDACIONES ====================
+    
+    restrictToNumbers(input, allowDecimals = false) {
+        let value = input.value;
+        
+        if (allowDecimals) {
+            // Permitir números y un solo punto decimal
+            value = value.replace(/[^\d.]/g, '');
+            // Asegurar solo un punto decimal
+            const parts = value.split('.');
+            if (parts.length > 2) {
+                value = parts[0] + '.' + parts.slice(1).join('');
+            }
+        } else {
+            // Solo números enteros
+            value = value.replace(/\D/g, '');
+        }
+        
+        input.value = value;
+    }
+    
+    showFieldError(input, message) {
+        // Remover error previo si existe
+        this.clearFieldError(input);
+        
+        // Agregar clase de error al input
+        input.classList.add('input-error');
+        
+        // Crear mensaje de error
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = message;
+        errorDiv.id = `error-${input.id}`;
+        
+        // Insertar después del input
+        input.parentNode.insertBefore(errorDiv, input.nextSibling);
+    }
+
+    clearFieldError(input) {
+        input.classList.remove('input-error');
+        const errorMsg = document.getElementById(`error-${input.id}`);
+        if (errorMsg) {
+            errorMsg.remove();
+        }
+    }
+
+    validateNombre() {
+        const input = document.getElementById('nombre');
+        const value = input.value.trim();
+        
+        // Permitir solo letras, espacios, tildes y ñ
+        const regex = /^[a-záéíóúñA-ZÁÉÍÓÚÑ\s]*$/;
+        
+        if (value && !regex.test(value)) {
+            this.showFieldError(input, 'Solo se permiten letras');
+            return false;
+        }
+        
+        this.clearFieldError(input);
+        return true;
+    }
+
+    validateApellido() {
+        const input = document.getElementById('apellido');
+        const value = input.value.trim();
+        
+        const regex = /^[a-záéíóúñA-ZÁÉÍÓÚÑ\s]*$/;
+        
+        if (value && !regex.test(value)) {
+            this.showFieldError(input, 'Solo se permiten letras');
+            return false;
+        }
+        
+        this.clearFieldError(input);
+        return true;
+    }
+
+    validateEdad() {
+        const input = document.getElementById('edad');
+        const value = parseFloat(input.value);
+        
+        if (input.value && (isNaN(value) || value < 0 || value > 120)) {
+            this.showFieldError(input, 'Edad debe estar entre 0 y 120 años');
+            return false;
+        }
+        
+        this.clearFieldError(input);
+        return true;
+    }
+
+    validatePeso() {
+        const value = parseFloat(this.pesoInput.value);
+        
+        if (this.pesoInput.value && (isNaN(value) || value <= 0 || value > 300)) {
+            this.showFieldError(this.pesoInput, 'Peso debe estar entre 0 y 300 kg');
+            return false;
+        }
+        
+        this.clearFieldError(this.pesoInput);
+        return true;
+    }
+
+    validateTalla() {
+        const value = parseFloat(this.tallaInput.value);
+        
+        if (this.tallaInput.value && (isNaN(value) || value <= 0 || value > 250)) {
+            this.showFieldError(this.tallaInput, 'Talla debe estar entre 0 y 250 cm');
+            return false;
+        }
+        
+        this.clearFieldError(this.tallaInput);
+        return true;
+    }
+
+    validateCC() {
+        const input = document.getElementById('cc');
+        const value = input.value.trim();
+        
+        // Solo números y entre 6 y 12 dígitos
+        const regex = /^\d*$/;
+        
+        if (value && !regex.test(value)) {
+            this.showFieldError(input, 'Solo se permiten números');
+            return false;
+        }
+        
+        if (value && (value.length < 6 || value.length > 12)) {
+            this.showFieldError(input, 'CC debe tener entre 6 y 12 dígitos');
+            return false;
+        }
+        
+        this.clearFieldError(input);
+        return true;
+    }
+
+    validateCelular() {
+        const input = document.getElementById('celular');
+        const value = input.value.trim();
+        
+        // Solo números y entre 7 y 15 dígitos (formato internacional)
+        const regex = /^\d*$/;
+        
+        if (value && !regex.test(value)) {
+            this.showFieldError(input, 'Solo se permiten números');
+            return false;
+        }
+        
+        if (value && (value.length < 7 || value.length > 15)) {
+            this.showFieldError(input, 'Celular debe tener entre 7 y 15 dígitos');
+            return false;
+        }
+        
+        this.clearFieldError(input);
+        return true;
+    }
+
+    validateDias(input) {
+        const value = parseInt(input.value);
+        
+        if (input.value && (isNaN(value) || value < 0 || value > 7)) {
+            this.showFieldError(input, 'Los días deben estar entre 0 y 7');
+            return false;
+        }
+        
+        this.clearFieldError(input);
+        return true;
+    }
+
+    setReportDate() {
+        const today = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const dateStr = today.toLocaleDateString('es-ES', options);
+        this.reportDateElement.textContent = dateStr;
+    }
+
+    updateHeaderPatient() {
+        const nameEl = document.getElementById('patientName');
+        if (!nameEl) return;
+        const nombre = document.getElementById('nombre')?.value?.trim() || '';
+        const apellido = document.getElementById('apellido')?.value?.trim() || '';
+        nameEl.textContent = `${nombre} ${apellido}`.trim() || 'Paciente';
+    }
+
+    loadFile() {
+        console.log('loadFile() llamado');
+        const fileInput = document.getElementById('fileInput');
+        console.log('fileInput encontrado:', fileInput);
+        console.log('fileInput en DOM:', document.body.contains(fileInput));
+        
+        if (fileInput) {
+            console.log('Disparando click en fileInput...');
+            fileInput.value = ''; // Limpiar valor anterior
+            fileInput.click();
+            console.log('Click disparado');
+        } else {
+            console.error('fileInput no encontrado en el DOM');
+        }
+    }
+
+    handleFileSelect(event) {
+        console.log('handleFileSelect() llamado');
+        const file = event.target.files[0];
+        if (!file) {
+            console.log('No file selected');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                console.log('Leyendo archivo...');
+                const data = JSON.parse(e.target.result);
+                this.loadDataFromObject(data);
+                this.showAlert('✓ Archivo cargado correctamente', 'success');
+            } catch (error) {
+                console.error('Error al leer archivo:', error);
+                this.showAlert('Error al leer el archivo: ' + error.message, 'error');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    mostrarAdjuntosCargados() {
+        console.log('mostrarAdjuntosCargados() llamado, adjuntos:', this.adjuntos);
+        if (this.adjuntos && this.adjuntos.length > 0) {
+            const nombres = this.adjuntos.map(r => r.nombre).join(', ');
+            document.getElementById('adjuntoNombre').textContent = nombres;
+            document.getElementById('adjuntoInfo').style.display = 'block';
+            console.log('Adjuntos mostrados en UI:', nombres);
+        } else {
+            console.log('No hay adjuntos para mostrar');
+        }
+    }
+
+    borrarAdjuntos() {
+        // Mostrar confirmación
+        if (confirm('¿Estás seguro de que deseas eliminar los archivos adjuntos?\nEsta acción se aplicará cuando guardes el reporte.')) {
+            this.adjuntos = [];
+            this.adjuntosEliminadosFlag = true; // Marcar que se deben eliminar de la DB
+            document.getElementById('adjuntoInfo').style.display = 'none';
+            document.getElementById('adjuntoNombre').textContent = '';
+            const input = document.getElementById('pdfImagenInput');
+            if (input) {
+                input.value = '';
+            }
+            this.showAlert('✓ Archivos adjuntos eliminados (se quitarán al guardar)', 'success');
+        } else {
+            this.showAlert('Eliminación cancelada', 'info');
+        }
+    }
+
+    handlePdfImagenSelect(event) {
+        const files = Array.from(event.target.files || []);
+        if (files.length === 0) {
+            // Limpiar si se deselecciona
+            this.adjuntos = [];
+            document.getElementById('adjuntoInfo').style.display = 'none';
+            return;
+        }
+
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        const tiposValidos = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
+
+        const lecturas = files.map(file => new Promise((resolve, reject) => {
+            if (file.size > maxSize) {
+                reject(new Error(`El archivo ${file.name} supera 10MB`));
+                return;
+            }
+            if (!tiposValidos.includes(file.type)) {
+                reject(new Error(`Tipo no permitido en ${file.name}`));
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                resolve({
+                    nombre: file.name,
+                    tipo: file.type,
+                    data: e.target.result // Base64
+                });
+            };
+            reader.onerror = () => reject(new Error(`No se pudo leer ${file.name}`));
+            reader.readAsDataURL(file);
+        }));
+
+        Promise.all(lecturas)
+            .then(resultados => {
+                // Agregar nuevos archivos a los existentes en lugar de reemplazar
+                this.adjuntos = [...this.adjuntos, ...resultados];
+                this.adjuntosEliminadosFlag = false; // Reset flag al cargar nuevos archivos
+
+                // Mostrar info de los archivos
+                const nombres = this.adjuntos.map(r => r.nombre).join(', ');
+                document.getElementById('adjuntoNombre').textContent = nombres;
+                document.getElementById('adjuntoInfo').style.display = 'block';
+
+                this.showAlert(`✓ ${resultados.length} archivo(s) agregado(s). Total: ${this.adjuntos.length} archivo(s)`, 'success');
+                console.log('Archivos adjuntos actuales:', this.adjuntos.map(r => ({ nombre: r.nombre, tipo: r.tipo, tamaño: r.data.length })));
+            })
+            .catch(error => {
+                console.error('Error al procesar archivos:', error);
+                this.showAlert('Error al procesar adjuntos: ' + error.message, 'error');
+                event.target.value = '';
+                this.adjuntos = [];
+                document.getElementById('adjuntoInfo').style.display = 'none';
+            });
+    }
+
+    async saveReportToDB() {
+        const validationErrors = this.getValidationErrors();
+        const requiredMissing = this.validateRequiredFields();
+        const allEmpty = this.getAllEmptyFields();
+
+        if (validationErrors.length > 0 || requiredMissing.length > 0 || allEmpty.length > 0) {
+            this.showMissingFieldsModal(requiredMissing, allEmpty, validationErrors, () => this.showSaveConfirmModal());
+            return;
+        }
+        this.showSaveConfirmModal();
+    }
+
+    showMissingFieldsModal(requiredMissing, allEmpty, validationErrors, onProceed) {
+        const modal = document.getElementById('missingFieldsModal');
+        if (!modal) return;
+        const list = document.getElementById('missingFieldsList');
+        const requiredSet = new Set(requiredMissing.map(l => l.toLowerCase()));
+        const errorIds = new Set(validationErrors.map(e => e.id));
+
+        const allItems = [];
+
+        validationErrors.forEach(e => {
+            if (!allEmpty.find(f => f.id === e.id)) {
+                allItems.push({ label: e.label, type: 'error' });
+            }
+        });
+
+        allEmpty.forEach(f => {
+            const isRequired = requiredSet.has(f.label.toLowerCase());
+            const hasError = errorIds.has(f.id);
+            allItems.push({ label: f.label, type: hasError ? 'error' : isRequired ? 'required' : 'optional' });
+        });
+
+        list.innerHTML = allItems.map(item => {
+            if (item.type === 'error') {
+                return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:4px 0;border-radius:8px;background:#fff0e6;border-left:4px solid #e67e22;color:#8a4a00;font-weight:600;">❌ ${item.label} (dato inválido)</div>`;
+            }
+            if (item.type === 'required') {
+                return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:4px 0;border-radius:8px;background:#fff5f5;border-left:4px solid #dc3545;color:#721c24;font-weight:600;">❗ ${item.label}</div>`;
+            }
+            return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:4px 0;border-radius:8px;background:#f8f9fa;border-left:4px solid #adb5bd;color:#495057;">• ${item.label}</div>`;
+        }).join('');
+
+        const msg = document.getElementById('missingFieldsRequiredMsg');
+        const proceedBtn = document.getElementById('missingFieldsProceed');
+        const closeBtn = document.getElementById('missingFieldsClose');
+
+        const canProceed = requiredMissing.length === 0 && validationErrors.length === 0;
+        if (!canProceed) {
+            msg.style.display = 'block';
+            proceedBtn.style.display = 'none';
+        } else {
+            msg.style.display = 'none';
+            proceedBtn.style.display = 'inline-block';
+        }
+
+        modal.classList.add('active');
+
+        const closer = () => {
+            modal.classList.remove('active');
+            // Solo resaltar en rojo los campos obligatorios de Datos Generales que falten
+            this.validateRequiredFields();
+        };
+        closeBtn.onclick = closer;
+        proceedBtn.onclick = () => { modal.classList.remove('active'); if (onProceed) onProceed(); };
+        modal.onclick = (e) => { if (e.target === modal) closer(); };
+    }
+
+    showSaveConfirmModal() {
+        const modal = document.getElementById('confirmModal');
+        const modalContent = modal.querySelector('.modal-content');
+        
+        // Cambiar contenido del modal para guardar
+        const modalIcon = modal.querySelector('.modal-icon');
+        const modalTitle = modal.querySelector('.modal-title');
+        const modalMessage = modal.querySelector('.modal-message');
+        
+        modalIcon.textContent = '💾';
+        modalTitle.textContent = '¿Guardar Reporte?';
+        modalMessage.textContent = 'Se guardarán los datos del paciente en la base de datos de forma segura.';
+        
+        modal.classList.add('active');
+        
+        // Remover listeners previos
+        const modalCancel = modal.querySelector('#modalCancel');
+        const modalConfirm = modal.querySelector('#modalConfirm');
+        
+        const newModalCancel = modalCancel.cloneNode(true);
+        const newModalConfirm = modalConfirm.cloneNode(true);
+        modalCancel.parentNode.replaceChild(newModalCancel, modalCancel);
+        modalConfirm.parentNode.replaceChild(newModalConfirm, modalConfirm);
+        
+        // Cancelar
+        newModalCancel.addEventListener('click', () => {
+            modal.classList.remove('active');
+        });
+        
+        // Confirmar guardado
+        newModalConfirm.addEventListener('click', async () => {
+            // Deshabilitar botones
+            newModalConfirm.disabled = true;
+            newModalCancel.disabled = true;
+            
+            // Mostrar loading
+            document.querySelector('.modal-loading').classList.add('active');
+            document.querySelector('.modal-buttons').style.display = 'none';
+            
+            await this.executeSaveReport();
+        });
+    }
+
+    async executeSaveReport() {
+        try {
+            // Guardar en base de datos
+            await this.guardarEnDB();
+            
+            // Cerrar modal
+            document.getElementById('confirmModal').classList.remove('active');
+            
+            // Mostrar mensaje de éxito
+            this.showAlert('✓ Reporte guardado correctamente', 'success');
+            
+            // Redirigir a bienvenida después de 1.5 segundos
+            setTimeout(() => {
+                window.location.href = 'bienvenida.html';
+            }, 1500);
+        } catch (error) {
+            console.error('Error en executeSaveReport:', error);
+            
+            // Cerrar modal
+            document.getElementById('confirmModal').classList.remove('active');
+            
+            this.showAlert('Error al guardar: ' + error.message, 'error');
+        }
+    }
+
+    saveReportAsJSON() {
+        console.log('saveReportAsJSON() llamado');
+        const nombrePaciente = document.getElementById('nombre').value.trim();
+        const apellidoPaciente = document.getElementById('apellido').value.trim();
+
+        if (!nombrePaciente) {
+            this.showAlert('Por favor, ingresa un nombre', 'error');
+            return;
+        }
+
+        try {
+            const reportData = this.collectFormData();
+            const dataStr = JSON.stringify(reportData, null, 2);
+            const filename = `Reporte_${nombrePaciente}_${apellidoPaciente}_${new Date().getTime()}.json`;
+
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            this.showAlert('✓ Reporte guardado como JSON', 'success');
+        } catch (error) {
+            console.error('Error en saveReportAsJSON:', error);
+            this.showAlert('Error al guardar: ' + error.message, 'error');
+        }
+    }
+
+    collectFormData() {
+        const formData = {};
+
+        document.querySelectorAll('input, select, textarea').forEach(element => {
+            if (element.id && element.id !== 'fileInput') {
+                if (element.type === 'checkbox') {
+                    formData[element.id] = element.checked;
+                } else {
+                    formData[element.id] = element.value;
+                }
+            }
+        });
+
+        const unipodalData = {};
+        ['talon', 'punta'].forEach(type => {
+            const cols = ['izq', 'der', 'asim'];
+            const typeData = {};
+            cols.forEach(col => {
+                const input = document.querySelector(`input[data-unipodal="${type}"][data-col="${col}"]`);
+                if (input) typeData[col] = input.value;
+            });
+            unipodalData[type] = typeData;
+        });
+        formData.unipodal = unipodalData;
+
+        return formData;
+    }
+
+    async guardarEnDB() {
+        try {
+            if (!window.supabaseClient) {
+                console.warn('Supabase no configurado, saltando guardado en DB');
+                return;
+            }
+
+            const nombre = document.getElementById('nombre').value.trim();
+            const apellido = document.getElementById('apellido')?.value.trim() || '';
+            const cedula = document.getElementById('cc').value.trim();
+
+            if (!cedula) {
+                console.warn('No hay cédula, no se puede guardar en DB');
+                return;
+            }
+
+            const reporteData = this.collectFormData();
+
+            const currentUser = await window.supabaseClient.getCurrentUser();
+            const userId = currentUser?.id;
+            const userEmail = currentUser?.email || sessionStorage.getItem('userEmail') || null;
+
+            const atendidoPor = document.getElementById('atendidoPor')?.value?.trim() || null;
+
+            const dataToSave = {
+                cedula: cedula,
+                nombre: nombre,
+                apellido: apellido,
+                atendido_por: atendidoPor,
+                user_id: userId || null,
+                modificado_por: userEmail,
+                tipo_reporte: 'pisada',
+                reporte_json: { ...reporteData, atendidoPor: atendidoPor, atendido_por: atendidoPor, modificado_por: userEmail },
+                fecha_modificacion: new Date().toISOString()
+            };
+
+            if (this.adjuntos && this.adjuntos.length > 0) {
+                dataToSave.archivo_adjunto = JSON.stringify(this.adjuntos);
+                dataToSave.tipo_archivo_adjunto = this.adjuntos.length > 1 ? 'multiple' : this.adjuntos[0].tipo;
+                this.adjuntosEliminadosFlag = false;
+            } else if (this.adjuntosEliminadosFlag) {
+                dataToSave.archivo_adjunto = null;
+                dataToSave.tipo_archivo_adjunto = null;
+                this.adjuntosEliminadosFlag = false;
+            }
+
+            // Verificar si ya existe un reporte de pisada con esta cédula
+            const existente = await window.supabaseClient.getReporteByCedulaTipo(cedula, 'pisada');
+
+            if (existente) {
+                await window.supabaseClient.updateReporte(cedula, dataToSave, 'pisada');
+                console.log('Reporte de pisada actualizado en DB');
+            } else {
+                dataToSave.fecha_creacion = new Date().toISOString();
+                dataToSave.creado_por = userEmail;
+                dataToSave.reporte_json.creado_por = userEmail;
+                await window.supabaseClient.saveReporte(dataToSave);
+                console.log('Reporte de pisada guardado en DB');
+            }
+
+        } catch (error) {
+            console.error('Error guardando en DB:', error);
+        }
+    }
+
+    async printReport() {
+        const validationErrors = this.getValidationErrors();
+        const requiredMissing = this.validateRequiredFields();
+        const allEmpty = this.getAllEmptyFields();
+
+        if (validationErrors.length > 0 || requiredMissing.length > 0 || allEmpty.length > 0) {
+            this.showMissingFieldsModal(requiredMissing, allEmpty, validationErrors, () => this.showConfirmModal());
+            return;
+        }
+        this.showConfirmModal();
+    }
+
+    showConfirmModal() {
+        const modal = document.getElementById('confirmModal');
+        const modalCancel = document.getElementById('modalCancel');
+        const modalConfirm = document.getElementById('modalConfirm');
+        
+        modal.classList.add('active');
+        
+        // Remover listeners previos
+        const newModalCancel = modalCancel.cloneNode(true);
+        const newModalConfirm = modalConfirm.cloneNode(true);
+        modalCancel.parentNode.replaceChild(newModalCancel, modalCancel);
+        modalConfirm.parentNode.replaceChild(newModalConfirm, modalConfirm);
+        
+        // Cancelar
+        newModalCancel.addEventListener('click', () => {
+            modal.classList.remove('active');
+        });
+        
+        // Confirmar
+        newModalConfirm.addEventListener('click', async () => {
+            // Deshabilitar botones
+            newModalConfirm.disabled = true;
+            newModalCancel.disabled = true;
+            
+            // Mostrar loading
+            document.querySelector('.modal-loading').classList.add('active');
+            document.querySelector('.modal-buttons').style.display = 'none';
+            
+            await this.generateAndSavePDF();
+        });
+    }
+
+    async generateAndSavePDF() {
+        const nombrePaciente = document.getElementById('nombre')?.value?.trim() || '';
+        const apellidoPaciente = document.getElementById('apellido')?.value?.trim() || '';
+        const nombreCompleto = `${nombrePaciente} ${apellidoPaciente}`.trim() || 'Reporte_Fisioterapia_Deportiva';
+        const filename = `${nombreCompleto}.pdf`;
+
+        try {
+            if (!window.jspdf) {
+                throw new Error('jsPDF no está cargado');
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            
+            const primaryColor = [10, 148, 176];   // #0A94B0
+            const accentColor = [8, 125, 148];     // #087D94
+            const textDark = [33, 33, 33];
+            const bgLight = [235, 241, 248];
+            const borderColor = [180, 190, 200];
+            
+            let yPos = 15;
+
+            doc.setFillColor(...primaryColor);
+            doc.rect(0, 0, 210, 33, 'F');
+
+            // Logo contenedor blanco redondeado (idéntico al formulario web)
+            doc.setFillColor(255, 255, 255);
+            doc.roundedRect(12, 4.5, 24, 24, 3, 3, 'F');
+            try {
+                doc.addImage('kinetiq_logo.png', 'PNG', 13.5, 6, 21, 21);
+            } catch (e) {
+                try {
+                    doc.addImage('logo.jpeg', 'JPEG', 13.5, 6, 21, 21);
+                } catch (e2) {
+                    doc.setTextColor(...primaryColor);
+                    doc.setFontSize(16);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('KS', 24, 18, { align: 'center' });
+                }
+            }
+
+            // Title (en 2 líneas para evitar superposición con los datos del paciente a la derecha)
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(10.5);
+            doc.setFont('helvetica', 'normal');
+            doc.text('VALORACIÓN POR', 42, 13);
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('FISIOTERAPIA DEPORTIVA', 42, 21);
+
+            // Patient info on the right side
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(255, 255, 255);
+            const hoy = new Date();
+            const fechaLarga = hoy.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+            doc.text(`Paciente: ${nombrePaciente} ${apellidoPaciente}`, 198, 15, { align: 'right' });
+            doc.text(`Fecha: ${fechaLarga}`, 198, 22, { align: 'right' });
+
+            yPos = 42;
+
+            // ==================== PÁGINA 1: DATOS GENERALES ====================
+            this.addSectionHeader(doc, 'DATOS GENERALES', yPos, primaryColor);
+            yPos += 13;
+
+            const tableMargin = { left: 12, right: 12, bottom: 25 };
+
+            doc.autoTable({
+                startY: yPos,
+                body: this.onlyFilled([
+                    ['Nombre:', document.getElementById('nombre')?.value || '-', 'Apellido:', document.getElementById('apellido')?.value || '-'],
+                    ['CC:', document.getElementById('cc')?.value || '-', 'Celular:', document.getElementById('celular')?.value || '-'],
+                    ['Edad:', document.getElementById('edad')?.value ? document.getElementById('edad').value + ' años' : '-', 'Sexo:', document.getElementById('sexo')?.value || '-'],
+                    ['Ocupación:', document.getElementById('ocupacion')?.value || '-', 'Dominancia:', document.getElementById('dominancia')?.value || '-'],
+                    ['Peso:', document.getElementById('peso')?.value ? document.getElementById('peso').value + ' Kg' : '-', 'Talla:', document.getElementById('talla')?.value ? document.getElementById('talla').value + ' cm' : '-'],
+                    ['IMC:', { content: document.getElementById('imc')?.value || '-', colSpan: 3 }]
+                ]),
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: { top: 4.5, bottom: 4.5, left: 3.5, right: 3.5 }, textColor: textDark, lineColor: [225, 230, 238], lineWidth: 0.3 },
+                headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+                alternateRowStyles: { fillColor: [247, 249, 252] },
+                columnStyles: {
+                    0: { fontStyle: 'bold', textColor: primaryColor, cellWidth: 28, fillColor: [240, 246, 250] },
+                    1: { cellWidth: 64, fillColor: [255, 255, 255] },
+                    2: { fontStyle: 'bold', textColor: primaryColor, cellWidth: 34, fillColor: [240, 246, 250] },
+                    3: { cellWidth: 60, fillColor: [255, 255, 255] }
+                },
+                margin: tableMargin
+            });
+
+            yPos = doc.lastAutoTable.finalY + 10;
+
+            // ANAMNESIS Y ANTECEDENTES CLÍNICOS
+            let anamnesisPageBreak = false;
+            const anamnesisFields = [
+                'localizacionDolor', 'escalaDolor', 'usoOrtesis', 'suplementacionMedicamentos',
+                'antecMedicos', 'antecQuirurgicos', 'antecLesiones', 'antecTrauma',
+                'antecMetabolico', 'hospitalizaciones', 'alergias'
+            ];
+            if (this.hasData(anamnesisFields)) {
+                this.addSectionHeader(doc, 'ANAMNESIS Y ANTECEDENTES CLÍNICOS', yPos, primaryColor);
+                yPos += 14;
+                const escalaVal = document.getElementById('escalaDolor')?.value;
+                const items = [
+                    ['Localización del dolor', document.getElementById('localizacionDolor')?.value],
+                    ['Escala del dolor (1 a 10)', escalaVal ? `${escalaVal} / 10` : ''],
+                    ['Uso de aparatos de órtesis', document.getElementById('usoOrtesis')?.value],
+                    ['Suplementación / medicamentos', document.getElementById('suplementacionMedicamentos')?.value],
+                    ['Antecedentes médicos', document.getElementById('antecMedicos')?.value],
+                    ['Antecedentes quirúrgicos', document.getElementById('antecQuirurgicos')?.value],
+                    ['Antecedentes de lesiones', document.getElementById('antecLesiones')?.value],
+                    ['Antecedentes traumáticos', document.getElementById('antecTrauma')?.value],
+                    ['Antecedentes metabólicos', document.getElementById('antecMetabolico')?.value],
+                    ['Hospitalizaciones', document.getElementById('hospitalizaciones')?.value],
+                    ['Alergias', document.getElementById('alergias')?.value]
+                ].filter(([,v]) => v && v.trim());
+                items.forEach(([label, value]) => {
+                    const lines = doc.splitTextToSize(value, 170);
+                    const itemHeight = 12 + lines.length * 5;
+                    if (yPos + itemHeight > 270) { doc.addPage(); yPos = 20; anamnesisPageBreak = true; }
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(...primaryColor);
+                    doc.text(label, 12, yPos);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(...textDark);
+                    doc.text(lines, 12, yPos + 5);
+                    yPos += itemHeight;
+                    doc.setDrawColor(225, 230, 238);
+                    doc.setLineWidth(0.3);
+                    doc.line(12, yPos - 4, 198, yPos - 4);
+                });
+                if (anamnesisPageBreak) {
+                    yPos += 3;
+                }
+            }
+
+            // ==================== PÁGINA 2: ACTIVIDAD FÍSICA ====================
+            const actividadFields = ['deporte','tiempoDeporte','rol','club','entrenador','diasEntrenamiento','diasGimnasio','diasDescanso','tenis','competencia','pasadoDeportivo'];
+            const necesitaPagina2 = this.hasData(actividadFields) ||
+                document.getElementById('motivoConsulta')?.value?.trim() ||
+                document.getElementById('notasAdicionales')?.value?.trim() ||
+                this.hasData(['postura','marcha','hods','lunge','observaciones']);
+            if (necesitaPagina2 && !anamnesisPageBreak) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            // ACTIVIDAD FÍSICA
+            if (this.hasData(actividadFields)) {
+                this.addSectionHeader(doc, 'ACTIVIDAD FÍSICA Y ENTRENAMIENTO', yPos, primaryColor);
+                yPos += 11;
+                doc.autoTable({
+                    startY: yPos,
+                    body: this.onlyFilled([
+                        ['Deporte:', document.getElementById('deporte')?.value || '-', 'Tiempo:', document.getElementById('tiempoDeporte')?.value || '-'],
+                        ['Rol:', document.getElementById('rol')?.value || '-', 'Club:', document.getElementById('club')?.value || '-'],
+                        ['Entrenador:', document.getElementById('entrenador')?.value || '-', 'Días entreno:', (document.getElementById('diasEntrenamiento')?.value || '-') + (document.getElementById('diasEntrenamiento')?.value ? ' días' : '')],
+                        ['Días gimnasio:', (document.getElementById('diasGimnasio')?.value || '-') + (document.getElementById('diasGimnasio')?.value ? ' días' : ''), 'Días descanso:', (document.getElementById('diasDescanso')?.value || '-') + (document.getElementById('diasDescanso')?.value ? ' días' : '')],
+                        ['Tenis:', document.getElementById('tenis')?.value || '-', 'Competencia:', document.getElementById('competencia')?.value || '-'],
+                        ['Pasado deportivo:', { content: document.getElementById('pasadoDeportivo')?.value || '-', colSpan: 3 }]
+                    ]),
+                    theme: 'grid',
+                    styles: { fontSize: 9, cellPadding: 4, textColor: textDark, lineColor: [225, 230, 238], lineWidth: 0.3 },
+                    alternateRowStyles: { fillColor: [245, 247, 250] },
+                    columnStyles: {
+                        0: { fontStyle: 'bold', textColor: primaryColor, cellWidth: 40, fillColor: [240, 245, 250] },
+                        1: { cellWidth: 50, fillColor: [255, 255, 255] },
+                        2: { fontStyle: 'bold', textColor: primaryColor, cellWidth: 40, fillColor: [240, 245, 250] },
+                        3: { cellWidth: 50, fillColor: [255, 255, 255] }
+                    },
+                    margin: tableMargin
+                });
+                yPos = doc.lastAutoTable.finalY + 10;
+            }
+
+            // MOTIVO DE CONSULTA
+            const motVal = document.getElementById('motivoConsulta')?.value?.trim();
+            if (motVal) {
+                if (yPos > 240) { doc.addPage(); yPos = 20; }
+                this.addSectionHeader(doc, 'MOTIVO DE CONSULTA', yPos, primaryColor);
+                yPos += 14;
+                const lines = doc.splitTextToSize(motVal, 175);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(...textDark);
+                doc.text(lines, 12, yPos);
+                yPos += lines.length * 5 + 14;
+            }
+
+            // NOTAS ADICIONALES
+            const notasVal = document.getElementById('notasAdicionales')?.value?.trim();
+            if (notasVal) {
+                if (yPos > 240) { doc.addPage(); yPos = 20; }
+                this.addSectionHeader(doc, 'NOTAS ADICIONALES', yPos, primaryColor);
+                yPos += 14;
+                const lines = doc.splitTextToSize(notasVal, 175);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(...textDark);
+                doc.text(lines, 12, yPos);
+                yPos += lines.length * 5 + 14;
+            }
+
+            // VALORACIÓN FISIOTERAPIA DEPORTIVA
+            if (this.hasData(['postura','marcha','hods','lunge','observaciones'])) {
+                if (yPos > 240) { doc.addPage(); yPos = 20; }
+                this.addSectionHeader(doc, 'VALORACIÓN FISIOTERAPIA DEPORTIVA', yPos, primaryColor);
+                yPos += 11;
+                doc.autoTable({
+                    startY: yPos,
+                    body: this.onlyFilled([
+                        ['Postura:', document.getElementById('postura')?.value || '-'],
+                        ['Marcha:', document.getElementById('marcha')?.value || '-'],
+                        ['HODS:', document.getElementById('hods')?.value || '-'],
+                        ['Lunge Test:', document.getElementById('lunge')?.value || '-'],
+                        ['Observaciones:', document.getElementById('observaciones')?.value || '-']
+                    ]),
+                    theme: 'grid',
+                    styles: { fontSize: 9, cellPadding: 4, textColor: textDark, lineColor: [225, 230, 238], lineWidth: 0.3 },
+                    alternateRowStyles: { fillColor: [245, 247, 250] },
+                    columnStyles: {
+                        0: { fontStyle: 'bold', textColor: primaryColor, cellWidth: 40, fillColor: [240, 245, 250] },
+                        1: { cellWidth: 140, fillColor: [255, 255, 255] }
+                    },
+                    margin: tableMargin
+                });
+                yPos = doc.lastAutoTable.finalY + 10;
+            }
+
+            // FOOTER EN TODAS LAS PÁGINAS
+            const pageCount = doc.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                // Footer line
+                doc.setDrawColor(10, 148, 176);
+                doc.setLineWidth(0.5);
+                doc.line(12, 280, 198, 280);
+                doc.setFontSize(7);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(150, 160, 170);
+                doc.text('KINETIQ SPORTS · Sistema Inteligente de Evaluación Biomecánica', 12, 285);
+                doc.text(`Página ${i} de ${pageCount}`, 198, 285, { align: 'right' });
+            }
+
+            // Agregar imágenes adjuntas como nuevas páginas
+            if (this.adjuntos && this.adjuntos.length > 0) {
+                const imagenes = this.adjuntos.filter(a => a.tipo.startsWith('image/'));
+                for (const imagen of imagenes) {
+                    await this.agregarArchivoAlPDF(doc, imagen);
+                }
+            }
+
+            // Exportar a bytes
+            let pdfBytes = doc.output('arraybuffer');
+
+            // Mergear PDFs adjuntos con pdf-lib
+            if (this.adjuntos && this.adjuntos.some(a => a.tipo === 'application/pdf')) {
+                if (!window.PDFLib) {
+                    throw new Error('PDF-LIB no está cargado');
+                }
+
+                const { PDFDocument } = window.PDFLib;
+                const mainDoc = await PDFDocument.load(pdfBytes);
+
+                const pdfAdjuntos = this.adjuntos.filter(a => a.tipo === 'application/pdf');
+                for (const adj of pdfAdjuntos) {
+                    const base64Data = adj.data.split(',')[1];
+                    const attachmentBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                    const attachDoc = await PDFDocument.load(attachmentBytes);
+                    const pages = await mainDoc.copyPages(attachDoc, attachDoc.getPageIndices());
+                    pages.forEach(p => mainDoc.addPage(p));
+                }
+
+                pdfBytes = await mainDoc.save();
+            }
+
+            // Descargar el PDF resultante
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            // Guardar en base de datos
+            await this.guardarEnDB();
+            
+            // Cerrar modal
+            document.getElementById('confirmModal').classList.remove('active');
+            
+            // Mostrar mensaje de éxito
+            this.showAlert('✓ PDF descargado y datos guardados correctamente', 'success');
+            
+            // Redirigir a la página de bienvenida después de 2 segundos
+            setTimeout(() => {
+                window.location.href = 'bienvenida.html';
+            }, 2000);
+
+        } catch (error) {
+            console.error('Error en generateAndSavePDF:', error);
+            
+            // Cerrar modal
+            document.getElementById('confirmModal').classList.remove('active');
+            
+            this.showAlert('Error al generar PDF: ' + error.message, 'error');
+        }
+    }
+
+    addSectionHeader(doc, title, yPos, primaryColor) {
+        doc.setFillColor(...primaryColor);
+        doc.roundedRect(12, yPos, 186, 9, 2, 2, 'F');
+        doc.setFontSize(9);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title, 18, yPos + 6.5);
+    }
+
+    onlyFilled(rows) {
+        return rows.filter(row =>
+            row.some((cell, i) => {
+                if (i % 2 !== 1 || !cell) return false;
+                const val = (typeof cell === 'object' && cell !== null && cell.content !== undefined) ? cell.content : cell;
+                return val && val !== '-' && val.toString().trim() !== '';
+            })
+        );
+    }
+
+    hasData(ids) {
+        return ids.some(id => {
+            const el = document.getElementById(id);
+            return el && el.value && el.value.trim() !== '';
+        });
+    }
+
+    async agregarArchivoAlPDF(doc, adjunto) {
+        try {
+            if (!adjunto?.tipo || !adjunto.tipo.startsWith('image/')) {
+                // Solo manejamos imágenes aquí; PDFs se mergean con pdf-lib en otro paso
+                return;
+            }
+
+            doc.addPage();
+            
+            const primaryColor = [10, 148, 176];   // #0A94B0
+            const accentColor = [8, 125, 148];     // #087D94
+            
+            let yPos = 15;
+            
+            // Header
+            doc.setFillColor(...primaryColor);
+            doc.rect(0, 0, 210, 35, 'F');
+            
+            doc.setFillColor(...accentColor);
+            doc.rect(0, 32, 210, 3, 'F');
+            
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text('ANEXO ADJUNTO', 15, 20);
+            
+            yPos = 45;
+            
+            // Agregar la imagen
+            const img = new Image();
+            img.src = adjunto.data;
+
+            await new Promise((resolve) => {
+                img.onload = () => {
+                    const maxWidth = 180; // mm
+                    const maxHeight = 200; // mm
+                    let { width, height } = img;
+
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height = (height * maxWidth) / width;
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width = (width * maxHeight) / height;
+                            height = maxHeight;
+                        }
+                    }
+
+                    const xPos = (210 - width) / 2;
+                    doc.addImage(adjunto.data, adjunto.tipo.split('/')[1].toUpperCase(), xPos, yPos, width, height);
+                    resolve();
+                };
+            });
+        } catch (error) {
+            console.error('Error al agregar archivo adjunto:', error);
+        }
+    }
+
+    buscarPacienteExistente() {
+        const modal = document.getElementById('searchModal');
+        const input = document.getElementById('searchPatientInput');
+        const results = document.getElementById('searchResults');
+        const cancel = document.getElementById('searchCancel');
+        const loading = document.getElementById('searchLoading');
+
+        if (!modal) return;
+
+        input.value = '';
+        results.innerHTML = '<p style="color: #7f8c8d; text-align: center; padding: 20px;">Escribe para buscar pacientes...</p>';
+        modal.classList.add('active');
+
+        let searchTimeout;
+        const handleInput = () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => this.searchPatients(input.value.trim()), 300);
+        };
+
+        const handleResultClick = (e) => {
+            const card = e.target.closest('[data-paciente]');
+            if (card) {
+                try {
+                    const raw = card.getAttribute('data-paciente');
+                    if (!raw) return;
+                    const reporte = JSON.parse(raw);
+                    this.prefillFromPaciente(reporte);
+                    modal.classList.remove('active');
+                    this.cleanupSearchListeners();
+                } catch (err) {
+                    console.error('Error al cargar paciente:', err);
+                }
+            }
+        };
+
+        const closeModal = () => {
+            modal.classList.remove('active');
+            this.cleanupSearchListeners();
+        };
+
+        this._searchListeners = [
+            { el: input, type: 'input', fn: handleInput },
+            { el: results, type: 'click', fn: handleResultClick },
+            { el: cancel, type: 'click', fn: closeModal },
+            { el: modal, type: 'click', fn: (e) => { if (e.target === modal) closeModal(); } }
+        ];
+
+        this._searchListeners.forEach(({ el, type, fn }) => el.addEventListener(type, fn));
+        setTimeout(() => input.focus(), 100);
+    }
+
+    cleanupSearchListeners() {
+        if (this._searchListeners) {
+            this._searchListeners.forEach(({ el, type, fn }) => el.removeEventListener(type, fn));
+            this._searchListeners = null;
+        }
+    }
+
+    async searchPatients(query) {
+        const results = document.getElementById('searchResults');
+        const loading = document.getElementById('searchLoading');
+
+        if (!query || query.length < 2) {
+            results.innerHTML = '<p style="color: #7f8c8d; text-align: center; padding: 20px;">Escribe al menos 2 caracteres...</p>';
+            return;
+        }
+
+        if (!window.supabaseClient?.supabase) {
+            results.innerHTML = '<p style="color: #e74c3c; text-align: center; padding: 20px;">⚠️ Base de datos no disponible</p>';
+            return;
+        }
+
+        loading.style.display = 'block';
+        results.innerHTML = '';
+
+        try {
+            const { data, error } = await window.supabaseClient.supabase
+                .from('reportes')
+                .select('cedula, nombre, apellido, tipo_reporte, reporte_json, fecha_modificacion')
+                .or(`nombre.ilike.%${query}%,apellido.ilike.%${query}%,cedula.ilike.%${query}%`)
+                .order('fecha_modificacion', { ascending: false });
+
+            if (error) throw error;
+
+            loading.style.display = 'none';
+
+            if (!data || data.length === 0) {
+                results.innerHTML = '<p style="color: #7f8c8d; text-align: center; padding: 20px;">No se encontraron pacientes</p>';
+                return;
+            }
+
+            this.renderSearchResults(data);
+        } catch (error) {
+            loading.style.display = 'none';
+            results.innerHTML = `<p style="color: #e74c3c; text-align: center; padding: 20px;">Error: ${error.message}</p>`;
+        }
+    }
+
+    renderSearchResults(data) {
+        const results = document.getElementById('searchResults');
+
+        const grouped = new Map();
+        data.forEach(r => {
+            const key = r.cedula || `${r.nombre}_${r.apellido}`;
+            if (!grouped.has(key)) grouped.set(key, []);
+            grouped.get(key).push(r);
+        });
+
+        results.innerHTML = `<p style="color: #7f8c8d; margin-bottom: 10px; font-size: 13px;">${grouped.size} paciente(s) encontrado(s)</p>`;
+
+        grouped.forEach((records, key) => {
+            const first = records[0];
+            const datos = first.reporte_json || {};
+            const tipos = [...new Set(records.map(r => r.tipo_reporte || 'pisada'))];
+
+            const card = document.createElement('div');
+            card.style.cssText = 'padding: 14px; border: 1px solid #e0e4e8; border-radius: 8px; margin-bottom: 8px; background: #f8fafc; cursor: pointer; transition: box-shadow 0.2s, border-color 0.2s;';
+            card.addEventListener('mouseenter', () => { card.style.borderColor = '#0A94B0'; card.style.boxShadow = '0 2px 8px rgba(10,148,176,0.15)'; });
+            card.addEventListener('mouseleave', () => { card.style.borderColor = '#e0e4e8'; card.style.boxShadow = 'none'; });
+
+            const pacienteData = JSON.stringify(first);
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('button')) return;
+                try {
+                    const reporte = JSON.parse(pacienteData);
+                    this.prefillFromPaciente(reporte);
+                    document.getElementById('searchModal').classList.remove('active');
+                    this.cleanupSearchListeners();
+                } catch (err) {
+                    console.error('Error al cargar paciente:', err);
+                }
+            });
+
+            let buttonsHtml = '';
+            tipos.forEach(tipo => {
+                const report = records.find(r => (r.tipo_reporte || 'pisada') === tipo);
+                const label = tipo === 'piso_pelvico' ? '\u{1FA80} Ver P\u00E9lvico' : '\u{1F463} Ver Pisada';
+                const bg = tipo === 'piso_pelvico' ? '#087D94' : '#0A94B0';
+                const target = tipo === 'piso_pelvico' ? 'reporte-piso-pelvico.html' : 'index.html';
+                buttonsHtml += `<button onclick="event.stopPropagation();(function(){
+                    var r = ${JSON.stringify(report).replace(/<\/script>/gi, '<\\/script>')};
+                    sessionStorage.setItem('reportToLoad',JSON.stringify(r.reporte_json));
+                    if(r.adjuntos) sessionStorage.setItem('adjuntosToLoad',JSON.stringify(r.adjuntos));
+                    window.location.href='${target}';
+                })()" style="padding:8px 16px;background:${bg};color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin-left:6px;">${label}</button>`;
+            });
+
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="font-size: 15px; color: #0A94B0;">${datos.nombre || first.nombre || 'Sin nombre'} ${datos.apellido || first.apellido || ''}</strong>
+                        <div style="font-size: 12px; color: #95a5a6; margin-top: 2px;">CC: ${first.cedula || '-'} — Click para cargar datos en este formulario</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        ${buttonsHtml}
+                    </div>
+                </div>
+            `;
+            results.appendChild(card);
+        });
+    }
+
+    prefillFromPaciente(paciente) {
+        const datos = paciente.reporte_json || {};
+
+        if (datos.nombre) { document.getElementById('nombre').value = datos.nombre; }
+        if (datos.apellido) { document.getElementById('apellido').value = datos.apellido; }
+        this.updateHeaderPatient();
+        if (datos.edad) document.getElementById('edad').value = datos.edad;
+        if (datos.sexo) document.getElementById('sexo').value = datos.sexo;
+        if (datos.peso) document.getElementById('peso').value = datos.peso;
+        if (datos.talla) document.getElementById('talla').value = datos.talla;
+        if (datos.celular) document.getElementById('celular').value = datos.celular;
+        if (datos.cc) document.getElementById('cc').value = datos.cc;
+
+        document.querySelectorAll('.form-control').forEach(el => {
+            if (el.value.trim()) {
+                el.classList.add('field-filled');
+            }
+        });
+
+        this.calculateIMC();
+        this.showAlert(`✓ Datos de ${datos.nombre || ''} precargados`, 'success');
+    }
+
+    showAlert(message, type = 'info') {
+        const existing = document.querySelector('.alert');
+        if (existing) existing.remove();
+
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} show`;
+        alertDiv.textContent = message;
+        
+        document.body.insertBefore(alertDiv, document.body.firstChild);
+
+        setTimeout(() => {
+            alertDiv.style.opacity = '0';
+            alertDiv.style.transition = 'opacity 0.3s ease';
+            setTimeout(() => alertDiv.remove(), 300);
+        }, 3000);
+    }
+
+    // =========================================================================
+    // SISTEMA DE MÚLTIPLES VALORACIONES
+    // =========================================================================
+    initMultipleValoraciones() {
+        this.fuerzaComparativaList = [];
+        this.rangoActivoList = [];
+
+        // Botón Agregar Fuerza Comparativa
+        const addFuerzaBtn = document.getElementById('addFuerzaBtn');
+        if (addFuerzaBtn) {
+            addFuerzaBtn.addEventListener('click', () => this.agregarFuerzaComparativa());
+        }
+
+        // Botón Agregar Rango Activo
+        const addRAMBtn = document.getElementById('addRAMBtn');
+        if (addRAMBtn) {
+            addRAMBtn.addEventListener('click', () => this.agregarRangoActivo());
+        }
+
+        // Validación de solo números para inputs de fuerza
+        const fuerzaInputs = [
+            'fuerzaMaxIzq', 'fuerzaMaxDer', 'fuerzaMaxAsim',
+            'rfdIzq', 'rfdDer', 'rfdAsim',
+            'fatigaIzq', 'fatigaDer', 'fatigaAsim'
+        ];
+        fuerzaInputs.forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.addEventListener('input', () => {
+                    this.restrictToNumbers(input, true);
+                });
+            }
+        });
+
+        // Validación de solo números para inputs de rango activo
+        const ramInputs = ['anguloMaxIzq', 'anguloMaxDer', 'velocidadRADIzq', 'velocidadRADDer'];
+        ramInputs.forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.addEventListener('input', () => {
+                    this.restrictToNumbers(input, true);
+                });
+            }
+        });
+
+        // Validación para pasivo también
+        const pasivoInputs = ['anguloPasivoIzq', 'anguloPasivoDer'];
+        pasivoInputs.forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.addEventListener('input', () => {
+                    this.restrictToNumbers(input, true);
+                });
+            }
+        });
+    }
+
+    agregarFuerzaComparativa() {
+        const musculo = document.getElementById('musculoFuerza').value.trim();
+        const fuerzaMaxIzq = document.getElementById('fuerzaMaxIzq').value;
+        const fuerzaMaxDer = document.getElementById('fuerzaMaxDer').value;
+        const fuerzaMaxAsim = document.getElementById('fuerzaMaxAsim').value;
+        const rfdIzq = document.getElementById('rfdIzq').value;
+        const rfdDer = document.getElementById('rfdDer').value;
+        const rfdAsim = document.getElementById('rfdAsim').value;
+        const fatigaIzq = document.getElementById('fatigaIzq').value;
+        const fatigaDer = document.getElementById('fatigaDer').value;
+        const fatigaAsim = document.getElementById('fatigaAsim').value;
+
+        if (!musculo) {
+            this.showAlert('⚠️ Ingresa el nombre del músculo', 'warning');
+            return;
+        }
+
+        const valoracion = {
+            musculo,
+            fuerzaMax: { izq: fuerzaMaxIzq, der: fuerzaMaxDer, asim: fuerzaMaxAsim },
+            rfd: { izq: rfdIzq, der: rfdDer, asim: rfdAsim },
+            fatiga: { izq: fatigaIzq, der: fatigaDer, asim: fatigaAsim }
+        };
+
+        this.fuerzaComparativaList.push(valoracion);
+        this.renderFuerzaList();
+        this.limpiarCamposFuerza();
+        this.showAlert('✓ Valoración de fuerza agregada', 'success');
+
+        // Guardar en hidden input
+        document.getElementById('fuerzaComparativaData').value = JSON.stringify(this.fuerzaComparativaList);
+    }
+
+    agregarRangoActivo() {
+        const articulacion = document.getElementById('articulacionRAM').value.trim();
+        const anguloMaxIzq = document.getElementById('anguloMaxIzq').value;
+        const anguloMaxDer = document.getElementById('anguloMaxDer').value;
+        const velocidadRADIzq = document.getElementById('velocidadRADIzq').value;
+        const velocidadRADDer = document.getElementById('velocidadRADDer').value;
+        const anguloPasivoIzq = document.getElementById('anguloPasivoIzq').value;
+        const anguloPasivoDer = document.getElementById('anguloPasivoDer').value;
+
+        if (!articulacion) {
+            this.showAlert('⚠️ Ingresa el nombre de la articulación', 'warning');
+            return;
+        }
+
+        const valoracion = {
+            articulacion,
+            anguloMax: { izq: anguloMaxIzq, der: anguloMaxDer },
+            velocidadRAD: { izq: velocidadRADIzq, der: velocidadRADDer },
+            anguloPasivo: { izq: anguloPasivoIzq, der: anguloPasivoDer }
+        };
+
+        this.rangoActivoList.push(valoracion);
+        this.renderRAMList();
+        this.limpiarCamposRAM();
+        this.showAlert('✓ Valoración de movimiento agregada', 'success');
+
+        // Guardar en hidden input
+        document.getElementById('rangoActivoData').value = JSON.stringify(this.rangoActivoList);
+    }
+
+    renderFuerzaList() {
+        const listContainer = document.getElementById('fuerzaList');
+        if (!listContainer) return;
+
+        if (this.fuerzaComparativaList.length === 0) {
+            listContainer.innerHTML = '';
+            return;
+        }
+
+        let html = '<div style="margin-top: 20px;"><h3 style="color: #0A94B0; font-size: 16px; margin-bottom: 10px;">Valoraciones Agregadas:</h3>';
+        
+        this.fuerzaComparativaList.forEach((val, index) => {
+            html += `
+                <div style="background: #f7fbfd; border-left: 4px solid #00C8D4; padding: 15px; margin-bottom: 10px; border-radius: 6px; position: relative;">
+                    <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 5px;">
+                        <button type="button" onclick="reporte.editarFuerza(${index})" 
+                            style="background: #0A94B0; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px;">
+                            ✏️ Editar
+                        </button>
+                        <button type="button" onclick="reporte.eliminarFuerza(${index})" 
+                            style="background: #e74c3c; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px;">
+                            🗑️ Eliminar
+                        </button>
+                    </div>
+                    <p style="font-weight: 600; color: #0A94B0; margin-bottom: 8px;">Músculo: ${val.musculo}</p>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px;">
+                        <div><strong>Fuerza Max:</strong> I:${val.fuerzaMax.izq || '-'} D:${val.fuerzaMax.der || '-'} A:${val.fuerzaMax.asim || '-'}%</div>
+                        <div><strong>RFD:</strong> I:${val.rfd.izq || '-'} D:${val.rfd.der || '-'} A:${val.rfd.asim || '-'}%</div>
+                        <div><strong>Fatiga:</strong> I:${val.fatiga.izq || '-'} D:${val.fatiga.der || '-'} A:${val.fatiga.asim || '-'}%</div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        listContainer.innerHTML = html;
+    }
+
+    renderRAMList() {
+        const listContainer = document.getElementById('ramList');
+        if (!listContainer) return;
+
+        if (this.rangoActivoList.length === 0) {
+            listContainer.innerHTML = '';
+            return;
+        }
+
+        let html = '<div style="margin-top: 20px;"><h3 style="color: #0A94B0; font-size: 16px; margin-bottom: 10px;">Valoraciones Agregadas:</h3>';
+        
+        this.rangoActivoList.forEach((val, index) => {
+            html += `
+                <div style="background: #f7fbfd; border-left: 4px solid #00C8D4; padding: 15px; margin-bottom: 10px; border-radius: 6px; position: relative;">
+                    <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 5px;">
+                        <button type="button" onclick="reporte.editarRAM(${index})" 
+                            style="background: #0A94B0; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px;">
+                            ✏️ Editar
+                        </button>
+                        <button type="button" onclick="reporte.eliminarRAM(${index})" 
+                            style="background: #e74c3c; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px;">
+                            🗑️ Eliminar
+                        </button>
+                    </div>
+                    <p style="font-weight: 600; color: #0A94B0; margin-bottom: 8px;">Articulación: ${val.articulacion}</p>
+                    <div style="font-size: 13px;">
+                        <div style="margin-bottom: 5px;"><strong>Ángulo Activo:</strong> Izq: ${val.anguloMax.izq || '-'}° Der: ${val.anguloMax.der || '-'}°</div>
+                        <div style="margin-bottom: 5px;"><strong>Velocidad RAD:</strong> Izq: ${val.velocidadRAD.izq || '-'} Der: ${val.velocidadRAD.der || '-'}</div>
+                        <div style="border-top: 1px solid #00C8D4; padding-top: 5px; margin-top: 5px;"><strong>Ángulo Pasivo:</strong> Izq: ${val.anguloPasivo.izq || '-'}° Der: ${val.anguloPasivo.der || '-'}°</div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        listContainer.innerHTML = html;
+    }
+
+    editarFuerza(index) {
+        const val = this.fuerzaComparativaList[index];
+        
+        // Cargar datos en los campos
+        document.getElementById('musculoFuerza').value = val.musculo;
+        document.getElementById('fuerzaMaxIzq').value = val.fuerzaMax.izq;
+        document.getElementById('fuerzaMaxDer').value = val.fuerzaMax.der;
+        document.getElementById('fuerzaMaxAsim').value = val.fuerzaMax.asim;
+        document.getElementById('rfdIzq').value = val.rfd.izq;
+        document.getElementById('rfdDer').value = val.rfd.der;
+        document.getElementById('rfdAsim').value = val.rfd.asim;
+        document.getElementById('fatigaIzq').value = val.fatiga.izq;
+        document.getElementById('fatigaDer').value = val.fatiga.der;
+        document.getElementById('fatigaAsim').value = val.fatiga.asim;
+        
+        // Eliminar de la lista (se volverá a agregar al hacer click en Agregar)
+        this.fuerzaComparativaList.splice(index, 1);
+        this.renderFuerzaList();
+        document.getElementById('fuerzaComparativaData').value = JSON.stringify(this.fuerzaComparativaList);
+        
+        // Scroll al formulario
+        document.getElementById('musculoFuerza').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        this.showAlert('✏️ Editando valoración - Modifica y presiona "Agregar"', 'info');
+    }
+
+    editarRAM(index) {
+        const val = this.rangoActivoList[index];
+        
+        // Cargar datos en los campos
+        document.getElementById('articulacionRAM').value = val.articulacion;
+        document.getElementById('anguloMaxIzq').value = val.anguloMax.izq;
+        document.getElementById('anguloMaxDer').value = val.anguloMax.der;
+        document.getElementById('velocidadRADIzq').value = val.velocidadRAD.izq;
+        document.getElementById('anguloPasivoIzq').value = val.anguloPasivo?.izq || '';
+        document.getElementById('anguloPasivoDer').value = val.anguloPasivo?.der || '';
+        document.getElementById('velocidadRADDer').value = val.velocidadRAD.der;
+        
+        // Eliminar de la lista (se volverá a agregar al hacer click en Agregar)
+        this.rangoActivoList.splice(index, 1);
+        this.renderRAMList();
+        document.getElementById('rangoActivoData').value = JSON.stringify(this.rangoActivoList);
+        
+        // Scroll al formulario
+        document.getElementById('articulacionRAM').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        this.showAlert('✏️ Editando valoración - Modifica y presiona "Agregar"', 'info');
+    }
+
+    eliminarFuerza(index) {
+        this.fuerzaComparativaList.splice(index, 1);
+        this.renderFuerzaList();
+        document.getElementById('fuerzaComparativaData').value = JSON.stringify(this.fuerzaComparativaList);
+        this.showAlert('✓ Valoración eliminada', 'success');
+    }
+
+    eliminarRAM(index) {
+        this.rangoActivoList.splice(index, 1);
+        this.renderRAMList();
+        document.getElementById('rangoActivoData').value = JSON.stringify(this.rangoActivoList);
+        this.showAlert('✓ Valoración eliminada', 'success');
+    }
+
+    limpiarCamposFuerza() {
+        document.getElementById('musculoFuerza').value = '';
+        document.getElementById('fuerzaMaxIzq').value = '';
+        document.getElementById('fuerzaMaxDer').value = '';
+        document.getElementById('fuerzaMaxAsim').value = '';
+        document.getElementById('rfdIzq').value = '';
+        document.getElementById('rfdDer').value = '';
+        document.getElementById('rfdAsim').value = '';
+        document.getElementById('fatigaIzq').value = '';
+        document.getElementById('fatigaDer').value = '';
+        document.getElementById('fatigaAsim').value = '';
+    }
+
+    limpiarCamposRAM() {
+        document.getElementById('articulacionRAM').value = '';
+        document.getElementById('anguloMaxIzq').value = '';
+        document.getElementById('anguloMaxDer').value = '';
+        document.getElementById('anguloPasivoIzq').value = '';
+        document.getElementById('anguloPasivoDer').value = '';
+        document.getElementById('velocidadRADIzq').value = '';
+        document.getElementById('velocidadRADDer').value = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Script cargado, inicializando ReporteMedico...');
+    window.reporte = new ReporteMedico();
+    console.log('ReporteMedico inicializado');
+});
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = ReporteMedico;
+}

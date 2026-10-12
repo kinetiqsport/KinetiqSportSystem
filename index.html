@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Médico - Valoración por Fisioterapia Deportiva</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth-guard.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="kinetiq_logo.png" alt="Logo Kinetiq" class="logo">
+                </div>
+                <div class="title-section">
+                    <h1 class="main-title">Valoración por<br><span class="line2">Fisioterapia Deportiva</span></h1>
+                </div>
+                <div class="date-section">
+                    <div class="info-row">📅 <span class="report-date" id="reportDate"></span></div>
+                    <div class="info-row">👤 <span id="patientName">Paciente</span></div>
+                    <div class="info-row">📄 <a href="ver-reportes.html">Mis Reportes</a></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <form id="reportForm" class="form-container">
+
+                <!-- SECCIÓN 1: DATOS GENERALES -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>DATOS GENERALES</h2>
+                    </div>
+
+                    <div class="section-content">
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="nombre">Nombre:</label>
+                                <input type="text" id="nombre" name="nombre" class="form-control" placeholder="Ingrese nombre">
+                            </div>
+                            <div class="form-group">
+                                <label for="apellido">Apellido:</label>
+                                <input type="text" id="apellido" name="apellido" class="form-control" placeholder="Ingrese apellido">
+                            </div>
+                        </div>
+
+                        <div class="form-grid-4">
+                            <div class="form-group">
+                                <label for="edad">Edad:</label>
+                                <input type="number" id="edad" name="edad" class="form-control" min="0" max="120" placeholder="años">
+                            </div>
+                            <div class="form-group">
+                                <label for="peso">Peso (kg):</label>
+                                <input type="number" id="peso" name="peso" class="form-control" min="20" step="0.1" placeholder="kg">
+                            </div>
+                            <div class="form-group">
+                                <label for="sexo">Sexo:</label>
+                                <select id="sexo" name="sexo" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Masculino">Masculino</option>
+                                    <option value="Femenino">Femenino</option>
+                                    <option value="No especificado">No especificado</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cc">CC:</label>
+                                <input type="text" id="cc" name="cc" class="form-control" placeholder="Cédula">
+                            </div>
+                        </div>
+
+                        <div class="form-grid-4">
+                            <div class="form-group">
+                                <label for="talla">Talla (cm):</label>
+                                <input type="number" id="talla" name="talla" class="form-control" min="50" step="0.1" placeholder="cm">
+                            </div>
+                            <div class="form-group">
+                                <label for="dominancia">Dominancia:</label>
+                                <select id="dominancia" name="dominancia" class="form-control">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Derecha">Derecha</option>
+                                    <option value="Izquierda">Izquierda</option>
+                                    <option value="Ambidiestro">Ambidiestro</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="imc">IMC:</label>
+                                <input type="number" id="imc" name="imc" class="form-control" readonly placeholder="Cálculo automático">
+                            </div>
+                            <div class="form-group">
+                                <label for="celular">Celular:</label>
+                                <input type="tel" id="celular" name="celular" class="form-control" placeholder="10 dígitos">
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="ocupacion">Ocupación:</label>
+                                <input type="text" id="ocupacion" name="ocupacion" class="form-control" placeholder="Ej. Ingeniero">
+                            </div>
+                            <div class="form-group">
+                                <label for="atendidoPor">Atendido por: *</label>
+                                <select id="atendidoPor" name="atendidoPor" class="form-control" required>
+                                    <option value="">Seleccione profesional...</option>
+                                    <option value="Jorge">Jorge</option>
+                                    <option value="Santiago">Santiago</option>
+                                    <option value="Mariana">Mariana</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="comoNosConociste">¿Cómo nos conociste? *</label>
+                                <select id="comoNosConociste" name="comoNosConociste" class="form-control" required>
+                                    <option value="">Seleccione...</option>
+                                    <option value="redes_sociales">Redes sociales</option>
+                                    <option value="charlas_informativas">Charlas informativas</option>
+                                    <option value="referido_por">Referido por</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="referidoContainer" style="display: none;">
+                                <label for="referidoSeleccionado">Referido por:</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <select id="referidoSeleccionado" name="referidoSeleccionado" class="form-control" style="flex: 1;">
+                                        <option value="">Cargando referidos...</option>
+                                    </select>
+                                    <button type="button" id="btnAbrirReferidos" class="btn-icon" title="Gestionar referidos" style="padding: 0 16px; background: #0A94B0; color: white; border: none; border-radius: 6px; cursor: pointer;">⚙️</button>
+                                </div>
+                            </div>
+                            <div class="form-group" id="otroComoNosConocisteContainer" style="display: none;">
+                                <label for="otroComoNosConociste">Especificar:</label>
+                                <input type="text" id="otroComoNosConociste" name="otroComoNosConociste" class="form-control" placeholder="¿Cómo nos conociste?">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 2: ANAMNESIS Y ANTECEDENTES CLÍNICOS -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>ANAMNESIS Y ANTECEDENTES CLÍNICOS</h2>
+                    </div>
+
+                    <div class="form-grid-2" style="margin-bottom: 16px;">
+                        <div class="form-group">
+                            <label for="localizacionDolor">Localización del dolor:</label>
+                            <input type="text" id="localizacionDolor" name="localizacionDolor" class="form-control" placeholder="Ej. Rodilla derecha, tendón rotuliano, etc.">
+                        </div>
+                        <div class="form-group">
+                            <label for="escalaDolor">Escala del dolor (1 a 10):</label>
+                            <select id="escalaDolor" name="escalaDolor" class="form-control">
+                                <option value="">Seleccione (1 a 10)...</option>
+                                <option value="1">1 - Dolor muy leve</option>
+                                <option value="2">2 - Dolor leve</option>
+                                <option value="3">3 - Dolor leve a moderado</option>
+                                <option value="4">4 - Dolor moderado</option>
+                                <option value="5">5 - Dolor moderado a fuerte</option>
+                                <option value="6">6 - Dolor fuerte</option>
+                                <option value="7">7 - Dolor muy fuerte</option>
+                                <option value="8">8 - Dolor intenso</option>
+                                <option value="9">9 - Dolor muy intenso</option>
+                                <option value="10">10 - Dolor máximo / insoportable</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2" style="margin-bottom: 16px;">
+                        <div class="form-group">
+                            <label for="usoOrtesis">Uso de aparatos de órtesis:</label>
+                            <input type="text" id="usoOrtesis" name="usoOrtesis" class="form-control" placeholder="Plantillas, rodillera, tobillera, férula, etc.">
+                        </div>
+                        <div class="form-group">
+                            <label for="suplementacionMedicamentos">Suplementación / medicamentos:</label>
+                            <input type="text" id="suplementacionMedicamentos" name="suplementacionMedicamentos" class="form-control" placeholder="Suplementos deportivos, analgésicos, etc.">
+                        </div>
+                    </div>
+
+                    <div class="antecedents-grid">
+                        <div class="form-group">
+                            <label for="antecMedicos">Antecedentes médicos:</label>
+                            <textarea id="antecMedicos" name="antecMedicos" class="form-control textarea" rows="3" placeholder="Ingrese los antecedentes médicos..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="antecQuirurgicos">Antecedentes quirúrgicos:</label>
+                            <textarea id="antecQuirurgicos" name="antecQuirurgicos" class="form-control textarea" rows="3" placeholder="Ingrese los antecedentes quirúrgicos..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="antecLesiones">Antecedentes de lesiones:</label>
+                            <textarea id="antecLesiones" name="antecLesiones" class="form-control textarea" rows="3" placeholder="Ingrese los antecedentes de lesiones..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="antecTrauma">Antecedentes traumáticos:</label>
+                            <textarea id="antecTrauma" name="antecTrauma" class="form-control textarea" rows="3" placeholder="Ingrese los antecedentes traumáticos..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="antecMetabolico">Antecedentes metabólicos:</label>
+                            <textarea id="antecMetabolico" name="antecMetabolico" class="form-control textarea" rows="3" placeholder="Ingrese los antecedentes metabólicos..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="hospitalizaciones">Hospitalizaciones:</label>
+                            <textarea id="hospitalizaciones" name="hospitalizaciones" class="form-control textarea" rows="2" placeholder="Ingrese información de hospitalizaciones..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="alergias">Alergias:</label>
+                            <textarea id="alergias" name="alergias" class="form-control textarea" rows="2" placeholder="Ingrese alergias conocidas..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 3: ACTIVIDAD FÍSICA Y ENTRENAMIENTO -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>ACTIVIDAD FÍSICA Y ENTRENAMIENTO</h2>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="deporte">Actividad / Deporte:</label>
+                            <input type="text" id="deporte" name="deporte" class="form-control" placeholder="Ej. Fútbol">
+                        </div>
+                        <div class="form-group">
+                            <label for="tiempoDeporte">Tiempo en el deporte:</label>
+                            <input type="text" id="tiempoDeporte" name="tiempoDeporte" class="form-control" placeholder="Ej. 8 años">
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="rol">Rol en el deporte:</label>
+                            <input type="text" id="rol" name="rol" class="form-control" placeholder="Ej. Mediocampista">
+                        </div>
+                        <div class="form-group">
+                            <label for="club">Club:</label>
+                            <input type="text" id="club" name="club" class="form-control" placeholder="Nombre del club">
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="entrenador">Entrenador:</label>
+                            <input type="text" id="entrenador" name="entrenador" class="form-control" placeholder="Nombre del entrenador">
+                        </div>
+                        <div class="form-group">
+                            <label for="diasEntrenamiento">Días de entrenamientos:</label>
+                            <input type="text" id="diasEntrenamiento" name="diasEntrenamiento" class="form-control" placeholder="Ej. 5 días">
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="diasGimnasio">Días de gimnasio:</label>
+                            <input type="text" id="diasGimnasio" name="diasGimnasio" class="form-control" placeholder="Ej. 3 días">
+                        </div>
+                        <div class="form-group">
+                            <label for="diasDescanso">Días de descanso:</label>
+                            <input type="text" id="diasDescanso" name="diasDescanso" class="form-control" placeholder="Ej. 1 día">
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="tenis">Tenis que usa:</label>
+                            <input type="text" id="tenis" name="tenis" class="form-control" placeholder="Ej. Nike Pegasus">
+                        </div>
+                        <div class="form-group">
+                            <label for="competencia">Carrera/Competencia preparando:</label>
+                            <input type="text" id="competencia" name="competencia" class="form-control" placeholder="Ej. Maratón de Bogotá">
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 12px;">
+                        <label for="pasadoDeportivo">Pasado deportivo:</label>
+                        <textarea id="pasadoDeportivo" name="pasadoDeportivo" class="form-control textarea" rows="2" placeholder="Deportes practicados anteriormente, antecedentes deportivos, etc."></textarea>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 4: MOTIVO DE CONSULTA -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>MOTIVO DE CONSULTA</h2>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="motivoConsulta">Motivo de consulta:</label>
+                            <textarea id="motivoConsulta" name="motivoConsulta" class="form-control textarea" rows="4" placeholder="Describa el motivo principal de la consulta..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="notasAdicionales">Notas adicionales:</label>
+                            <textarea id="notasAdicionales" name="notasAdicionales" class="form-control textarea" rows="4" placeholder="Ingrese notas adicionales..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 5: VALORACIÓN FISIOTERAPIA DEPORTIVA -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>VALORACIÓN FISIOTERAPIA DEPORTIVA</h2>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="postura">Postura:</label>
+                        <textarea id="postura" name="postura" class="form-control textarea" rows="3" placeholder="Describa la valoración postural..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="marcha">Marcha:</label>
+                        <textarea id="marcha" name="marcha" class="form-control textarea" rows="3" placeholder="Describa la valoración de la marcha..."></textarea>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="hods">HODS:</label>
+                            <select id="hods" name="hods" class="form-control">
+                                <option value="">Seleccione...</option>
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="lunge">Lunge:</label>
+                            <select id="lunge" name="lunge" class="form-control">
+                                <option value="">Seleccione...</option>
+                                <option value="+">+</option>
+                                <option value="-">-</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="observaciones">Observaciones:</label>
+                        <textarea id="observaciones" name="observaciones" class="form-control textarea" rows="3" placeholder="Ingrese observaciones adicionales..."></textarea>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN: ADJUNTOS (PDF/IMAGEN) -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2>ADJUNTOS (OPCIONAL)</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="pdfImagenInput">Adjuntar PDF o Imagen:</label>
+                            <div class="file-upload-card">
+                                <input type="file" id="pdfImagenInput" accept=".pdf,.jpg,.jpeg,.png,.gif" class="file-upload-input" aria-label="Adjuntar PDF o imagen" multiple>
+                                <label for="pdfImagenInput" class="file-upload-label">
+                                    <div class="file-upload-icon">📎</div>
+                                    <div class="file-upload-text">
+                                        <strong>Sube tu archivo</strong>
+                                        <span>PDF, JPG, PNG o GIF · Máx. 10MB</span>
+                                    </div>
+                                    <div class="file-upload-cta">Explorar</div>
+                                </label>
+                            </div>
+                            <div id="adjuntoInfo" style="margin-top: 10px; padding: 10px; background: #f0f4f8; border-radius: 6px; display: none;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <p style="margin: 0; color: #333;"><strong>Archivo adjunto:</strong> <span id="adjuntoNombre"></span></p>
+                                        <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Este archivo se agregará al PDF cuando descargues el reporte.</p>
+                                    </div>
+                                    <button type="button" id="borrarAdjuntoBtn" style="padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; transition: background 0.3s;" onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e74c3c'">🗑️ Borrar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+
+
+            </form>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="footer">
+            <p>&copy; KinetiqSports. Reporte Médico Digital. Diseñado para profesionales de la salud.</p>
+        </footer>
+    </div>
+
+    <!-- Input oculto para cargar archivos -->
+    <input type="file" id="fileInput" accept=".json" style="display: none;">
+
+    <!-- Modal de confirmación -->
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon">📄</div>
+            <h2 class="modal-title">¿Descargar y Guardar Reporte?</h2>
+            <p class="modal-message">
+                Se descargará el PDF y los datos del paciente se guardarán en la base de datos de forma segura.
+            </p>
+            <div class="modal-loading">
+                <div class="spinner"></div>
+                <p style="color: #7f8c8d;">Guardando datos...</p>
+            </div>
+            <div class="modal-buttons">
+                <button id="modalCancel" class="modal-btn modal-btn-cancel">Cancelar</button>
+                <button id="modalConfirm" class="modal-btn modal-btn-confirm">Sí, Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de campos faltantes -->
+    <div id="missingFieldsModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-icon">⚠️</div>
+            <h2 class="modal-title">Campos sin completar</h2>
+            <div id="missingFieldsList">
+            </div>
+            <div id="missingFieldsRequiredMsg" style="display:none;color:#721c24;background:#fff5f5;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-weight:500;">❗ Completa los campos obligatorios para continuar</div>
+            <div class="modal-buttons">
+                <button id="missingFieldsClose" class="modal-btn modal-btn-cancel">Cerrar</button>
+                <button id="missingFieldsProceed" class="modal-btn modal-btn-confirm" style="display:none;">Guardar de todas formas</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de búsqueda de paciente -->
+    <div id="searchModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-icon">🔍</div>
+            <h2 class="modal-title">Buscar Paciente</h2>
+            <div style="margin-bottom: 20px;">
+                <input type="text" id="searchPatientInput" class="form-control" placeholder="Buscar por nombre, apellido o cédula..." style="font-size: 16px; padding: 14px;">
+            </div>
+            <div id="searchResults" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
+                <p style="color: #7f8c8d; text-align: center; padding: 20px;">Escribe para buscar pacientes...</p>
+            </div>
+            <div class="modal-buttons">
+                <button id="searchCancel" class="modal-btn modal-btn-cancel">Cerrar</button>
+            </div>
+            <div class="modal-loading" id="searchLoading" style="display: none;">
+                <div class="spinner"></div>
+                <p style="color: #7f8c8d;">Buscando...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de gestión de referidos -->
+    <div id="referidosModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-icon">👥</div>
+            <h2 class="modal-title">Gestionar Referidos</h2>
+            <div style="margin-bottom: 16px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <input type="text" id="nuevoReferidoNombre" class="form-control" placeholder="Nombre del referido" style="flex: 1;">
+                    <input type="text" id="nuevoReferidoContacto" class="form-control" placeholder="Contacto (opcional)" style="flex: 1;">
+                    <button type="button" id="btnAgregarReferido" class="modal-btn modal-btn-confirm" style="padding: 14px 20px;">+ Agregar</button>
+                </div>
+            </div>
+            <div id="referidosList" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
+                <p style="color: #7f8c8d; text-align: center; padding: 20px;">Cargando referidos...</p>
+            </div>
+            <div class="modal-buttons">
+                <button id="referidosClose" class="modal-btn modal-btn-cancel">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BARRA LATERAL FLOTANTE CON BOTONES DE ACCIÓN -->
+    <div class="floating-sidebar">
+        <button type="reset" form="reportForm" class="action-button neutral" title="Limpiar formulario">
+            <span style="font-size: 28px;">🔄</span>
+            <div class="action-button-label">Limpiar</div>
+        </button>
+        <button type="button" id="checkPatientBtn" class="action-button" title="Buscar paciente existente">
+            <span style="font-size: 28px;">🔍</span>
+            <div class="action-button-label">Buscar Pac.</div>
+        </button>
+        <button type="button" id="loadFileBtn" class="action-button" title="Cargar reporte anterior">
+            <span style="font-size: 28px;">📥</span>
+            <div class="action-button-label">Cargar</div>
+        </button>
+        <button type="button" id="saveBtn" class="action-button success" title="Guardar en la base de datos">
+            <span style="font-size: 28px;">💾</span>
+            <div class="action-button-label">Guardar</div>
+        </button>
+        <button type="button" id="printBtn" class="action-button info" title="Descargar PDF y guardar">
+            <span style="font-size: 28px;">📄</span>
+            <div class="action-button-label">Descargar</div>
+        </button>
+        <a href="bienvenida.html" class="action-button warning" title="Volver a la página de inicio">
+            <span style="font-size: 28px;">🏠</span>
+            <div class="action-button-label">Inicio</div>
+        </a>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="data.js"></script>
+    <script src="script.js?v=20261012_v5"></script>
+</body>
+</html>
