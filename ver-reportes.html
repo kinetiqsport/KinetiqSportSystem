@@ -17,23 +17,43 @@
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100vh;
-            max-height: 100vh;
-            overflow: hidden;
             background: #f5f6fa;
+            color: #2c3e50;
         }
 
         .reportes-container {
             width: 100%;
             max-width: 1600px;
-            height: 100vh;
-            max-height: 100vh;
             margin: 0 auto;
             padding: 8px 14px;
             display: flex;
             flex-direction: column;
             box-sizing: border-box;
-            overflow: hidden;
+        }
+
+        /* Solo en desktop amplio (>= 1000px) se fija la altura de pantalla a 100vh sin scroll global */
+        @media (min-width: 1000px) {
+            html, body {
+                height: 100vh;
+                max-height: 100vh;
+                overflow: hidden;
+            }
+
+            .reportes-container {
+                height: 100vh;
+                max-height: 100vh;
+                overflow: hidden;
+            }
+
+            .main-layout {
+                flex: 1;
+                min-height: 0;
+                overflow: hidden;
+            }
+
+            .main-content {
+                overflow: hidden;
+            }
         }
 
         .top-bar {
@@ -1338,13 +1358,31 @@
         }
 
         /* 2. TABLET (768px a 999px)
-           3 Niveles: [Filtros en 2 col] -> [Pacientes 100%] -> [Estadísticas en 2 col] */
+           2 Columnas limpias con scroll vertical natural */
         @media (min-width: 768px) and (max-width: 999px) {
+            html, body {
+                height: auto !important;
+                min-height: 100% !important;
+                max-height: none !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .reportes-container {
+                height: auto !important;
+                min-height: 100vh !important;
+                max-height: none !important;
+                overflow: visible !important;
+                padding: 10px 14px;
+            }
+
             .main-layout {
-                display: flex;
-                flex-direction: column;
+                display: flex !important;
+                flex-direction: column !important;
                 gap: 16px;
                 width: 100%;
+                height: auto !important;
+                overflow: visible !important;
             }
 
             .sidebar {
@@ -1372,6 +1410,8 @@
             .main-content {
                 width: 100%;
                 min-width: 0;
+                overflow: visible !important;
+                height: auto !important;
             }
 
             .sidebar-right {
@@ -1384,28 +1424,79 @@
         }
 
         /* 3. MÓVIL (< 768px)
-           Una sola columna: Buscador -> Filtros -> Atendidos por -> Pacientes -> Origen -> Reportes por mes */
+           Experiencia móvil moderna: Buscador -> Filtros rápidos -> Pacientes primero
+           Estadísticas completas y gráficas accesibles por modales táctiles */
         @media (max-width: 767px) {
+            html, body {
+                height: auto !important;
+                min-height: 100% !important;
+                max-height: none !important;
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
+
             .reportes-container {
-                padding: 0 10px;
-                margin: 8px auto;
+                padding: 6px 10px;
+                margin: 0 auto;
                 width: 100%;
+                height: auto !important;
+                min-height: 100vh !important;
+                max-height: none !important;
+                overflow: visible !important;
             }
 
             .top-bar {
+                display: flex;
                 flex-direction: column;
                 align-items: stretch;
                 gap: 8px;
-                margin-bottom: 10px;
+                margin-bottom: 8px;
                 position: static;
                 padding: 0;
                 width: 100%;
             }
 
+            .top-bar-left {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+            }
+
+            .top-bar-actions {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
             .top-bar .back-link {
-                align-self: flex-start;
+                align-self: center;
                 font-size: 13.5px;
-                margin-bottom: 2px;
+                margin-bottom: 0;
+                padding: 4px 0;
+            }
+
+            .filter-toggle {
+                display: inline-flex !important;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+                padding: 6px 11px;
+                font-size: 12px;
+                font-weight: 600;
+                border-radius: 8px;
+                background: white;
+                border: 1.5px solid #dcdde1;
+                color: #2c3e50;
+                cursor: pointer;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                white-space: nowrap;
+            }
+
+            .filter-toggle:active {
+                background: #f1f2f6;
+                transform: scale(0.97);
             }
 
             .search-box {
@@ -1418,170 +1509,212 @@
                 flex: 1;
                 width: auto;
                 min-width: 0;
-                padding: 8px 10px;
-                font-size: 13px;
+                padding: 9px 12px;
+                font-size: 13.5px;
+                border-radius: 8px;
             }
 
             .search-btn, .clear-btn {
-                padding: 8px 12px;
-                font-size: 12px;
+                padding: 9px 13px;
+                font-size: 12.5px;
                 flex-shrink: 0;
-            }
-
-            .filter-toggle {
-                display: none !important;
+                border-radius: 8px;
             }
 
             .main-layout {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-                width: 100%;
-            }
-
-            .sidebar {
-                width: 100%;
-                position: static;
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .sidebar-stats {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-                gap: 6px;
-                width: 100%;
-            }
-
-            .stat-card {
-                padding: 8px 10px;
+                display: flex !important;
+                flex-direction: column !important;
                 gap: 8px;
-            }
-
-            .stat-icon-wrap {
-                width: 28px;
-                height: 28px;
-                font-size: 14px;
-            }
-
-            .stat-label {
-                font-size: 11px;
-            }
-
-            .stat-number {
-                font-size: 16px;
-            }
-
-            .stat-sub {
-                font-size: 8.5px;
-            }
-
-            .sidebar-profesionales {
-                margin-top: 0;
                 width: 100%;
+                height: auto !important;
+                min-height: auto !important;
+                overflow: visible !important;
+            }
+
+            /* Ocultar sidebars estorbosos en el flujo principal del móvil
+               (su contenido está optimizado en los modales) */
+            .sidebar {
+                display: none !important;
+            }
+
+            .sidebar-right {
+                display: none !important;
             }
 
             .main-content {
                 width: 100%;
                 min-width: 0;
+                height: auto !important;
+                overflow: visible !important;
             }
 
-            .prof-filter-bar {
-                padding: 6px 10px;
+            /* Tira de métricas rápidas */
+            .mobile-quick-stats {
+                display: flex !important;
                 gap: 6px;
                 width: 100%;
+                margin-bottom: 8px;
+            }
+
+            .mobile-stat-pill {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 6px 6px;
+                background: white;
+                border-radius: 8px;
+                font-size: 11.5px;
+                font-weight: 600;
+                color: #2c3e50;
+                border: 1px solid #dcdde1;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+                cursor: pointer;
+                text-align: center;
+                white-space: nowrap;
+            }
+
+            .mobile-stat-pill:active {
+                background: #eef2f7;
+            }
+
+            /* Filtro de profesionales */
+            .prof-filter-bar {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 6px;
+                padding: 7px 10px;
+                background: white;
+                border-radius: 8px;
+                margin-bottom: 8px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            }
+
+            .prof-filter-title {
+                font-size: 11.5px;
+                font-weight: 700;
+                color: #7f8c8d;
             }
 
             .prof-pills {
+                display: flex;
+                flex-wrap: wrap;
                 gap: 4px;
             }
 
             .prof-pill {
                 padding: 3px 8px;
                 font-size: 11px;
+                border-radius: 12px;
+            }
+
+            /* Tarjetas de pacientes */
+            #reportesContainer {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+                min-height: auto !important;
             }
 
             .reporte-card {
-                padding: 8px 10px;
-                border-radius: 6px;
-                width: 100%;
-                height: auto;
-                min-height: auto;
-                max-height: none;
+                width: 100% !important;
+                height: auto !important;
+                min-height: auto !important;
+                max-height: none !important;
+                padding: 12px 14px !important;
+                border-radius: 10px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            }
+
+            .patient-card-body {
+                max-height: none !important;
+                overflow: visible !important;
+            }
+
+            .patient-header {
+                flex-wrap: wrap;
+                gap: 6px;
             }
 
             .patient-name {
-                font-size: 13.5px;
+                font-size: 14.5px;
+                font-weight: 700;
+            }
+
+            .patient-demographics {
+                font-size: 11.5px;
+                margin: 4px 0 8px 0;
+                flex-wrap: wrap;
+                gap: 6px;
             }
 
             .patient-card-footer {
-                justify-content: stretch;
-                width: 100%;
+                flex-direction: column;
+                gap: 8px;
+                align-items: stretch;
+                margin-top: 10px;
+                padding-top: 8px;
             }
 
             .patient-card-footer .open-btn {
                 width: 100%;
                 text-align: center;
-                padding: 7px 12px;
-                font-size: 12px;
+                padding: 10px 14px;
+                font-size: 13px;
+                font-weight: 700;
+                border-radius: 7px;
             }
 
             .pagination-container {
                 flex-direction: column;
-                gap: 8px;
+                gap: 10px;
+                padding: 10px 12px;
                 align-items: center;
                 text-align: center;
                 width: 100%;
+                margin-top: 10px;
             }
 
-            .sidebar-right {
-                width: 100%;
-                position: static;
+            .pagination-buttons {
                 display: flex;
-                flex-direction: column;
-                gap: 12px;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 4px;
             }
 
-            .vertical-month-chart {
-                height: 165px;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                padding-bottom: 4px;
-                width: 100%;
-            }
-
-            .v-month-col {
-                min-width: 16px;
+            .page-btn {
+                min-width: 35px;
+                height: 35px;
+                font-size: 13px;
             }
         }
 
         /* 4. TELÉFONOS PEQUEÑOS (< 480px) */
         @media (max-width: 480px) {
             .reportes-container {
-                padding: 0 6px;
+                padding: 4px 8px;
             }
 
-            .sidebar-card {
-                padding: 10px 10px;
+            .search-input {
+                font-size: 13px;
+                padding: 8px 10px;
             }
 
             .patient-demographics {
-                font-size: 10.5px;
+                font-size: 11px;
                 gap: 4px;
             }
 
-            .metrics-chips-row {
-                gap: 3px;
-            }
-
             .metric-chip {
-                padding: 1px 5px;
-                font-size: 10.5px;
+                padding: 2px 6px;
+                font-size: 11px;
             }
 
-            .source-chart {
-                gap: 8px;
+            .mobile-stat-pill {
+                font-size: 10.5px;
+                padding: 5px 3px;
             }
         }
     </style>
@@ -1589,14 +1722,18 @@
 <body>
     <div class="reportes-container">
         <div class="top-bar">
-            <a href="bienvenida.html" class="back-link">← Volver</a>
+            <div class="top-bar-left">
+                <a href="bienvenida.html" class="back-link">← Volver</a>
+                <div class="top-bar-actions">
+                    <button id="filterToggle" class="filter-toggle" type="button">📊 Estadísticas</button>
+                    <button id="monthToggle" class="filter-toggle" type="button">📅 Mes</button>
+                </div>
+            </div>
             <div class="search-box">
                 <input type="text" id="searchInput" class="search-input" placeholder="Buscar paciente...">
                 <button id="searchBtn" class="search-btn">Buscar</button>
                 <button id="clearBtn" class="clear-btn">Limpiar</button>
             </div>
-            <button id="filterToggle" class="filter-toggle">📊 Filtros</button>
-            <button id="monthToggle" class="filter-toggle">📅 Mes</button>
         </div>
 
         <div class="main-layout">
@@ -1614,6 +1751,11 @@
 
             <div class="main-content">
                 <div id="errorContainer"></div>
+                <div class="mobile-quick-stats" id="mobileQuickStats">
+                    <button type="button" class="mobile-stat-pill" id="mobileStatTotal">📄 Total: 0</button>
+                    <button type="button" class="mobile-stat-pill" id="mobileStatFisio">🏃 Fisio: 0</button>
+                    <button type="button" class="mobile-stat-pill" id="mobileStatPelvico">🫀 Pélvico: 0</button>
+                </div>
                 <div class="prof-filter-bar" id="profFilterBar">
                     <span class="prof-filter-title">Atendido por:</span>
                     <div class="prof-pills" id="profPills"></div>
@@ -1652,7 +1794,8 @@
     <div id="filterModal" class="filter-modal">
         <div class="filter-modal-content">
             <div class="filter-modal-header">
-                <div class="sidebar-title" style="margin-bottom:0;">📊 Filtros</div>
+                <div class="sidebar-title" style="margin-bottom:0;">📊 Estadísticas y Filtros</div>
+                <button type="button" id="closeFilterModalX" class="modal-close-x" style="background:none;border:none;font-size:20px;font-weight:bold;cursor:pointer;color:#7f8c8d;padding:2px 8px;line-height:1;">✕</button>
             </div>
             <div class="sidebar-stats" id="modalStatsContainer"></div>
             <div class="sidebar-profesionales" style="margin-top: 10px;">
@@ -1663,7 +1806,7 @@
                 <div class="sidebar-title">📈 ¿Cómo nos conocieron?</div>
                 <div class="source-chart" id="modalSourceChart"></div>
             </div>
-            <button id="modalOkBtn" class="search-btn" style="width:100%;margin-top:16px;padding:12px;font-size:16px;">OK</button>
+            <button id="modalOkBtn" class="search-btn" style="width:100%;margin-top:16px;padding:12px;font-size:15px;font-weight:700;">✓ Listo / Aplicar</button>
         </div>
     </div>
 
@@ -1671,6 +1814,7 @@
         <div class="filter-modal-content">
             <div class="filter-modal-header">
                 <div class="sidebar-title" style="margin-bottom:0;">📅 Reportes por Mes</div>
+                <button type="button" id="closeMonthModalX" class="modal-close-x" style="background:none;border:none;font-size:20px;font-weight:bold;cursor:pointer;color:#7f8c8d;padding:2px 8px;line-height:1;">✕</button>
             </div>
             <div class="monthly-chart-header" style="margin-top: 6px;">
                 <div class="monthly-header-left">
@@ -1689,7 +1833,7 @@
                 <div class="sidebar-title">📈 ¿Cómo nos conocieron?</div>
                 <div class="source-chart" id="modalSourceChart2"></div>
             </div>
-            <button id="monthOkBtn" class="search-btn" style="width:100%;margin-top:16px;padding:12px;font-size:16px;">OK</button>
+            <button id="monthOkBtn" class="search-btn" style="width:100%;margin-top:16px;padding:12px;font-size:15px;font-weight:700;">✓ Cerrar</button>
         </div>
     </div>
 
@@ -1746,6 +1890,12 @@
             }
 
             calculateItemsPerPage() {
+                // En pantallas móviles o tablets (< 1000px), mostrar 5 pacientes por página
+                // para permitir desplazamiento táctil suave sin truncar tarjetas
+                if (window.innerWidth < 1000) {
+                    return 5;
+                }
+
                 const vh = window.innerHeight || document.documentElement.clientHeight || 800;
                 
                 // Si el contenedor ya está en pantalla, medir su espacio vertical disponible
@@ -1838,9 +1988,15 @@
 
                 const filterToggle = document.getElementById('filterToggle');
                 const modalOkBtn = document.getElementById('modalOkBtn');
+                const closeFilterModalX = document.getElementById('closeFilterModalX');
                 if (filterToggle && this.filterModal) {
                     filterToggle.addEventListener('click', () => {
                         this.filterModal.classList.add('open');
+                    });
+                }
+                if (closeFilterModalX && this.filterModal) {
+                    closeFilterModalX.addEventListener('click', () => {
+                        this.filterModal.classList.remove('open');
                     });
                 }
                 if (modalOkBtn && this.filterModal) {
@@ -1856,9 +2012,15 @@
 
                 const monthToggle = document.getElementById('monthToggle');
                 const monthOkBtn = document.getElementById('monthOkBtn');
+                const closeMonthModalX = document.getElementById('closeMonthModalX');
                 if (monthToggle && this.monthModal) {
                     monthToggle.addEventListener('click', () => {
                         this.monthModal.classList.add('open');
+                    });
+                }
+                if (closeMonthModalX && this.monthModal) {
+                    closeMonthModalX.addEventListener('click', () => {
+                        this.monthModal.classList.remove('open');
                     });
                 }
                 if (monthOkBtn && this.monthModal) {
@@ -2292,6 +2454,43 @@
             }
 
             renderStats(reportes) {
+                // Actualizar contadores en la tira rápida de móvil
+                const totalCount = reportes.length;
+                const fisioCount = reportes.filter(r => (r.tipo_reporte || 'pisada') === 'pisada').length;
+                const pelvicoCount = reportes.filter(r => r.tipo_reporte === 'piso_pelvico').length;
+                
+                const mTotal = document.getElementById('mobileStatTotal');
+                const mFisio = document.getElementById('mobileStatFisio');
+                const mPelvico = document.getElementById('mobileStatPelvico');
+                
+                if (mTotal) {
+                    mTotal.innerHTML = `📄 Total: <b>${totalCount}</b>`;
+                    mTotal.onclick = () => {
+                        this.activeFilters.clear();
+                        this.aplicarFiltros();
+                    };
+                }
+                if (mFisio) {
+                    const isFisioActive = this.statDefs.find(d => d.id === 'totalPisada')?.filter;
+                    const activeNow = isFisioActive && this.activeFilters.has(isFisioActive);
+                    mFisio.innerHTML = `🏃 Fisio: <b>${fisioCount}</b>`;
+                    mFisio.style.borderColor = activeNow ? '#0A94B0' : '#dcdde1';
+                    mFisio.style.background = activeNow ? '#e6f7fa' : 'white';
+                    mFisio.onclick = () => {
+                        if (isFisioActive) this.toggleFilter(isFisioActive);
+                    };
+                }
+                if (mPelvico) {
+                    const isPelvicoActive = this.statDefs.find(d => d.id === 'totalPisoPelvico')?.filter;
+                    const activeNow = isPelvicoActive && this.activeFilters.has(isPelvicoActive);
+                    mPelvico.innerHTML = `🫀 Pélvico: <b>${pelvicoCount}</b>`;
+                    mPelvico.style.borderColor = activeNow ? '#8E24AA' : '#dcdde1';
+                    mPelvico.style.background = activeNow ? '#f7edf9' : 'white';
+                    mPelvico.onclick = () => {
+                        if (isPelvicoActive) this.toggleFilter(isPelvicoActive);
+                    };
+                }
+
                 const containers = [this.statsContainer];
                 if (this.modalStatsContainer) containers.push(this.modalStatsContainer);
                 containers.forEach(container => {
