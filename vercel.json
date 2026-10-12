@@ -1,5 +1,5 @@
 {
-  "buildCommand": "node -e \"const fs=require('fs');fs.writeFileSync('env-config.js','window.SUPABASE_ANON_KEY='+JSON.stringify(process.env.SUPABASE_ANON_KEY||'')+';\\nwindow.GOOGLE_CLIENT_ID='+JSON.stringify(process.env.GOOGLE_CLIENT_ID||'')+';\\nconsole.log(\\\"env-config loaded\\\");')\"",
+  "buildCommand": "node build.js",
   "outputDirectory": ".",
   "framework": null,
   "headers": [
