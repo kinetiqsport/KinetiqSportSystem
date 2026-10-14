@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo — Reportes y Estadísticas (Mock Data) — KinetiqSports</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            background: #f5f6fa;
+            color: #2c3e50;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        /* Banner de demostración para portafolio */
+        .demo-banner {
+            background: linear-gradient(135deg, #0A94B0 0%, #076D82 100%);
+            color: white;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            z-index: 100;
+        }
+
+        .demo-banner-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .demo-pill {
+            background: #e74c3c;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .demo-badge-author {
+            background: rgba(255,255,255,0.2);
+            padding: 3px 10px;
+            border-radius: 14px;
+            font-size: 12px;
+            color: #ffffff;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .demo-badge-author:hover {
+            background: rgba(255,255,255,0.35);
+        }
+
+        .reportes-container {
+            width: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 8px 14px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        @media (min-width: 1000px) {
+            html, body {
+                height: 100vh;
+                max-height: 100vh;
+                overflow: hidden;
+            }
+
+            .reportes-container {
+                height: calc(100vh - 38px);
+                max-height: calc(100vh - 38px);
+                overflow: hidden;
+            }
+
+            .main-layout {
+                flex: 1;
+                min-height: 0;
+                overflow: hidden;
+            }
+
+            .main-content {
+                overflow: hidden;
+            }
+        }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+            flex-wrap: nowrap;
+            flex-shrink: 0;
+        }
+
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .top-bar .back-link {
+            text-decoration: none;
+            color: #0A94B0;
+            font-weight: 600;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .top-bar .back-link:hover {
+            background: #0A94B0;
+            color: white;
+        }
+
+        .top-bar-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .search-input {
+            padding: 8px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            width: 260px;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #0A94B0;
+        }
+
+        .search-btn {
+            padding: 8px 18px;
+            background: #0A94B0;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            white-space: nowrap;
+        }
+
+        .search-btn:hover {
+            background: #087D94;
+        }
+
+        .clear-btn {
+            padding: 8px 14px;
+            background: #f0f0f0;
+            color: #666;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+            white-space: nowrap;
+        }
+
+        .clear-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .filter-toggle {
+            display: none;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 240px minmax(0, 1fr) 300px;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .sidebar, .sidebar-right {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            max-height: 100%;
+            scrollbar-width: thin;
+        }
+
+        .sidebar-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sidebar-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            width: 100%;
+        }
+
+        .stat-card {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.15s, filter 0.15s, box-shadow 0.15s;
+            position: relative;
+            overflow: hidden;
+            min-height: 38px;
+        }
+
+        .stat-card:hover {
+            transform: translateX(2px);
+            filter: brightness(1.08);
+        }
+
+        .stat-card.active {
+            filter: brightness(0.6) saturate(0.9);
+            transform: translateX(3px) scale(1.02);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.3), inset 0 0 0 2px rgba(255,255,255,0.6);
+        }
+
+        .stat-check {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.9);
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .stat-card.active .stat-check {
+            opacity: 1;
+        }
+
+        .stat-icon-wrap {
+            width: 25px;
+            height: 25px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .stat-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .stat-label {
+            font-size: 10.5px;
+            font-weight: 600;
+            line-height: 1.15;
+            white-space: normal;
+        }
+
+        .stat-number {
+            font-size: 15px;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        .sidebar-card {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+
+        .sidebar-profesionales {
+            background: white;
+            border-radius: 12px;
+            padding: 10px 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+
+        .profesionales-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .prof-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .prof-item:hover {
+            background: #f1f2f6;
+        }
+
+        .prof-item.active {
+            background: #0A94B0;
+            color: white;
+            font-weight: 600;
+        }
+
+        .prof-badge {
+            background: rgba(0,0,0,0.06);
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .prof-item.active .prof-badge {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            gap: 8px;
+        }
+
+        .prof-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            flex-shrink: 0;
+        }
+
+        .prof-filter-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #7f8c8d;
+        }
+
+        .prof-pills {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .prof-pill {
+            padding: 3px 10px;
+            border-radius: 14px;
+            font-size: 12px;
+            cursor: pointer;
+            border: 1px solid #dcdde1;
+            background: white;
+            color: #2c3e50;
+            transition: all 0.15s;
+        }
+
+        .prof-pill:hover {
+            border-color: #0A94B0;
+            color: #0A94B0;
+        }
+
+        .prof-pill.active {
+            background: #0A94B0;
+            color: white;
+            border-color: #0A94B0;
+            font-weight: 700;
+        }
+
+        #reportesContainer {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            min-height: 0;
+            scrollbar-width: thin;
+        }
+
+        .reporte-card {
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #0A94B0;
+            padding: 10px 14px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 220px;
+            min-height: 220px;
+            max-height: 220px;
+            overflow: hidden;
+            box-sizing: border-box;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+
+        .reporte-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .patient-card-header {
+            flex-shrink: 0;
+            padding-bottom: 4px;
+        }
+
+        .patient-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .patient-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .tipo-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 12px;
+            color: white;
+        }
+
+        .patient-demographics {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #7f8c8d;
+            margin: 2px 0 6px 0;
+        }
+
+        .patient-card-body {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            font-size: 12.5px;
+            color: #34495e;
+            padding-right: 4px;
+            scrollbar-width: thin;
+        }
+
+        .patient-block {
+            margin-bottom: 6px;
+        }
+
+        .patient-block-label {
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #95a5a6;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .patient-block-content {
+            font-size: 12.5px;
+            line-height: 1.35;
+        }
+
+        .metrics-chips-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin: 4px 0;
+        }
+
+        .metric-chip {
+            background: #f1f2f6;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #2c3e50;
+        }
+
+        .chip-pain {
+            background: #ffeaa7;
+            color: #d63031;
+            font-weight: 700;
+        }
+
+        .patient-card-footer {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 6px;
+            border-top: 1px solid #f1f2f6;
+        }
+
+        .patient-atendido {
+            font-size: 11.5px;
+            color: #7f8c8d;
+        }
+
+        .open-btn {
+            background: #0A94B0;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+        }
+
+        .open-btn:hover {
+            background: #087D94;
+            transform: translateY(-1px);
+        }
+
+        .open-btn-pelvico {
+            background: #8E24AA;
+        }
+
+        .open-btn-pelvico:hover {
+            background: #6A1B9A;
+        }
+
+        .pagination-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            padding: 6px 14px;
+            border-radius: 8px;
+            margin-top: auto;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .pagination-info {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 4px;
+        }
+
+        .page-btn {
+            min-width: 28px;
+            height: 28px;
+            padding: 0 6px;
+            border: 1px solid #dcdde1;
+            background: white;
+            color: #2c3e50;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            border-color: #0A94B0;
+            color: #0A94B0;
+        }
+
+        .page-btn.active {
+            background: #0A94B0;
+            color: white;
+            border-color: #0A94B0;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Charts */
+        .source-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .source-bar-item {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .source-label-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #576574;
+            font-weight: 600;
+        }
+
+        .source-bar-track {
+            background: #edf2f7;
+            height: 7px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .source-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s ease;
+        }
+
+        .monthly-chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .year-select {
+            padding: 3px 8px;
+            border: 1px solid #dcdde1;
+            border-radius: 6px;
+            font-size: 12px;
+            background: white;
+            font-weight: 600;
+        }
+
+        .year-total-badge {
+            font-size: 11.5px;
+            background: #eef2f7;
+            padding: 3px 8px;
+            border-radius: 10px;
+            color: #2c3e50;
+        }
+
+        .peak-month-banner {
+            background: #fff8e1;
+            color: #d35400;
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .vertical-month-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 140px;
+            gap: 4px;
+            padding-top: 15px;
+        }
+
+        .v-month-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            justify-content: flex-end;
+            gap: 4px;
+        }
+
+        .v-month-bar-wrap {
+            width: 100%;
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .v-month-bar {
+            width: 80%;
+            max-width: 16px;
+            border-radius: 3px 3px 0 0;
+            background: #0A94B0;
+            min-height: 4px;
+            transition: height 0.3s ease;
+        }
+
+        .v-month-label {
+            font-size: 9.5px;
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+
+        .v-month-count {
+            font-size: 9px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 2px;
+        }
+
+        .mobile-quick-stats {
+            display: none;
+        }
+
+        /* Modal preview */
+        .preview-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(2px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .preview-modal.open {
+            display: flex;
+        }
+
+        .preview-content {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 650px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .preview-header {
+            padding: 14px 20px;
+            border-bottom: 1.5px solid #eaecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+        }
+
+        .preview-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+
+        .preview-footer {
+            padding: 12px 20px;
+            border-top: 1.5px solid #eaecef;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            background: #f8f9fa;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Responsive rules */
+        @media (max-width: 999px) {
+            html, body {
+                height: auto !important;
+                overflow-y: auto !important;
+            }
+
+            .reportes-container {
+                height: auto !important;
+                min-height: 100vh !important;
+                padding: 10px;
+            }
+
+            .main-layout {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 10px;
+            }
+
+            .sidebar, .sidebar-right {
+                display: none !important;
+            }
+
+            .filter-toggle {
+                display: inline-flex !important;
+                align-items: center;
+                gap: 4px;
+                padding: 6px 12px;
+                background: white;
+                border: 1.5px solid #dcdde1;
+                border-radius: 8px;
+                font-size: 12.5px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+
+            .mobile-quick-stats {
+                display: flex !important;
+                gap: 6px;
+                width: 100%;
+                margin: 4px 0 8px 0;
+            }
+
+            .mobile-stat-pill {
+                flex: 1;
+                padding: 6px;
+                background: white;
+                border-radius: 8px;
+                border: 1px solid #dcdde1;
+                font-size: 11.5px;
+                font-weight: 600;
+                text-align: center;
+                cursor: pointer;
+            }
+
+            .reporte-card {
+                height: auto !important;
+                min-height: auto !important;
+                max-height: none !important;
+            }
+
+            .patient-card-body {
+                max-height: none !important;
+                overflow: visible !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Banner de demostración -->
+    <div class="demo-banner">
+        <div class="demo-banner-left">
+            <span class="demo-pill">MODO DEMO</span>
+            <span>Sistema Clínico Kinetiq Sport — Datos de Portafolio (100% Ficticios)</span>
+        </div>
+        <div>
+            <a href="https://github.com/esteban0903" target="_blank" class="demo-badge-author">
+                👨‍💻 Autor: @esteban0903
+            </a>
+        </div>
+    </div>
+
+    <div class="reportes-container">
+        <div class="top-bar">
+            <div class="top-bar-left">
+                <a href="index.html" class="back-link">← Formulario Clínico</a>
+                <div class="top-bar-actions">
+                    <button id="filterToggle" class="filter-toggle" type="button" onclick="alert('Estadísticas completas activas')">📊 Estadísticas</button>
+                </div>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="Buscar por paciente, cédula o deporte...">
+                <button id="searchBtn" class="search-btn">Buscar</button>
+                <button id="clearBtn" class="clear-btn">Limpiar</button>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <!-- Sidebar Izquierdo: Estadísticas y Terapeutas -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-title">📊 Estadísticas Clínicas</div>
+                <div class="sidebar-stats" id="statsContainer"></div>
+
+                <div class="sidebar-profesionales">
+                    <div class="sidebar-title">👨‍⚕️ Atendidos por</div>
+                    <div class="profesionales-list" id="profesionalesList"></div>
+                </div>
+            </aside>
+
+            <!-- Contenido Principal: Pacientes -->
+            <div class="main-content">
+                <div class="mobile-quick-stats">
+                    <div class="mobile-stat-pill" id="mTotal">📄 Total: 12</div>
+                    <div class="mobile-stat-pill" id="mFisio">🏃 Fisio: 7</div>
+                    <div class="mobile-stat-pill" id="mPelvico">🫀 Pélvico: 5</div>
+                </div>
+
+                <div class="prof-filter-bar">
+                    <span class="prof-filter-title">Atendido por:</span>
+                    <div class="prof-pills" id="profPills"></div>
+                </div>
+
+                <div id="reportesContainer"></div>
+
+                <div id="paginationContainer" class="pagination-container"></div>
+            </div>
+
+            <!-- Sidebar Derecho: Métricas de Negocio -->
+            <aside class="sidebar-right" id="sidebarRight">
+                <div class="sidebar-card">
+                    <div class="sidebar-title">📈 ¿Cómo nos conocieron?</div>
+                    <div class="source-chart" id="sourceChart"></div>
+                </div>
+
+                <div class="sidebar-card">
+                    <div class="sidebar-title">📅 Actividad Mensual</div>
+                    <div class="monthly-chart-header">
+                        <div>
+                            <span>Año:</span>
+                            <select id="yearSelect" class="year-select">
+                                <option value="2026" selected>2026</option>
+                                <option value="2025">2025</option>
+                            </select>
+                        </div>
+                        <div class="year-total-badge">
+                            Total: <strong id="yearTotal">12</strong>
+                        </div>
+                    </div>
+                    <div class="peak-month-banner">
+                        🔥 Mes con mayor actividad: <strong>Marzo (4 reportes)</strong>
+                    </div>
+                    <div class="vertical-month-chart" id="monthChart"></div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Modal de vista previa y descarga del reporte -->
+    <div id="previewModal" class="preview-modal">
+        <div class="preview-content">
+            <div class="preview-header">
+                <div style="font-size: 16px; font-weight: 700; color: #2c3e50;" id="previewModalTitle">Valoración Médica</div>
+                <button type="button" onclick="closeModal()" style="background:none;border:none;font-size:20px;font-weight:bold;cursor:pointer;color:#7f8c8d;">✕</button>
+            </div>
+            <div class="preview-body" id="previewModalBody"></div>
+            <div class="preview-footer">
+                <button type="button" class="clear-btn" onclick="closeModal()">Cerrar</button>
+                <button type="button" class="open-btn" id="previewOpenFormBtn">Abrir en Formulario Completo ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Habilitar bypass de demo para auth-guard en caso de navegar al formulario
+        sessionStorage.setItem('demoMode', 'true');
+        sessionStorage.setItem('isLoggedIn', 'true');
+        sessionStorage.setItem('userEmail', 'esteban0903@kinetiqsport.com');
+
+        // 12 Pacientes Mockeados Realistas (Cero datos reales)
+        const MOCK_DATA = [
+            {
+                id: 'demo_1',
+                cedula: '1025489632',
+                nombre: 'Mateo',
+                apellido: 'Gómez Carvajal',
+                tipo_reporte: 'pisada',
+                atendido_por: 'Jorge',
+                fecha_creacion: '2026-03-12T10:30:00Z',
+                fecha_modificacion: '2026-03-12T10:30:00Z',
+                modificado_por: 'jorge@kinetiqsport.com',
+                reporte_json: {
+                    nombre: 'Mateo', apellido: 'Gómez Carvajal', cc: '1025489632', edad: '24', sexo: 'Masculino', celular: '3104589632', correo: 'mateo.gomez@gmail.com',
+                    deporte: 'Fútbol', posicion: 'Extremo derecho', diasEntrenamiento: '5', horasEntrenamiento: '2',
+                    peso: '72', talla: '178', imc: '22.7',
+                    motivoConsulta: 'Esguince de tobillo derecho grado II durante partido oficial hace 2 semanas. Inflamación residual y limitación para el cambio de dirección.',
+                    escalaDolor: '4', localizacionDolor: 'Ligamento peroneoastragalino anterior',
+                    atendidoPor: 'Jorge', comoNosConociste: 'Instagram',
+                    objetivos: 'Disminuir dolor, recuperar propiocepción dinámica y reincorporación a entrenamientos en 3 semanas.'
+                }
+            },
+            {
+                id: 'demo_2',
+                cedula: '1036985214',
+                nombre: 'Valentina',
+                apellido: 'Restrepo Londoño',
+                tipo_reporte: 'pisada',
+                atendido_por: 'Jorge',
+                fecha_creacion: '2026-04-05T09:15:00Z',
+                fecha_modificacion: '2026-04-05T09:15:00Z',
+                modificado_por: 'jorge@kinetiqsport.com',
+                reporte_json: {
+                    nombre: 'Valentina', apellido: 'Restrepo Londoño', cc: '1036985214', edad: '29', sexo: 'Femenino', celular: '3201458963', correo: 'valen.restrepo@outlook.com',
+                    deporte: 'Running / Maratón', posicion: 'Fondista', diasEntrenamiento: '6', horasEntrenamiento: '1.5',
+                    peso: '58', talla: '165', imc: '21.3',
+                    motivoConsulta: 'Fascitis plantar bilateral con predominio izquierdo de 3 meses de evolución, más intensa en los primeros pasos matutinos.',
+                    escalaDolor: '6', localizacionDolor: 'Inserción proximal fascia plantar izquierda',
+                    atendidoPor: 'Jorge', comoNosConociste: 'Recomendación amigo/familiar',
+                    objetivos: 'Modulación del dolor plantar, descarga de fascia y retorno al kilometraje habitual de maratón.'
+                }
+            },
+            {
+                id: 'demo_3',
+                cedula: '1037412589',
+                nombre: 'Camila',
+                apellido: 'Osorio Botero',
+                tipo_reporte: 'piso_pelvico',
+                atendido_por: 'Nataly',
+                fecha_creacion: '2026-03-20T14:00:00Z',
+                fecha_modificacion: '2026-03-20T14:00:00Z',
+                modificado_por: 'nataly@kinetiqsport.com',
+                reporte_json: {
+                    nombre: 'Camila', apellido: 'Osorio Botero', cc: '1037412589', edad: '31', sexo: 'Femenino', celular: '3157896541', correo: 'camila.osorio@gmail.com',
+                    deporte: 'CrossFit / Levantamiento', diasEntrenamiento: '4',
+                    peso: '63', talla: '168', imc: '22.3',
+                    motivoConsulta: 'Incontinencia urinaria de esfuerzo posparto (6 meses posparto) al saltar la cuerda y alzar cargas medias/altas.',
+                    escalaDolor: '2', localizacionDolor: 'Región suprapúbica',
+                    atendidoPor: 'Nataly', comoNosConociste: 'Médico remitente',
+                    embarazos: '1', partos: '1', cesareas: '0',
+                    objetivos: 'Reeducación abdominoperineal, cierre de diástasis y contención del esfuerzo en impacto.'
+                }
+            },
+            {
+                id: 'demo_4',
+                cedula: '1017456321',
+                nombre: 'Carlos Andrés',
+                apellido: 'Mendoza Riaño',
+                tipo_reporte: 'pisada',
+                atendido_por: 'Kinetiq',
+                fecha_creacion: '2026-02-18T16:30:00Z',
+                fecha_modificacion: '2026-02-18T16:30:00Z',
+                modificado_por: 'admin@kinetiqsport.com',
+                reporte_json: {
+                    nombre: 'Carlos Andrés', apellido: 'Mendoza Riaño', cc: '1017456321', edad: '34', sexo: 'Masculino', celular: '3001239874', correo: 'carlos.mendoza@gmail.com',
+                    deporte: 'CrossFit', posicion: 'Atleta RX', diasEntrenamiento: '5', horasEntrenamiento: '2',
+                    peso: '84', talla: '180', imc: '25.9',
+                    motivoConsulta: 'Dolor en hombro derecho tipo pinzamiento subacromial al realizar snatch y dominadas.',
+                    escalaDolor: '7', localizacionDolor: 'Cara anterior hombro derecho',
+                    atendidoPor: 'Kinetiq', comoNosConociste: 'Instagram',
+                    objetivos: 'Restablecer ritmo escapulohumeral y retorno a levantamientos olímpicos.'
+                }
+            },
+            {
+                id: 'demo_5',
+                cedula: '1045879632',
+                nombre: 'Mariana',
+                apellido: 'Henao Correa',
+                tipo_reporte: 'pisada',
+                atendido_por: 'Jorge',
+                fecha_creacion: '2026-01-25T11:00:00Z',
+                fecha_modificacion: '2026-01-25T11:00:00Z',
+                modificado_por: 'jorge@kinetiqsport.com',
+                reporte_json: {
+                    nombre: 'Mariana', apellido: 'Henao Correa', cc: '1045879632', edad: '21', sexo: 'Femenino', celular: '3187456321', correo: 'mariana.henao@udea.edu.co',
+                    deporte: 'Voleibol', posicion: 'Rematadora', diasEntrenamiento: '4', horasEntrenamiento: '2',
+                    peso: '66', talla: '176', imc: '21.3',
+                    motivoConsulta: 'Fase final de readaptación física posreconstrucción de LCA rodilla izquierda. Reincorporación al salto.',
+                    escalaDolor: '2', localizacionDolor: 'Región rotuliana izquierda',
+                    atendidoPor: 'Jorge', comoNosConociste: 'Médico remitente',
+                    objetivos: 'Simetría de fuerza cuádriceps >90%, test de salto simétrico y alta deportiva.'
+                }
+            },
+            {
+                id: 'demo_6',
+                cedula: '1048963215',
+                nombre: 'Laura Juliana',
+                apellido: 'Mejía Vahos',
+                tipo_reporte: 'piso_pelvico',
+                atendido_por: 'Nataly',
+                fecha_creacion: '2026-02-10T15:20:00Z',
+                fecha_modificacion: '2026-02-10T15:20:00Z',
+                modificado_por: 'nataly@kinetiqsport.com',
+                reporte_json: {
+                    nombre: 'Laura Juliana', apellido: 'Mejía Vahos', cc: '1048963215', edad: '38', sexo: 'Femenino', celular: '3124589632', correo: 'laura.mejia@gmail.com',
+                    deporte: 'Yoga y Pilates', diasEntrenamiento: '3',
+                    peso: '60', talla: '163', imc: '22.6',
+                    motivoConsulta: 'Sensación de pesadez en zona perianal al final de la jornada. Diagnóstico de prolapso estadio I.',
+                    escalaDolor: '3', localizacionDolor: 'Zona perianal',
+                    atendidoPor: 'Nataly', comoNosConociste: 'Instagram',
+                    embarazos: '2', partos: '2', cesareas: '0',
+                    objetivos: 'Fortalecimiento de suelo pélvico profundo mediante gimnasia hipopresiva.'
+                }
+            },
+            {
+                id: 'demo_7',
+                cedula: '1028741963',
+                nombre: 'Santiago',
+                apellido: 'Morales Vélez',
+                tipo_reporte: 'pisada',
+                atendido_por: 'Jorge',
+                fecha_creacion: '2026-03-01T08:30:00Z',
+                fecha_modificacion: '2026-03-01T08:30:00Z',
+                modificado_por: 'jorge@kinetiqsport.com',
+                reporte_json: {
+                    nombre: 'Santiago', apellido: 'Morales Vélez', cc: '1028741963', edad: '17', sexo: 'Masculino', celular: '3014589632', correo: 'santiago.morales@gmail.com',
+                    deporte: 'Baloncesto', posicion: 'Alero', diasEntrenamiento: '5', horasEntrenamiento: '2',
+                    peso: '76', talla: '185', imc: '22.2',
+                    motivoConsulta: 'Dolor en interlínea articular medial de rodilla derecha tras giro brusco en partido.',
+                    escalaDolor: '5', localizacionDolor: 'Menisco medial rodilla derecha',
+                    atendidoPor: 'Jorge', comoNosConociste: 'Recomendación amigo/familiar',
+                    objetivos: 'Control del edema, fortalecimiento y retorno a la competencia intercolegiada.'
+                }
+            },
+            {
+                id: 'demo_8',
+                cedula: '1026359874',
+                nombre: 'Sofía',
+                apellido: 'Echeverri Giraldo',
+                tipo_reporte: 'piso_pelvico',
+                atendido_por: 'Nataly',
+                fecha_creacion: '2026-04-02T10:00:00Z',
+                fecha_modificacion: '2026-04-02T10:00:00Z',
+                modificado_por: 'nataly@kinetiqsport.com',
+                reporte_json: {
+                    nombre: 'Sofía', apellido: 'Echeverri Giraldo', cc: '1026359874', edad: '26', sexo: 'Femenino', celular: '3169874521', correo: 'sofia.echeverri@gmail.com',
+                    deporte: 'Running', diasEntrenamiento: '4',
+                    peso: '54', talla: '162', imc: '20.6',
+                    motivoConsulta: 'Dolor pélvico e hipertonía del suelo pélvico con molestia persistente en carreras.',
+                    escalaDolor: '5', localizacionDolor: 'Elevador del ano bilateral',
+                    atendidoPor: 'Nataly', comoNosConociste: 'Google / Web',
+                    embarazos: '0', partos: '0', cesareas: '0',
+                    objetivos: 'Relajación miofascial perianal y corrección de hipertonía postural.'
+                }
+            },
+            {
+                id: 'demo_9',
+                cedula: '1032145896',
+                nombre: 'Diego Fernando',
+                apellido: 'Castro Quintero',
+                tipo_reporte: 'pisada',
+                atendido_por: 'Kinetiq',
+                fecha_creacion: '2025-11-14T17:00:00Z',
+                fecha_modificacion: '2025-11-14T17:00:00Z',
+                modificado_por: 'admin@kinetiqsport.com',
+                reporte_json: {
+                    nombre: 'Diego Fernando', apellido: 'Castro Quintero', cc: '1032145896', edad: '62', sexo: 'Masculino', celular: '3114587963', correo: 'diego.castro@empresa.com',
+                    deporte: 'Ciclismo recreativo', posicion: 'Ruta', diasEntrenamiento: '3', horasEntrenamiento: '3',
+                    peso: '88', talla: '174', imc: '29.1',
+                    motivoConsulta: 'Gonartrosis grado I rodilla derecha con rigidez matutina tras ascensos prolongados.',
+                    escalaDolor: '4', localizacionDolor: 'Compartimento medial rodilla derecha',
+                    atendidoPor: 'Kinetiq', comoNosConociste: 'Google / Web',
+                    objetivos: 'Ganancia de masa muscular en cuádriceps y analgesia física.'
+                }
+            },
+            {
+                id: 'demo_10',
+                cedula: '1039852147',
+                nombre: 'Adriana María',
+                apellido: 'Cano Jaramillo',
+                tipo_reporte: 'piso_pelvico',
+                atendido_por: 'Nataly',
+                fecha_creacion: '2025-12-08T11:45:00Z',
+                fecha_modificacion: '2025-12-08T11:45:00Z',
+                modificado_por: 'nataly@kinetiqsport.com',
+                reporte_json: {
+                    nombre: 'Adriana María', apellido: 'Cano Jaramillo', cc: '1039852147', edad: '44', sexo: 'Femenino', celular: '3139874561', correo: 'adriana.cano@gmail.com',
+                    deporte: 'Natación', diasEntrenamiento: '3',
+                    peso: '64', talla: '166', imc: '23.2',
+                    motivoConsulta: 'Incontinencia urinaria de urgencia y escapes involuntarios con cambios posturales.',
+                    escalaDolor: '1', localizacionDolor: 'Pared vesical',
+                    atendidoPor: 'Nataly', comoNosConociste: 'Instagram',
+                    embarazos: '3', partos: '1', cesareas: '2',
+                    objetivos: 'Entrenamiento vesical y ejercicios de Kegel guiados.'
+                }
+            },
+            {
+                id: 'demo_11',
+                cedula: '1019654123',
+                nombre: 'Esteban',
+                apellido: 'Duque Montoya',
+                tipo_reporte: 'pisada',
+                atendido_por: 'Jorge',
+                fecha_creacion: '2026-03-28T09:00:00Z',
+                fecha_modificacion: '2026-03-28T09:00:00Z',
+                modificado_por: 'jorge@kinetiqsport.com',
+                reporte_json: {
+                    nombre: 'Esteban', apellido: 'Duque Montoya', cc: '1019654123', edad: '27', sexo: 'Masculino', celular: '3024567891', correo: 'esteban.duque@gmail.com',
+                    deporte: 'Triatlón', posicion: 'Media distancia', diasEntrenamiento: '6', horasEntrenamiento: '2.5',
+                    peso: '70', talla: '175', imc: '22.9',
+                    motivoConsulta: 'Síndrome de estrés medial de la tibia (periostitis) bilateral por incremento de kilometraje.',
+                    escalaDolor: '5', localizacionDolor: 'Borde medial de la tibia bilateral',
+                    atendidoPor: 'Jorge', comoNosConociste: 'Recomendación amigo/familiar',
+                    objetivos: 'Control biomecánico de la pisada y corrección de la cadencia de carrera.'
+                }
+            },
+            {
+                id: 'demo_12',
+                cedula: '1041236589',
+                nombre: 'Natalia',
+                apellido: 'Arango Ruiz',
+                tipo_reporte: 'piso_pelvico',
+                atendido_por: 'Nataly',
+                fecha_creacion: '2026-01-18T16:00:00Z',
+                fecha_modificacion: '2026-01-18T16:00:00Z',
+                modificado_por: 'nataly@kinetiqsport.com',
+                reporte_json: {
+                    nombre: 'Natalia', apellido: 'Arango Ruiz', cc: '1041236589', edad: '33', sexo: 'Femenino', celular: '3174569823', correo: 'natalia.arango@gmail.com',
+                    deporte: 'Tenis de campo', diasEntrenamiento: '3',
+                    peso: '61', talla: '167', imc: '21.9',
+                    motivoConsulta: 'Incontinencia urinaria de esfuerzo moderada durante saques y desplazamientos en tenis.',
+                    escalaDolor: '2', localizacionDolor: 'Piso pélvico anterior',
+                    atendidoPor: 'Nataly', comoNosConociste: 'Instagram',
+                    embarazos: '1', partos: '1', cesareas: '0',
+                    objetivos: 'Mejora del tiempo de reacción perineal previo al impacto y estabilidad lumbopélvica.'
+                }
+            }
+        ];
+
+        class DemoViewer {
+            constructor() {
+                this.allReportes = [...MOCK_DATA];
+                this.filteredReportes = [...MOCK_DATA];
+                this.activeFilters = new Set();
+                this.selectedProfessional = null;
+                this.currentPage = 1;
+                this.itemsPerPage = 3;
+
+                this.statDefs = [
+                    { id: 'totalReportes', icon: '📄', label: 'Total Reportes', filter: null },
+                    { id: 'totalPisada', icon: '🏃', label: 'Fisioterapia', filter: r => r.tipo_reporte === 'pisada' },
+                    { id: 'totalPisoPelvico', icon: '🫀', label: 'Piso Pélvico', filter: r => r.tipo_reporte === 'piso_pelvico' },
+                    { id: 'statMenores', icon: '🧒', label: 'Menores (<18)', filter: r => parseInt(r.reporte_json.edad) < 18 },
+                    { id: 'statMayores', icon: '🧓', label: 'Mayores (≥60)', filter: r => parseInt(r.reporte_json.edad) >= 60 },
+                    { id: 'statPesoAlto', icon: '⚖️', label: 'Peso ≥80kg', filter: r => parseFloat(r.reporte_json.peso) >= 80 },
+                    { id: 'statMasculino', icon: '♂️', label: 'Masculino', filter: r => r.reporte_json.sexo === 'Masculino' },
+                    { id: 'statFemenino', icon: '♀️', label: 'Femenino', filter: r => r.reporte_json.sexo === 'Femenino' },
+                ];
+
+                this.init();
+            }
+
+            init() {
+                this.setupListeners();
+                this.renderStats();
+                this.renderProfesionales();
+                this.renderSourceChart();
+                this.renderMonthChart();
+                this.renderReportes();
+            }
+
+            setupListeners() {
+                document.getElementById('searchInput').addEventListener('input', (e) => {
+                    this.filterSearch(e.target.value.toLowerCase().trim());
+                });
+
+                document.getElementById('searchBtn').addEventListener('click', () => {
+                    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+                    this.filterSearch(q);
+                });
+
+                document.getElementById('clearBtn').addEventListener('click', () => {
+                    document.getElementById('searchInput').value = '';
+                    this.activeFilters.clear();
+                    this.selectedProfessional = null;
+                    this.aplicarFiltros();
+                });
+
+                document.getElementById('yearSelect').addEventListener('change', () => {
+                    this.renderMonthChart();
+                });
+            }
+
+            filterSearch(query) {
+                if (!query) {
+                    this.aplicarFiltros();
+                    return;
+                }
+                this.filteredReportes = this.allReportes.filter(r => {
+                    const full = `${r.nombre} ${r.apellido} ${r.cedula} ${r.reporte_json.deporte || ''} ${r.reporte_json.motivoConsulta || ''}`.toLowerCase();
+                    return full.includes(query);
+                });
+                this.currentPage = 1;
+                this.renderReportes();
+            }
+
+            toggleFilter(filterFn) {
+                if (this.activeFilters.has(filterFn)) {
+                    this.activeFilters.delete(filterFn);
+                } else {
+                    this.activeFilters.add(filterFn);
+                }
+                this.aplicarFiltros();
+            }
+
+            setProfessional(prof) {
+                this.selectedProfessional = this.selectedProfessional === prof ? null : prof;
+                this.aplicarFiltros();
+            }
+
+            aplicarFiltros() {
+                let list = [...this.allReportes];
+
+                if (this.selectedProfessional) {
+                    list = list.filter(r => r.atendido_por === this.selectedProfessional);
+                }
+
+                if (this.activeFilters.size > 0) {
+                    list = list.filter(r => {
+                        for (let fn of this.activeFilters) {
+                            if (!fn(r)) return false;
+                        }
+                        return true;
+                    });
+                }
+
+                this.filteredReportes = list;
+                this.currentPage = 1;
+                this.renderReportes();
+                this.renderStats();
+                this.renderProfesionales();
+            }
+
+            renderStats() {
+                const container = document.getElementById('statsContainer');
+                container.innerHTML = '';
+
+                this.statDefs.forEach(def => {
+                    const count = def.filter === null ? this.filteredReportes.length : this.allReportes.filter(def.filter).length;
+                    const isActive = def.filter && this.activeFilters.has(def.filter);
+
+                    const card = document.createElement('div');
+                    card.className = 'stat-card' + (isActive ? ' active' : '');
+                    card.style.background = this.getStatColor(def.id);
+                    card.innerHTML = `
+                        <div class="stat-check">✓</div>
+                        <div class="stat-icon-wrap">${def.icon}</div>
+                        <div class="stat-body">
+                            <div class="stat-label">${def.label}</div>
+                        </div>
+                        <div class="stat-number">${count}</div>
+                    `;
+
+                    if (def.filter) {
+                        card.addEventListener('click', () => this.toggleFilter(def.filter));
+                    }
+                    container.appendChild(card);
+                });
+
+                // Update mobile quick stats
+                document.getElementById('mTotal').innerHTML = `📄 Total: <b>${this.allReportes.length}</b>`;
+                document.getElementById('mFisio').innerHTML = `🏃 Fisio: <b>${this.allReportes.filter(r=>r.tipo_reporte==='pisada').length}</b>`;
+                document.getElementById('mPelvico').innerHTML = `🫀 Pélvico: <b>${this.allReportes.filter(r=>r.tipo_reporte==='piso_pelvico').length}</b>`;
+            }
+
+            getStatColor(id) {
+                const colors = {
+                    totalReportes: 'linear-gradient(135deg, #0A94B0 0%, #076D82 100%)',
+                    totalPisada: 'linear-gradient(135deg, #0A94B0 0%, #087D94 100%)',
+                    totalPisoPelvico: 'linear-gradient(135deg, #8E24AA 0%, #6A1B9A 100%)',
+                    statMenores: 'linear-gradient(135deg, #d35400 0%, #e67e22 100%)',
+                    statMayores: 'linear-gradient(135deg, #c0392b 0%, #e74c3c 100%)',
+                    statPesoAlto: 'linear-gradient(135deg, #0A94B0 0%, #065A6B 100%)',
+                    statMasculino: 'linear-gradient(135deg, #2980b9 0%, #1a5276 100%)',
+                    statFemenino: 'linear-gradient(135deg, #e84393 0%, #b71c6b 100%)',
+                };
+                return colors[id] || 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)';
+            }
+
+            renderProfesionales() {
+                const profs = ['Jorge', 'Nataly', 'Kinetiq'];
+                const listEl = document.getElementById('profesionalesList');
+                const pillsEl = document.getElementById('profPills');
+                listEl.innerHTML = '';
+                pillsEl.innerHTML = '';
+
+                // Todos pill
+                const allPill = document.createElement('div');
+                allPill.className = 'prof-pill' + (!this.selectedProfessional ? ' active' : '');
+                allPill.textContent = 'Todos';
+                allPill.addEventListener('click', () => {
+                    this.selectedProfessional = null;
+                    this.aplicarFiltros();
+                });
+                pillsEl.appendChild(allPill);
+
+                profs.forEach(p => {
+                    const count = this.allReportes.filter(r => r.atendido_por === p).length;
+                    const isActive = this.selectedProfessional === p;
+
+                    // Sidebar item
+                    const item = document.createElement('div');
+                    item.className = 'prof-item' + (isActive ? ' active' : '');
+                    item.innerHTML = `<span>${p}</span><span class="prof-badge">${count}</span>`;
+                    item.addEventListener('click', () => this.setProfessional(p));
+                    listEl.appendChild(item);
+
+                    // Pill item
+                    const pill = document.createElement('div');
+                    pill.className = 'prof-pill' + (isActive ? ' active' : '');
+                    pill.textContent = `${p} (${count})`;
+                    pill.addEventListener('click', () => this.setProfessional(p));
+                    pillsEl.appendChild(pill);
+                });
+            }
+
+            renderSourceChart() {
+                const sources = {
+                    'Instagram': 5,
+                    'Recomendación amigo/familiar': 4,
+                    'Médico remitente': 2,
+                    'Google / Web': 2
+                };
+                const total = 13;
+                const container = document.getElementById('sourceChart');
+                container.innerHTML = '';
+
+                Object.entries(sources).forEach(([label, count]) => {
+                    const pct = Math.round((count / total) * 100);
+                    const item = document.createElement('div');
+                    item.className = 'source-bar-item';
+                    item.innerHTML = `
+                        <div class="source-label-row">
+                            <span>${label}</span>
+                            <span><b>${count}</b> (${pct}%)</span>
+                        </div>
+                        <div class="source-bar-track">
+                            <div class="source-bar-fill" style="width: ${pct}%; background: #0A94B0;"></div>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            }
+
+            renderMonthChart() {
+                const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                const counts2026 = [2, 3, 4, 2, 0, 0, 0, 0, 0, 0, 0, 0];
+                const maxVal = Math.max(...counts2026, 1);
+                const container = document.getElementById('monthChart');
+                container.innerHTML = '';
+
+                months.forEach((m, idx) => {
+                    const val = counts2026[idx];
+                    const heightPct = val > 0 ? Math.max((val / maxVal) * 100, 10) : 4;
+                    const col = document.createElement('div');
+                    col.className = 'v-month-col';
+                    col.innerHTML = `
+                        <div class="v-month-count">${val > 0 ? val : ''}</div>
+                        <div class="v-month-bar-wrap">
+                            <div class="v-month-bar" style="height: ${heightPct}%; background: ${val >= 4 ? '#e67e22' : '#0A94B0'};"></div>
+                        </div>
+                        <div class="v-month-label">${m}</div>
+                    `;
+                    container.appendChild(col);
+                });
+            }
+
+            renderReportes() {
+                const container = document.getElementById('reportesContainer');
+                container.innerHTML = '';
+
+                const totalItems = this.filteredReportes.length;
+                if (totalItems === 0) {
+                    container.innerHTML = '<div style="padding: 40px; text-align: center; color: #7f8c8d; font-size: 14px;">No se encontraron reportes con los filtros seleccionados.</div>';
+                    document.getElementById('paginationContainer').style.display = 'none';
+                    return;
+                }
+
+                document.getElementById('paginationContainer').style.display = 'flex';
+                const totalPages = Math.ceil(totalItems / this.itemsPerPage) || 1;
+                if (this.currentPage > totalPages) this.currentPage = totalPages;
+
+                const startIdx = (this.currentPage - 1) * this.itemsPerPage;
+                const endIdx = Math.min(startIdx + this.itemsPerPage, totalItems);
+                const pageList = this.filteredReportes.slice(startIdx, endIdx);
+
+                pageList.forEach(reporte => {
+                    container.appendChild(this.createCard(reporte));
+                });
+
+                this.renderPagination(totalItems, totalPages, startIdx + 1, endIdx);
+            }
+
+            createCard(reporte) {
+                const isPelvico = reporte.tipo_reporte === 'piso_pelvico';
+                const tipoColor = isPelvico ? '#8E24AA' : '#0A94B0';
+                const tipoLabel = isPelvico ? 'Piso Pélvico' : 'Fisioterapia Deportiva';
+                const json = reporte.reporte_json;
+
+                const card = document.createElement('div');
+                card.className = 'reporte-card';
+                card.style.borderLeftColor = tipoColor;
+
+                card.innerHTML = `
+                    <div class="patient-card-header">
+                        <div class="patient-header">
+                            <span class="patient-name">${reporte.nombre} ${reporte.apellido}</span>
+                            <span class="tipo-badge" style="background: ${tipoColor};">${tipoLabel}</span>
+                        </div>
+                        <div class="patient-demographics">
+                            <span>🪪 CC: <b>${reporte.cedula}</b></span>
+                            <span>•</span>
+                            <span>${json.edad} años</span>
+                            <span>•</span>
+                            <span>${json.sexo}</span>
+                        </div>
+                    </div>
+                    <div class="patient-card-body">
+                        <div class="patient-block">
+                            <div class="patient-block-label">MOTIVO DE CONSULTA</div>
+                            <div class="patient-block-content">${json.motivoConsulta}</div>
+                        </div>
+                        <div class="metrics-chips-row">
+                            <span class="metric-chip chip-pain">⚡ Dolor: <strong>${json.escalaDolor}/10</strong></span>
+                            <span class="metric-chip">📍 <strong>${json.localizacionDolor || 'Zona perianal'}</strong></span>
+                            <span class="metric-chip">⚽ <strong>${json.deporte || 'Deporte'}</strong></span>
+                            <span class="metric-chip">⚖️ ${json.peso} kg</span>
+                            <span class="metric-chip">📏 ${json.talla} cm</span>
+                        </div>
+                    </div>
+                    <div class="patient-card-footer">
+                        <div class="patient-atendido">
+                            Atendido por: <strong style="color: ${tipoColor};">${reporte.atendido_por}</strong>
+                            <span style="font-size: 0.72rem; color: #7f8c8d;">(Mod: ${reporte.modificado_por})</span>
+                        </div>
+                        <button type="button" class="open-btn ${isPelvico ? 'open-btn-pelvico' : ''}" data-id="${reporte.id}">
+                            📄 Ver valoración
+                        </button>
+                    </div>
+                `;
+
+                card.querySelector('.open-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openPreview(reporte);
+                });
+
+                return card;
+            }
+
+            renderPagination(totalItems, totalPages, fromIdx, toIdx) {
+                const container = document.getElementById('paginationContainer');
+                let pagesHtml = '';
+                for (let p = 1; p <= totalPages; p++) {
+                    const active = p === this.currentPage ? ' active' : '';
+                    pagesHtml += `<button type="button" class="page-btn${active}" data-p="${p}">${p}</button>`;
+                }
+
+                container.innerHTML = `
+                    <div class="pagination-info">Mostrando <b>${fromIdx}–${toIdx}</b> de <b>${totalItems}</b> pacientes</div>
+                    <div class="pagination-buttons">
+                        <button type="button" class="page-btn" data-p="${this.currentPage - 1}" ${this.currentPage === 1 ? 'disabled' : ''}>‹</button>
+                        ${pagesHtml}
+                        <button type="button" class="page-btn" data-p="${this.currentPage + 1}" ${this.currentPage === totalPages ? 'disabled' : ''}>›</button>
+                    </div>
+                `;
+
+                container.querySelectorAll('.page-btn:not(:disabled)').forEach(b => {
+                    b.addEventListener('click', () => {
+                        const target = parseInt(b.dataset.p);
+                        if (!isNaN(target)) {
+                            this.currentPage = target;
+                            this.renderReportes();
+                        }
+                    });
+                });
+            }
+
+            openPreview(reporte) {
+                const isPelvico = reporte.tipo_reporte === 'piso_pelvico';
+                const json = reporte.reporte_json;
+                const modal = document.getElementById('previewModal');
+                const title = document.getElementById('previewModalTitle');
+                const body = document.getElementById('previewModalBody');
+                const openBtn = document.getElementById('previewOpenFormBtn');
+
+                title.textContent = `Historia Clínica: ${reporte.nombre} ${reporte.apellido} (${isPelvico ? 'Piso Pélvico' : 'Fisioterapia Deportiva'})`;
+
+                body.innerHTML = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                        <div><strong>Cédula:</strong> ${reporte.cedula}</div>
+                        <div><strong>Edad / Sexo:</strong> ${json.edad} años · ${json.sexo}</div>
+                        <div><strong>Teléfono:</strong> ${json.celular}</div>
+                        <div><strong>Correo:</strong> ${json.correo}</div>
+                        <div><strong>Deporte / Actividad:</strong> ${json.deporte}</div>
+                        <div><strong>Atendido por:</strong> ${reporte.atendido_por} (${reporte.modificado_por})</div>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <h4 style="margin: 0 0 4px 0; color: #0A94B0; font-size: 13.5px;">MOTIVO DE CONSULTA Y ANAMNESIS</h4>
+                        <p style="margin: 0; background: #fff; border: 1px solid #e1e4e8; padding: 10px; border-radius: 6px;">${json.motivoConsulta}</p>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <h4 style="margin: 0 0 4px 0; color: #0A94B0; font-size: 13.5px;">EVALUACIÓN CLÍNICA DEL DOLOR</h4>
+                        <p style="margin: 0; background: #fff; border: 1px solid #e1e4e8; padding: 10px; border-radius: 6px;">
+                            <strong>Escala EVA:</strong> ${json.escalaDolor}/10 | <strong>Localización:</strong> ${json.localizacionDolor || 'Zona perianal'}
+                        </p>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0 0 4px 0; color: #0A94B0; font-size: 13.5px;">OBJETIVOS Y PLAN TERAPÉUTICO</h4>
+                        <p style="margin: 0; background: #fff; border: 1px solid #e1e4e8; padding: 10px; border-radius: 6px;">${json.objetivos || 'Plan de rehabilitación personalizado.'}</p>
+                    </div>
+                `;
+
+                openBtn.onclick = () => {
+                    const targetPage = isPelvico ? 'reporte-piso-pelvico.html' : 'index.html';
+                    sessionStorage.setItem('reportToLoad', JSON.stringify(json));
+                    window.location.href = targetPage;
+                };
+
+                modal.classList.add('open');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('previewModal').classList.remove('open');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new DemoViewer();
+        });
+    </script>
+</body>
+</html>

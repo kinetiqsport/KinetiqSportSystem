@@ -7,6 +7,16 @@
 // auth-guard.js - Verificación y protección centralizada de sesión con Supabase
 
 (function() {
+    // Si estamos en modo demostración/portafolio, permitir navegación para el showcase de LinkedIn
+    if (sessionStorage.getItem('demoMode') === 'true') {
+        window.logout = function() {
+            sessionStorage.clear();
+            window.location.href = 'demo.html';
+        };
+        window.secureLogout = window.logout;
+        return;
+    }
+
     // 1. Verificación inmediata en sessionStorage para evitar parpadeos de UI
     const isLocalLoggedIn = sessionStorage.getItem('isLoggedIn');
     if (!isLocalLoggedIn) {
