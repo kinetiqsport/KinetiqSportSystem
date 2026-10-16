@@ -929,6 +929,13 @@ class ReportePisoPelvico {
         const file = event.target.files[0];
         if (!file) return;
 
+        // Límite de seguridad: máximo 15MB por archivo para evitar sobrecarga de memoria
+        const MAX_SIZE = 15 * 1024 * 1024;
+        if (file.size > MAX_SIZE) {
+            this.showAlert('El archivo supera el tamaño máximo permitido (15 MB).', 'error');
+            return;
+        }
+
         const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
         const isJson = file.type === 'application/json' || file.name.toLowerCase().endsWith('.json');
 
