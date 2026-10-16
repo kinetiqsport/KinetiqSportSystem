@@ -282,10 +282,23 @@ class ReporteMedico {
             const element = document.getElementById(key);
             if (element) {
                 if (element.type === 'checkbox') {
-                    element.checked = data[key];
+                    element.checked = Boolean(data[key]);
                 } else if (key === 'referidoSeleccionado') {
                     // Guardar para aplicar después de cargar referidos
                     this._pendingReferidoValue = data[key];
+                } else if (element.tagName === 'SELECT') {
+                    element.value = data[key];
+                    if (!element.value && data[key]) {
+                        const searchVal = String(data[key]).trim().toLowerCase();
+                        for (const opt of element.options) {
+                            const optVal = opt.value.toLowerCase();
+                            const optText = opt.text.toLowerCase();
+                            if (optVal === searchVal || optText === searchVal || optVal.startsWith(searchVal) || optText.startsWith(searchVal) || optVal.includes(searchVal) || optText.includes(searchVal)) {
+                                element.value = opt.value;
+                                break;
+                            }
+                        }
+                    }
                 } else {
                     element.value = data[key];
                 }
@@ -929,52 +942,54 @@ class ReporteMedico {
 
         if (isPdf) {
             try {
-                this.showAlert('⏳ Analizando datos digitales del PDF...', 'info');
+                this.showAlert('⏳ Analizando archivo PDF...', 'info');
                 const arrayBuffer = await file.arrayBuffer();
 
-                if (!window.PDFLib) {
-                    throw new Error('Librería PDFLib no disponible en el navegador');
-                }
-
-                const { PDFDocument } = window.PDFLib;
-                const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-
                 let data = null;
-                const subject = pdfDoc.getSubject();
-                if (subject && subject.includes('KINETIQ_DATA:')) {
-                    const cleanBase64 = subject.split('KINETIQ_DATA:')[1].trim();
+
+                // 1. Intentar leer copia digital incrustada en metadatos (PDFs recientes)
+                if (window.PDFLib) {
                     try {
-                        const jsonStr = decodeURIComponent(escape(atob(cleanBase64)));
-                        data = JSON.parse(jsonStr);
-                    } catch (e1) {
-                        try {
-                            const binStr = atob(cleanBase64);
-                            const bytes = Uint8Array.from(binStr, c => c.charCodeAt(0));
-                            data = JSON.parse(new TextDecoder().decode(bytes));
-                        } catch (e2) {
-                            console.error('Error decodificando metadatos:', e2);
+                        const { PDFDocument } = window.PDFLib;
+                        const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+
+                        const subject = pdfDoc.getSubject();
+                        if (subject && subject.includes('KINETIQ_DATA:')) {
+                            const cleanBase64 = subject.split('KINETIQ_DATA:')[1].trim();
+                            data = this.decodeBase64Json(cleanBase64);
                         }
+
+                        if (!data) {
+                            const keywords = pdfDoc.getKeywords();
+                            if (keywords && keywords.includes('KINETIQ_DATA:')) {
+                                const cleanBase64 = keywords.split('KINETIQ_DATA:')[1].trim();
+                                data = this.decodeBase64Json(cleanBase64);
+                            }
+                        }
+                    } catch (eMeta) {
+                        console.warn('Metadatos digitales no disponibles con PDFLib:', eMeta);
                     }
                 }
 
+                // 2. Si no contiene metadatos directos (PDF antiguo o externo), extraer texto visible con pdf.js
                 if (!data) {
-                    const keywords = pdfDoc.getKeywords();
-                    if (keywords && keywords.includes('KINETIQ_DATA:')) {
-                        const cleanBase64 = keywords.split('KINETIQ_DATA:')[1].trim();
-                        try {
-                            const jsonStr = decodeURIComponent(escape(atob(cleanBase64)));
-                            data = JSON.parse(jsonStr);
-                        } catch (e3) {
-                            console.error('Error decodificando keywords:', e3);
+                    this.showAlert('⏳ Documento anterior sin metadatos. Escaneando texto del PDF...', 'info');
+                    try {
+                        const fullText = await this.extractTextFromPDF(arrayBuffer);
+                        if (fullText) {
+                            data = this.parseOldPdfText(fullText);
                         }
+                    } catch (eOcr) {
+                        console.error('Error extrayendo texto del PDF:', eOcr);
                     }
                 }
 
-                if (data) {
-                    this.loadDataFromObject(data);
-                    this.showAlert('✓ ¡Paciente cargado exitosamente desde el PDF! Ahora puedes presionar "Guardar" para subirlo a la base de datos.', 'success');
+                if (data && (data.nombre || data.apellido || data.cc || (data.reporteData && data.reporteData.nombre))) {
+                    const finalData = data.reporteData ? data.reporteData : data;
+                    this.loadDataFromObject(finalData);
+                    this.showAlert('✓ ¡Paciente cargado exitosamente desde el PDF! Se recuperaron los datos del documento. Revisa los campos y presiona "Guardar".', 'success');
                 } else {
-                    this.showAlert('⚠️ Este PDF no contiene datos digitales incrustados de Kinetiq (probablemente generado antes de esta actualización o es un documento externo). Todos los PDFs nuevos descargados contendrán la copia de seguridad para cargarse con un clic.', 'warning');
+                    this.showAlert('⚠️ No se pudieron extraer datos de este archivo PDF. Verifica que sea un reporte clínico emitido por Kinetiq.', 'warning');
                 }
             } catch (error) {
                 console.error('Error procesando PDF:', error);
@@ -984,6 +999,125 @@ class ReporteMedico {
         }
 
         this.showAlert('Formato no soportado. Por favor selecciona un archivo .pdf o .json.', 'error');
+    }
+
+    decodeBase64Json(cleanBase64) {
+        try {
+            const jsonStr = decodeURIComponent(escape(atob(cleanBase64)));
+            return JSON.parse(jsonStr);
+        } catch (e1) {
+            try {
+                const binStr = atob(cleanBase64);
+                const bytes = Uint8Array.from(binStr, c => c.charCodeAt(0));
+                return JSON.parse(new TextDecoder().decode(bytes));
+            } catch (e2) {
+                return null;
+            }
+        }
+    }
+
+    async extractTextFromPDF(arrayBuffer) {
+        if (!window.pdfjsLib) {
+            throw new Error('Librería de lectura de PDF (pdf.js) no disponible en el navegador');
+        }
+        try {
+            if (window.pdfjsLib.GlobalWorkerOptions && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+        } catch (e) {}
+
+        const loadingTask = window.pdfjsLib.getDocument({
+            data: arrayBuffer,
+            useWorkerFetch: false,
+            isEvalSupported: false,
+            useSystemFonts: true
+        });
+        const pdf = await loadingTask.promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map(item => item.str).join(' ');
+            fullText += `\n--- PÁGINA ${i} ---\n` + pageText;
+        }
+        return fullText;
+    }
+
+    extractBetween(source, startLabel, endLabels) {
+        if (!source) return '';
+        const escStart = startLabel.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const escEnds = endLabels.map(l => l.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|');
+        const regex = new RegExp(escStart + '\\s*:?\\s*(.*?)\\s*(?=' + escEnds + '|$)', 'is');
+        const m = source.match(regex);
+        if (!m) return '';
+        let val = m[1].replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim();
+        val = val.replace(/^["']|["']$/g, '').trim();
+        if (val === '.' || val === '-' || val === 'No especificado' || val === 'undefined') return '';
+        return val;
+    }
+
+    getSection(text, header, nextHeaders) {
+        if (!text) return '';
+        const escHeader = header.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const escNext = nextHeaders.map(h => h.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|');
+        const regex = new RegExp(escHeader + '\\s*([\\s\\S]*?)(?=' + escNext + '|$)', 'i');
+        const m = text.match(regex);
+        return m ? m[1] : '';
+    }
+
+    parseOldPdfText(text) {
+        const secDatos = this.getSection(text, 'DATOS GENERALES', ['ANAMNESIS', 'ACTIVIDAD FÍSICA']);
+        const secAnamnesis = this.getSection(text, 'ANAMNESIS Y ANTECEDENTES CLÍNICOS', ['ACTIVIDAD FÍSICA', 'MOTIVO DE CONSULTA']);
+        const secActividad = this.getSection(text, 'ACTIVIDAD FÍSICA Y ENTRENAMIENTO', ['MOTIVO DE CONSULTA', 'NOTAS ADICIONALES', 'VALORACIÓN']);
+        const secMotivo = this.getSection(text, 'MOTIVO DE CONSULTA', ['NOTAS ADICIONALES', 'VALORACIÓN FISIOTERAPIA']);
+        const secNotas = this.getSection(text, 'NOTAS ADICIONALES', ['VALORACIÓN FISIOTERAPIA', 'KINETIQ SPORTS']);
+        const secVal = this.getSection(text, 'VALORACIÓN FISIOTERAPIA DEPORTIVA', ['KINETIQ SPORTS', '--- PÁGINA']);
+
+        return {
+            nombre: this.extractBetween(secDatos || text, 'Nombre:', ['Apellido:', 'CC:']),
+            apellido: this.extractBetween(secDatos || text, 'Apellido:', ['CC:', 'Celular:']),
+            cc: this.extractBetween(secDatos || text, 'CC:', ['Celular:', 'Edad:']),
+            celular: this.extractBetween(secDatos || text, 'Celular:', ['Edad:', 'Sexo:']),
+            edad: this.extractBetween(secDatos || text, 'Edad:', ['años', 'Sexo:']).replace(/\D/g, ''),
+            sexo: this.extractBetween(secDatos || text, 'Sexo:', ['Ocupación:', 'Dominancia:', 'Peso:']),
+            ocupacion: this.extractBetween(secDatos || text, 'Ocupación:', ['Dominancia:', 'Peso:', 'Talla:']),
+            dominancia: this.extractBetween(secDatos || text, 'Dominancia:', ['Peso:', 'Talla:']),
+            peso: this.extractBetween(secDatos || text, 'Peso:', ['Kg', 'kg', 'Talla:']).replace(/[^0-9.]/g, ''),
+            talla: this.extractBetween(secDatos || text, 'Talla:', ['cm', 'IMC:']).replace(/[^0-9.]/g, ''),
+
+            localizacionDolor: this.extractBetween(secAnamnesis || text, 'Localización del dolor', ['Escala del dolor', 'Uso de aparatos']),
+            escalaDolor: this.extractBetween(secAnamnesis || text, 'Escala del dolor (1 a 10)', ['/ 10', 'Uso de aparatos']).replace(/\D/g, ''),
+            usoOrtesis: this.extractBetween(secAnamnesis || text, 'Uso de aparatos de órtesis', ['Suplementación', 'Antecedentes médicos']),
+            suplementacionMedicamentos: this.extractBetween(secAnamnesis || text, 'Suplementación / medicamentos', ['Antecedentes médicos', 'Antecedentes quirúrgicos']),
+            antecMedicos: this.extractBetween(secAnamnesis || text, 'Antecedentes médicos', ['Antecedentes quirúrgicos', 'Antecedentes de lesiones']),
+            antecQuirurgicos: this.extractBetween(secAnamnesis || text, 'Antecedentes quirúrgicos', ['Antecedentes de lesiones', 'Antecedentes traumáticos']),
+            antecLesiones: this.extractBetween(secAnamnesis || text, 'Antecedentes de lesiones', ['Antecedentes traumáticos', 'Antecedentes metabólicos']),
+            antecTrauma: this.extractBetween(secAnamnesis || text, 'Antecedentes traumáticos', ['Antecedentes metabólicos', 'Hospitalizaciones']),
+            antecMetabolico: this.extractBetween(secAnamnesis || text, 'Antecedentes metabólicos', ['Hospitalizaciones', 'Alergias']),
+            hospitalizaciones: this.extractBetween(secAnamnesis || text, 'Hospitalizaciones', ['Alergias', 'ACTIVIDAD FÍSICA']),
+            alergias: this.extractBetween(secAnamnesis || text, 'Alergias', ['ACTIVIDAD FÍSICA', 'MOTIVO DE CONSULTA']),
+
+            deporte: this.extractBetween(secActividad || text, 'Deporte:', ['Tiempo:', 'Rol:']),
+            tiempoDeporte: this.extractBetween(secActividad || text, 'Tiempo:', ['Rol:', 'Club:']),
+            rol: this.extractBetween(secActividad || text, 'Rol:', ['Club:', 'Entrenador:']),
+            club: this.extractBetween(secActividad || text, 'Club:', ['Entrenador:', 'Días entreno:']),
+            entrenador: this.extractBetween(secActividad || text, 'Entrenador:', ['Días entreno:', 'Días gimnasio:']),
+            diasEntrenamiento: this.extractBetween(secActividad || text, 'Días entreno:', ['días', 'Días gimnasio:']).replace(/\D/g, ''),
+            diasGimnasio: this.extractBetween(secActividad || text, 'Días gimnasio:', ['días', 'Días descanso:']).replace(/\D/g, ''),
+            diasDescanso: this.extractBetween(secActividad || text, 'Días descanso:', ['días', 'Tenis:']).replace(/\D/g, ''),
+            tenis: this.extractBetween(secActividad || text, 'Tenis:', ['Competencia:', 'Pasado deportivo:']),
+            competencia: this.extractBetween(secActividad || text, 'Competencia:', ['Pasado deportivo:', 'MOTIVO']),
+            pasadoDeportivo: this.extractBetween(secActividad || text, 'Pasado deportivo:', ['MOTIVO DE CONSULTA', 'NOTAS ADICIONALES']),
+
+            motivoConsulta: secMotivo ? secMotivo.trim() : '',
+            notasAdicionales: secNotas ? secNotas.trim() : '',
+
+            postura: this.extractBetween(secVal || text, 'Postura:', ['Marcha:', 'HODS:']),
+            marcha: this.extractBetween(secVal || text, 'Marcha:', ['HODS:', 'Lunge Test:']),
+            hods: this.extractBetween(secVal || text, 'HODS:', ['Lunge Test:', 'Observaciones:']),
+            lunge: this.extractBetween(secVal || text, 'Lunge Test:', ['Observaciones:', 'KINETIQ SPORTS']),
+            observaciones: this.extractBetween(secVal || text, 'Observaciones:', ['KINETIQ SPORTS', 'Página', '--- PÁGINA'])
+        };
     }
 
     mostrarAdjuntosCargados() {

@@ -267,9 +267,22 @@ class ReportePisoPelvico {
             const element = document.getElementById(key);
             if (element) {
                 if (element.type === 'checkbox') {
-                    element.checked = data[key];
+                    element.checked = Boolean(data[key]);
                 } else if (key === 'referidoSeleccionado') {
                     this._pendingReferidoValue = data[key];
+                } else if (element.tagName === 'SELECT') {
+                    element.value = data[key];
+                    if (!element.value && data[key]) {
+                        const searchVal = String(data[key]).trim().toLowerCase();
+                        for (const opt of element.options) {
+                            const optVal = opt.value.toLowerCase();
+                            const optText = opt.text.toLowerCase();
+                            if (optVal === searchVal || optText === searchVal || optVal.startsWith(searchVal) || optText.startsWith(searchVal) || optVal.includes(searchVal) || optText.includes(searchVal)) {
+                                element.value = opt.value;
+                                break;
+                            }
+                        }
+                    }
                 } else {
                     element.value = data[key];
                 }
@@ -292,8 +305,12 @@ class ReportePisoPelvico {
             Object.keys(data.radioGroups).forEach(groupName => {
                 const value = data.radioGroups[groupName];
                 if (value) {
-                    const input = document.querySelector(`input[name="${groupName}"][value="${value}"]`);
-                    if (input) input.checked = true;
+                    const inputs = document.querySelectorAll(`input[name="${groupName}"]`);
+                    inputs.forEach(input => {
+                        if (input.value === value || input.value.toLowerCase() === String(value).toLowerCase()) {
+                            input.checked = true;
+                        }
+                    });
                 }
             });
         }
@@ -932,52 +949,54 @@ class ReportePisoPelvico {
 
         if (isPdf) {
             try {
-                this.showAlert('⏳ Analizando datos digitales del PDF...', 'info');
+                this.showAlert('⏳ Analizando archivo PDF...', 'info');
                 const arrayBuffer = await file.arrayBuffer();
 
-                if (!window.PDFLib) {
-                    throw new Error('Librería PDFLib no disponible en el navegador');
-                }
-
-                const { PDFDocument } = window.PDFLib;
-                const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-
                 let data = null;
-                const subject = pdfDoc.getSubject();
-                if (subject && subject.includes('KINETIQ_DATA:')) {
-                    const cleanBase64 = subject.split('KINETIQ_DATA:')[1].trim();
+
+                // 1. Intentar leer copia de seguridad digital embebida (PDFs recientes)
+                if (window.PDFLib) {
                     try {
-                        const jsonStr = decodeURIComponent(escape(atob(cleanBase64)));
-                        data = JSON.parse(jsonStr);
-                    } catch (e1) {
-                        try {
-                            const binStr = atob(cleanBase64);
-                            const bytes = Uint8Array.from(binStr, c => c.charCodeAt(0));
-                            data = JSON.parse(new TextDecoder().decode(bytes));
-                        } catch (e2) {
-                            console.error('Error decodificando metadatos:', e2);
+                        const { PDFDocument } = window.PDFLib;
+                        const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+
+                        const subject = pdfDoc.getSubject();
+                        if (subject && subject.includes('KINETIQ_DATA:')) {
+                            const cleanBase64 = subject.split('KINETIQ_DATA:')[1].trim();
+                            data = this.decodeBase64Json(cleanBase64);
                         }
+
+                        if (!data) {
+                            const keywords = pdfDoc.getKeywords();
+                            if (keywords && keywords.includes('KINETIQ_DATA:')) {
+                                const cleanBase64 = keywords.split('KINETIQ_DATA:')[1].trim();
+                                data = this.decodeBase64Json(cleanBase64);
+                            }
+                        }
+                    } catch (eMeta) {
+                        console.warn('Metadatos digitales no disponibles con PDFLib:', eMeta);
                     }
                 }
 
+                // 2. Si no contiene metadatos directos (PDF antiguo o externo), extraer texto visible con pdf.js
                 if (!data) {
-                    const keywords = pdfDoc.getKeywords();
-                    if (keywords && keywords.includes('KINETIQ_DATA:')) {
-                        const cleanBase64 = keywords.split('KINETIQ_DATA:')[1].trim();
-                        try {
-                            const jsonStr = decodeURIComponent(escape(atob(cleanBase64)));
-                            data = JSON.parse(jsonStr);
-                        } catch (e3) {
-                            console.error('Error decodificando keywords:', e3);
+                    this.showAlert('⏳ Documento anterior sin metadatos. Escaneando texto del PDF...', 'info');
+                    try {
+                        const fullText = await this.extractTextFromPDF(arrayBuffer);
+                        if (fullText) {
+                            data = this.parseOldPdfText(fullText);
                         }
+                    } catch (eOcr) {
+                        console.error('Error extrayendo texto del PDF:', eOcr);
                     }
                 }
 
-                if (data) {
-                    this.loadDataFromObject(data);
-                    this.showAlert('✓ ¡Paciente de piso pélvico cargado desde el PDF! Ahora puedes revisarlo y presionar "Guardar" para subirlo a la base de datos.', 'success');
+                if (data && (data.nombre || data.apellido || data.cc || (data.reporteData && data.reporteData.nombre))) {
+                    const finalData = data.reporteData ? data.reporteData : data;
+                    this.loadDataFromObject(finalData);
+                    this.showAlert('✓ ¡Paciente de piso pélvico cargado desde el PDF! Se recuperaron los datos del documento. Revisa los campos y presiona "Guardar".', 'success');
                 } else {
-                    this.showAlert('⚠️ Este PDF no contiene datos digitales incrustados de Kinetiq (generado antes de esta actualización o es un archivo externo). Todos los nuevos PDFs descargados contendrán la copia de seguridad para cargarse con un clic.', 'warning');
+                    this.showAlert('⚠️ No se pudieron extraer datos de este archivo PDF. Verifica que sea un reporte clínico emitido por Kinetiq.', 'warning');
                 }
             } catch (error) {
                 console.error('Error procesando PDF:', error);
@@ -987,6 +1006,184 @@ class ReportePisoPelvico {
         }
 
         this.showAlert('Formato no soportado. Por favor selecciona un archivo .pdf o .json.', 'error');
+    }
+
+    decodeBase64Json(cleanBase64) {
+        try {
+            const jsonStr = decodeURIComponent(escape(atob(cleanBase64)));
+            return JSON.parse(jsonStr);
+        } catch (e1) {
+            try {
+                const binStr = atob(cleanBase64);
+                const bytes = Uint8Array.from(binStr, c => c.charCodeAt(0));
+                return JSON.parse(new TextDecoder().decode(bytes));
+            } catch (e2) {
+                return null;
+            }
+        }
+    }
+
+    async extractTextFromPDF(arrayBuffer) {
+        if (!window.pdfjsLib) {
+            throw new Error('Librería de lectura de PDF (pdf.js) no disponible en el navegador');
+        }
+        try {
+            if (window.pdfjsLib.GlobalWorkerOptions && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+        } catch (e) {}
+
+        const loadingTask = window.pdfjsLib.getDocument({
+            data: arrayBuffer,
+            useWorkerFetch: false,
+            isEvalSupported: false,
+            useSystemFonts: true
+        });
+        const pdf = await loadingTask.promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map(item => item.str).join(' ');
+            fullText += `\n--- PÁGINA ${i} ---\n` + pageText;
+        }
+        return fullText;
+    }
+
+    extractBetween(source, startLabel, endLabels) {
+        if (!source) return '';
+        const escStart = startLabel.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const escEnds = endLabels.map(l => l.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|');
+        const regex = new RegExp(escStart + '\\s*:?\\s*(.*?)\\s*(?=' + escEnds + '|$)', 'is');
+        const m = source.match(regex);
+        if (!m) return '';
+        let val = m[1].replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim();
+        val = val.replace(/^["']|["']$/g, '').trim();
+        if (val === '.' || val === '-' || val === 'No especificado' || val === 'undefined') return '';
+        return val;
+    }
+
+    getSection(text, header, nextHeaders) {
+        if (!text) return '';
+        const escHeader = header.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const escNext = nextHeaders.map(h => h.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|');
+        const regex = new RegExp(escHeader + '\\s*([\\s\\S]*?)(?=' + escNext + '|$)', 'i');
+        const m = text.match(regex);
+        return m ? m[1] : '';
+    }
+
+    parseOldPdfText(text) {
+        const secDatos = this.getSection(text, 'DATOS GENERALES', ['ANAMNESIS', 'ANTECEDENTES OCUPACIONALES']);
+        const secAnamnesis = this.getSection(text, 'ANAMNESIS', ['ANTECEDENTES OCUPACIONALES', 'DINÁMICA MICCIONAL']);
+        const secOcup = this.getSection(text, 'ANTECEDENTES OCUPACIONALES', ['DINÁMICA MICCIONAL', 'DINÁMICA DEFECATORIA']);
+        const secMiccional = this.getSection(text, 'DINÁMICA MICCIONAL', ['DINÁMICA DEFECATORIA', 'DINÁMICA OBSTETRA']);
+        const secDef = this.getSection(text, 'DINÁMICA DEFECATORIA', ['DINÁMICA OBSTETRA', 'DINÁMICA MENSTRUAL', 'ESTADO DEL PACIENTE']);
+        const secObst = this.getSection(text, 'DINÁMICA OBSTETRA', ['DINÁMICA MENSTRUAL', 'DINÁMICA SEXUAL', 'ESTADO DEL PACIENTE']);
+        const secMenstr = this.getSection(text, 'DINÁMICA MENSTRUAL', ['DINÁMICA SEXUAL', 'ESTADO DEL PACIENTE', 'GENITOURINARIO']);
+        const secSexual = this.getSection(text, 'DINÁMICA SEXUAL', ['ESTADO DEL PACIENTE', 'GENITOURINARIO', 'DESARROLLO DE LA ACTIVIDAD']);
+        const secEstado = this.getSection(text, 'ESTADO DEL PACIENTE', ['GENITOURINARIO', 'DESARROLLO DE LA ACTIVIDAD']);
+        const secGenito = this.getSection(text, 'GENITOURINARIO', ['DESARROLLO DE LA ACTIVIDAD', 'NOTAS DE ANÁLISIS Y PLAN']);
+        const secDesarrollo = this.getSection(text, 'DESARROLLO DE LA ACTIVIDAD', ['NOTAS DE ANÁLISIS Y PLAN', 'OBJETIVOS']);
+        const secNotas = this.getSection(text, 'NOTAS DE ANÁLISIS Y PLAN', ['OBJETIVOS', 'ATENCIÓN EN MÓDULO']);
+        const secObj = this.getSection(text, 'OBJETIVOS', ['ATENCIÓN EN MÓDULO', 'RECOMENDACIONES']);
+        const secAtencion = this.getSection(text, 'ATENCIÓN EN MÓDULO DE PISO PÉLVICO', ['RECOMENDACIONES', 'SIGNOS DE ALARMA']);
+        const secRecom = this.getSection(text, 'RECOMENDACIONES', ['SIGNOS DE ALARMA', 'KINETIQ SPORTS']);
+        const secSignos = this.getSection(text, 'SIGNOS DE ALARMA', ['KINETIQ SPORTS', '--- PÁGINA']);
+
+        return {
+            nombre: this.extractBetween(secDatos || text, 'Nombre:', ['Apellido:', 'CC:']),
+            apellido: this.extractBetween(secDatos || text, 'Apellido:', ['CC:', 'Celular:']),
+            cc: this.extractBetween(secDatos || text, 'CC:', ['Celular:', 'Edad:']),
+            celular: this.extractBetween(secDatos || text, 'Celular:', ['Edad:', 'Sexo:']),
+            edad: this.extractBetween(secDatos || text, 'Edad:', ['años', 'Sexo:']).replace(/\D/g, ''),
+            sexo: this.extractBetween(secDatos || text, 'Sexo:', ['Ocupación:', 'Peso:']),
+            ocupacion: this.extractBetween(secDatos || text, 'Ocupación:', ['Peso:', 'Talla:']),
+            peso: this.extractBetween(secDatos || text, 'Peso:', ['Kg', 'kg', 'Talla:']).replace(/[^0-9.]/g, ''),
+            talla: this.extractBetween(secDatos || text, 'Talla:', ['cm', 'IMC:']).replace(/[^0-9.]/g, ''),
+            
+            acompanante: this.extractBetween(secAnamnesis || text, 'Paciente ingresa en compañía de:', ['Dx médico:', 'Refiere dolor']),
+            dxMedico: this.extractBetween(secAnamnesis || text, 'Dx médico:', ['Refiere dolor / molestia:', 'Especialista']),
+            refiereDolor: this.extractBetween(secAnamnesis || text, 'Refiere dolor / molestia:', ['Especialista que remite:', 'Ciclo de terapia:']),
+            especialistaRemite: this.extractBetween(secAnamnesis || text, 'Especialista que remite:', ['Ciclo de terapia:', 'Medicamentos:']),
+            cicloTerapia: this.extractBetween(secAnamnesis || text, 'Ciclo de terapia:', ['Medicamentos:', 'Exámenes:']),
+            medicamentos: this.extractBetween(secAnamnesis || text, 'Medicamentos:', ['Exámenes:', 'Barreras:', 'Expectativa']),
+            examenes: this.extractBetween(secAnamnesis || text, 'Exámenes:', ['Barreras:', 'Facilitadores:', 'Expectativa']),
+            expectativaPaciente: this.extractBetween(secAnamnesis || text, 'Expectativa del paciente:', ['ANTECEDENTES OCUPACIONALES', 'DINÁMICA']),
+
+            desempenoLaboral: this.extractBetween(secOcup || text, 'Ocupación:', ['Tipo trabajo:', 'Puesto ergonómico']),
+            tipoTrabajo: this.extractBetween(secOcup || text, 'Tipo trabajo:', ['Puesto ergonómico:', 'Pausas activas:']),
+            puestoErgonomico: this.extractBetween(secOcup || text, 'Puesto ergonómico:', ['Pausas activas:', 'Actividad física:']),
+            pausasActivas: this.extractBetween(secOcup || text, 'Pausas activas:', ['Actividad física:', 'Cigarrillo:']),
+            actividadFisicaLaboral: this.extractBetween(secOcup || text, 'Actividad física:', ['Cigarrillo:', 'Alcohol:']),
+            consumoCigarrillo: this.extractBetween(secOcup || text, 'Cigarrillo:', ['Alcohol:', 'Hábitos']),
+            consumoAlcohol: this.extractBetween(secOcup || text, 'Alcohol:', ['Hábitos alimenticios:', 'DINÁMICA']),
+
+            usoProtector: this.extractBetween(secMiccional || text, 'Protector:', ['Ropa interior:', 'Micciones día:']),
+            tipoRopaInterior: this.extractBetween(secMiccional || text, 'Ropa interior:', ['Micciones día:', 'Micciones noche:']),
+            miccionesDia: this.extractBetween(secMiccional || text, 'Micciones día:', ['Micciones noche:', 'Deseo miccional:']),
+            miccionesNoche: this.extractBetween(secMiccional || text, 'Micciones noche:', ['Deseo miccional:', 'Dificultad:', 'Postura:']),
+            dificultadMiccional: this.extractBetween(secMiccional || text, 'Dificultad:', ['Mapa de dolor:', 'DINÁMICA DEFECATORIA']),
+
+            defecacionesDia: this.extractBetween(secDef || text, 'Def. día:', ['Def. noche:', 'Deseo def.:']),
+            defecacionesNoche: this.extractBetween(secDef || text, 'Def. noche:', ['Deseo def.:', 'Postura:']),
+            vaciadoIncompleto: this.extractBetween(secDef || text, 'Vaciado incompleto:', ['Cierra ano:', 'Escala Bristol:']),
+            cierraAno: this.extractBetween(secDef || text, 'Cierra ano:', ['Escala Bristol:', 'Gases:']),
+            escalaBristol: this.extractBetween(secDef || text, 'Escala Bristol:', ['Gases:', 'Tipo dolor:']),
+            gases: this.extractBetween(secDef || text, 'Gases:', ['Tipo dolor:', 'DINÁMICA OBSTETRA']),
+
+            numEmbarazos: this.extractBetween(secObst || text, 'Embarazos:', ['Partos:', 'Cesáreas:']),
+            numPartos: this.extractBetween(secObst || text, 'Partos:', ['Cesáreas:', 'Peso antes:']),
+            numCesareas: this.extractBetween(secObst || text, 'Cesáreas:', ['Peso antes:', 'Peso después:']),
+            pesoAntesEmbarazo: this.extractBetween(secObst || text, 'Peso antes:', ['kg', 'Peso después:']).replace(/[^0-9.]/g, ''),
+            pesoDespuesEmbarazo: this.extractBetween(secObst || text, 'Peso después:', ['kg', 'Complicaciones:']).replace(/[^0-9.]/g, ''),
+            complicacionesObstetricas: this.extractBetween(secObst || text, 'Complicaciones:', ['DINÁMICA MENSTRUAL', 'DINÁMICA SEXUAL']),
+
+            edadMenarquia: this.extractBetween(secMenstr || text, 'Menarquia:', ['Menopausia:', 'Días menstruación:']),
+            edadMenopausia: this.extractBetween(secMenstr || text, 'Menopausia:', ['Días menstruación:', 'Intervalo:']),
+            diasMenstruacion: this.extractBetween(secMenstr || text, 'Días menstruación:', ['Intervalo:', 'Caract. sangrado:']),
+            intervaloPeriodo: this.extractBetween(secMenstr || text, 'Intervalo:', ['días', 'Caract. sangrado:']).replace(/\D/g, ''),
+
+            estadoPaciente: secEstado ? secEstado.trim().replace(/^\.|\.$/g, '').trim() : '',
+
+            genitoColor: this.extractBetween(secGenito || text, 'Color:', ['Hidratación:', 'Lubricación:']),
+            genitoHidratacion: this.extractBetween(secGenito || text, 'Hidratación:', ['Lubricación:', 'Cicatrices:']),
+            genitoLubricacion: this.extractBetween(secGenito || text, 'Lubricación:', ['Cicatrices:', 'Clítoris:']),
+            genitoCicatrices: this.extractBetween(secGenito || text, 'Cicatrices:', ['Clítoris:', 'Uretra:']),
+            genitoClitoris: this.extractBetween(secGenito || text, 'Clítoris:', ['Uretra:', 'Vagina:']),
+            genitoUretra: this.extractBetween(secGenito || text, 'Uretra:', ['Vagina:', 'Prolapso:']),
+            genitoVagina: this.extractBetween(secGenito || text, 'Vagina:', ['Prolapso:', 'Valoración neuromotriz:']),
+            genitoProlapso: this.extractBetween(secGenito || text, 'Prolapso:', ['Valoración neuromotriz:', 'Puntos tensión:']),
+            puntosTension: this.extractBetween(secGenito || text, 'Puntos tensión:', ['Dolor superficial:', 'Dolor profundo:']),
+            dolorSuperficial: this.extractBetween(secGenito || text, 'Dolor superficial:', ['Dolor profundo:', 'PERFECT:']),
+            dolorProfundo: this.extractBetween(secGenito || text, 'Dolor profundo:', ['PERFECT:', 'Movilidad coxis:']),
+            perfectScore: this.extractBetween(secGenito || text, 'PERFECT:', ['Movilidad coxis:', 'Mov. columna']),
+            movilidadCoxis: this.extractBetween(secGenito || text, 'Movilidad coxis:', ['cm', 'Mov. columna lumbar:']).replace(/[^0-9.]/g, ''),
+            movilidadColumna: this.extractBetween(secGenito || text, 'Mov. columna lumbar:', ['Tos y estornudo:', 'Ano:']),
+            genitoTosEstornudo: this.extractBetween(secGenito || text, 'Tos y estornudo:', ['Ano:', 'NFCP:']),
+            genitoAno: this.extractBetween(secGenito || text, 'Ano:', ['NFCP:', 'DESARROLLO DE LA ACTIVIDAD']),
+
+            desarrolloActividad: secDesarrollo ? secDesarrollo.trim().replace(/^\.|\.$/g, '').trim() : '',
+            notasAnalisis: secNotas ? secNotas.trim().replace(/^\.|\.$/g, '').trim() : '',
+            objetivos: secObj ? secObj.trim().replace(/^\.|\.$/g, '').trim() : '',
+
+            numSesiones: this.extractBetween(secAtencion || text, 'Sesiones:', ['Frecuencia:', 'Plan:']),
+            frecuenciaSesiones: this.extractBetween(secAtencion || text, 'Frecuencia:', ['Plan:', 'RECOMENDACIONES']),
+            planTratamiento: this.extractBetween(secAtencion || text, 'Plan:', ['RECOMENDACIONES', 'SIGNOS DE ALARMA']),
+
+            recomendacionesIncontinencia: this.extractBetween(secRecom || text, 'Incontinencia:', ['Estreñimiento:', 'Dispareunia:']),
+            recomendacionesEstrenimiento: this.extractBetween(secRecom || text, 'Estreñimiento:', ['Dispareunia:', 'SIGNOS DE ALARMA']),
+            recomendacionesDispareunia: this.extractBetween(secRecom || text, 'Dispareunia:', ['SIGNOS DE ALARMA']),
+
+            signosAlarma: secSignos ? secSignos.trim().replace(/^\.|\.$/g, '').trim() : '',
+
+            radioGroups: {
+                deseoDefecatorio: this.extractBetween(secDef || text, 'Deseo def.:', ['Postura:', 'Forma def.:']),
+                posturaDefecatoria: this.extractBetween(secDef || text, 'Postura:', ['Forma def.:', 'Vaciado incompleto:']),
+                formaDefecacion: this.extractBetween(secDef || text, 'Forma def.:', ['Vaciado incompleto:', 'Cierra ano:']),
+                deseoMiccional: this.extractBetween(secMiccional || text, 'Deseo miccional:', ['Postura:', 'Hiperpresiva:']),
+                posturaMiccional: this.extractBetween(secMiccional || text, 'Postura:', ['Hiperpresiva:', 'Dificultad:', 'Forma de micción:'])
+            }
+        };
     }
 
     mostrarAdjuntosCargados() {
