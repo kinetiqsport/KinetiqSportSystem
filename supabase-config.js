@@ -84,12 +84,13 @@ class SupabaseClient {
                 .insert([data])
                 .select();
             
-            // Si la columna física creado_por/modificado_por no existe en la BD (error 42703), reintentar sin ellas
-            if (error && (error.code === '42703' || (error.message && error.message.includes('column')))) {
-                console.warn('Columnas modificado_por/creado_por no existen en tabla SQL, guardando dentro de reporte_json');
+            // Si alguna columna física opcional no existe en la BD (PGRST204 o 42703), reintentar sin ellas
+            if (error && (error.code === 'PGRST204' || error.code === '42703' || (error.message && error.message.includes('column')))) {
+                console.warn('Columnas opcionales (atendido_por/creado_por/modificado_por) no existen en tabla SQL, guardando sólo columnas base y preservando todo en reporte_json');
                 const dataFallback = { ...data };
                 delete dataFallback.creado_por;
                 delete dataFallback.modificado_por;
+                delete dataFallback.atendido_por;
                 const retry = await this.supabase
                     .from('reportes')
                     .insert([dataFallback])
@@ -127,11 +128,13 @@ class SupabaseClient {
             
             const { data: result, error } = await query.select();
             
-            // Si la columna física modificado_por no existe en la BD (error 42703), reintentar sin ella
-            if (error && (error.code === '42703' || (error.message && error.message.includes('column')))) {
-                console.warn('Columna modificado_por no existe en tabla SQL, guardando dentro de reporte_json');
+            // Si alguna columna física opcional no existe en la BD (PGRST204 o 42703), reintentar sin ellas
+            if (error && (error.code === 'PGRST204' || error.code === '42703' || (error.message && error.message.includes('column')))) {
+                console.warn('Columnas opcionales no existen en tabla SQL, actualizando sólo columnas base');
                 const dataFallback = { ...data };
+                delete dataFallback.creado_por;
                 delete dataFallback.modificado_por;
+                delete dataFallback.atendido_por;
                 let retryQuery = this.supabase
                     .from('reportes')
                     .update(dataFallback)
@@ -174,7 +177,7 @@ class SupabaseClient {
                 .select('*')
                 .eq('cedula', cedula)
                 .eq('tipo_reporte', tipo)
-                .single();
+                .maybeSingle();
             
             if (error && error.code !== 'PGRST116') throw error;
             return data || null;
@@ -206,7 +209,7 @@ class SupabaseClient {
                 .from('reportes')
                 .select('*')
                 .eq('id', id)
-                .single();
+                .maybeSingle();
             
             if (error) throw error;
             return data;
@@ -246,22 +249,6 @@ class SupabaseClient {
             return data || [];
         } catch (error) {
             console.error('Error buscando reportes:', error);
-            throw error;
-        }
-    }
-
-    async getReporteById(id) {
-        try {
-            const { data, error } = await this.supabase
-                .from('reportes')
-                .select('*')
-                .eq('id', id)
-                .single();
-            
-            if (error) throw error;
-            return data;
-        } catch (error) {
-            console.error('Error obteniendo reporte:', error);
             throw error;
         }
     }
