@@ -911,21 +911,85 @@ class ReportePisoPelvico {
         }
     }
 
-    handleFileSelect(event) {
+    async handleFileSelect(event) {
         const file = event.target.files[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        const isJson = file.type === 'application/json' || file.name.toLowerCase().endsWith('.json');
+
+        if (isJson) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    this.loadDataFromObject(data);
+                    this.showAlert('✓ Archivo JSON cargado correctamente', 'success');
+                } catch (error) {
+                    this.showAlert('Error al leer el archivo JSON: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+            return;
+        }
+
+        if (isPdf) {
             try {
-                const data = JSON.parse(e.target.result);
-                this.loadDataFromObject(data);
-                this.showAlert('✓ Archivo cargado correctamente', 'success');
+                this.showAlert('⏳ Analizando datos digitales del PDF...', 'info');
+                const arrayBuffer = await file.arrayBuffer();
+
+                if (!window.PDFLib) {
+                    throw new Error('Librería PDFLib no disponible en el navegador');
+                }
+
+                const { PDFDocument } = window.PDFLib;
+                const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+
+                let data = null;
+                const subject = pdfDoc.getSubject();
+                if (subject && subject.includes('KINETIQ_DATA:')) {
+                    const cleanBase64 = subject.split('KINETIQ_DATA:')[1].trim();
+                    try {
+                        const jsonStr = decodeURIComponent(escape(atob(cleanBase64)));
+                        data = JSON.parse(jsonStr);
+                    } catch (e1) {
+                        try {
+                            const binStr = atob(cleanBase64);
+                            const bytes = Uint8Array.from(binStr, c => c.charCodeAt(0));
+                            data = JSON.parse(new TextDecoder().decode(bytes));
+                        } catch (e2) {
+                            console.error('Error decodificando metadatos:', e2);
+                        }
+                    }
+                }
+
+                if (!data) {
+                    const keywords = pdfDoc.getKeywords();
+                    if (keywords && keywords.includes('KINETIQ_DATA:')) {
+                        const cleanBase64 = keywords.split('KINETIQ_DATA:')[1].trim();
+                        try {
+                            const jsonStr = decodeURIComponent(escape(atob(cleanBase64)));
+                            data = JSON.parse(jsonStr);
+                        } catch (e3) {
+                            console.error('Error decodificando keywords:', e3);
+                        }
+                    }
+                }
+
+                if (data) {
+                    this.loadDataFromObject(data);
+                    this.showAlert('✓ ¡Paciente de piso pélvico cargado desde el PDF! Ahora puedes revisarlo y presionar "Guardar" para subirlo a la base de datos.', 'success');
+                } else {
+                    this.showAlert('⚠️ Este PDF no contiene datos digitales incrustados de Kinetiq (generado antes de esta actualización o es un archivo externo). Todos los nuevos PDFs descargados contendrán la copia de seguridad para cargarse con un clic.', 'warning');
+                }
             } catch (error) {
-                this.showAlert('Error al leer el archivo: ' + error.message, 'error');
+                console.error('Error procesando PDF:', error);
+                this.showAlert('Error al procesar el archivo PDF: ' + error.message, 'error');
             }
-        };
-        reader.readAsText(file);
+            return;
+        }
+
+        this.showAlert('Formato no soportado. Por favor selecciona un archivo .pdf o .json.', 'error');
     }
 
     mostrarAdjuntosCargados() {
@@ -1672,20 +1736,33 @@ class ReportePisoPelvico {
 
             let pdfBytes = doc.output('arraybuffer');
 
-            // Merge PDFs
-            if (this.adjuntos && this.adjuntos.some(a => a.tipo === 'application/pdf')) {
-                if (!window.PDFLib) throw new Error('PDF-LIB no está cargado');
-                const { PDFDocument } = window.PDFLib;
-                const mainDoc = await PDFDocument.load(pdfBytes);
-                const pdfAdjuntos = this.adjuntos.filter(a => a.tipo === 'application/pdf');
-                for (const adj of pdfAdjuntos) {
-                    const base64Data = adj.data.split(',')[1];
-                    const attachmentBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-                    const attachDoc = await PDFDocument.load(attachmentBytes);
-                    const pages = await mainDoc.copyPages(attachDoc, attachDoc.getPageIndices());
-                    pages.forEach(p => mainDoc.addPage(p));
+            // Procesar con PDFLib: unir PDFs adjuntos e incrustar copia digital de seguridad
+            try {
+                if (window.PDFLib) {
+                    const { PDFDocument } = window.PDFLib;
+                    const mainDoc = await PDFDocument.load(pdfBytes);
+
+                    if (this.adjuntos && this.adjuntos.some(a => a.tipo === 'application/pdf')) {
+                        const pdfAdjuntos = this.adjuntos.filter(a => a.tipo === 'application/pdf');
+                        for (const adj of pdfAdjuntos) {
+                            const base64Data = adj.data.split(',')[1];
+                            const attachmentBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                            const attachDoc = await PDFDocument.load(attachmentBytes);
+                            const pages = await mainDoc.copyPages(attachDoc, attachDoc.getPageIndices());
+                            pages.forEach(p => mainDoc.addPage(p));
+                        }
+                    }
+
+                    // Incrustar copia digital de seguridad en metadatos Subject
+                    const rawPayload = JSON.stringify(reporteData);
+                    const encodedData = btoa(unescape(encodeURIComponent(rawPayload)));
+                    mainDoc.setSubject('KINETIQ_DATA:' + encodedData);
+                    mainDoc.setTitle(filename);
+
+                    pdfBytes = await mainDoc.save();
                 }
-                pdfBytes = await mainDoc.save();
+            } catch (pdfLibErr) {
+                console.warn('Advertencia procesando PDF con PDFLib:', pdfLibErr);
             }
 
             const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -1698,10 +1775,23 @@ class ReportePisoPelvico {
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
 
-            await this.guardarEnDB();
+            // Guardar en base de datos de forma segura
+            let dbSuccess = false;
+            try {
+                await this.guardarEnDB();
+                dbSuccess = true;
+            } catch (dbErr) {
+                console.error('Error guardando en base de datos al descargar PDF:', dbErr);
+            }
+
             document.getElementById('confirmModal').classList.remove('active');
-            this.showAlert('✓ PDF descargado y datos guardados correctamente', 'success');
-            setTimeout(() => window.location.href = 'bienvenida.html', 2000);
+
+            if (dbSuccess) {
+                this.showAlert('✓ PDF descargado y guardado en base de datos correctamente', 'success');
+                setTimeout(() => window.location.href = 'bienvenida.html', 2000);
+            } else {
+                this.showAlert('⚠️ PDF descargado con copia digital de seguridad. Si hubo un problema al guardar en la base de datos, puedes subir este PDF más tarde con el botón "Cargar".', 'warning');
+            }
 
         } catch (error) {
             console.error('Error en generateAndSavePDF:', error);
