@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reporte Médico - Sistema</title>
+    <link rel="icon" type="image/png" href="favicon.ico">
     <style>
         * {
             margin: 0;
@@ -213,7 +214,6 @@
                 attempts++;
             }
             if (!window.supabaseClient || !window.supabaseClient.supabase) {
-                console.log('Preload: Supabase no disponible');
                 return;
             }
 
@@ -224,14 +224,9 @@
                     try {
                         const cache = { data, timestamp: Date.now() };
                         localStorage.setItem('preloadedReportes', JSON.stringify(cache));
-                        console.log('✓ Preloaded', data.length, 'reportes in background (localStorage, 30min TTL)');
-                    } catch (quotaErr) {
-                        console.warn('Preload: No se pudo guardar en localStorage (cuota):', quotaErr.message);
-                    }
+                    } catch (quotaErr) {}
                 }
-            } catch (error) {
-                console.log('Preload error:', error.message);
-            }
+            } catch (error) {}
         }
     </script>
 </head>

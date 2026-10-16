@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reportes y Estadísticas - KinetiqSports</title>
+    <link rel="icon" type="image/png" href="favicon.ico">
     <link rel="stylesheet" href="styles.css">
     <script src="env-config.js"></script>
     <script src="supabase-config.js"></script>
@@ -2075,14 +2076,13 @@
                             const age = Date.now() - cache.timestamp;
                             isFresh = age < 30 * 60 * 1000; // 30 min
                         } catch (e) {
-                            console.log('Cache parse error, ignoring');
+                            // Ignorar error de parseo de caché silenciosamente
                         }
                     }
                     
                     if (preloadedData && isFresh) {
                         this.allReportes = preloadedData;
                         this.aplicarFiltros();
-                        console.log('✓ Using preloaded reportes data (localStorage)');
                         // Refresh in background
                         this.refreshReportesInBackground();
                         return;
@@ -2094,13 +2094,10 @@
                     try {
                         const cache = { data: this.allReportes, timestamp: Date.now() };
                         localStorage.setItem('preloadedReportes', JSON.stringify(cache));
-                    } catch (quotaErr) {
-                        console.warn('LocalStorage save failed:', quotaErr.message);
-                    }
+                    } catch (quotaErr) {}
                     this.aplicarFiltros();
                 } catch (error) {
-                    console.error('Error cargando reportes:', error);
-                    this.showError('Error al cargar los reportes: ' + error.message);
+                    this.showError('Error al cargar los reportes');
                 }
             }
 
@@ -2113,10 +2110,7 @@
                     } catch (e) {}
                     this.allReportes = freshData;
                     this.aplicarFiltros();
-                    console.log('✓ Background refresh complete (localStorage)');
-                } catch (error) {
-                    console.log('Background refresh failed:', error.message);
-                }
+                } catch (error) {}
             }
 
             async loadSourcesData() {

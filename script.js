@@ -5,7 +5,6 @@
 class ReporteMedico {
     constructor() {
         try {
-            console.log('Script cargado, inicializando ReporteMedico...');
             
             this.form = document.getElementById('reportForm');
             this.pesoInput = document.getElementById('peso');
@@ -30,19 +29,11 @@ class ReporteMedico {
 
     init() {
         try {
-            console.log('🔍 INIT llamado');
             this.setupEventListeners();
-            console.log('🔍 setupEventListeners() completado');
             this.setReportDate();
-            console.log('🔍 setReportDate() completado');
             this.calculateIMC();
-            console.log('🔍 calculateIMC() completado');
             this.waitForSupabaseAndLoadReferidos();
-            console.log('🔍 loadReferidos() iniciado');
-            console.log('🔍 Antes de checkImportedDataFromStorage()');
             this.checkImportedDataFromStorage();
-            console.log('🔍 checkImportedDataFromStorage() completado');
-            console.log('ReporteMedico inicializado');
         } catch (error) {
             console.error('❌ ERROR EN INIT:', error);
         }
@@ -233,34 +224,26 @@ class ReporteMedico {
     }
 
     checkImportedDataFromStorage() {
-        console.log('🔍 checkImportedDataFromStorage() llamado');
         const reportToLoad = sessionStorage.getItem('reportToLoad');
-        console.log('🔍 reportToLoad:', reportToLoad ? 'SI existe' : 'NO existe');
         
         // Cargar adjuntos SIEMPRE, independientemente de si hay error al cargar datos
         const adjuntosToLoad = sessionStorage.getItem('adjuntosToLoad');
-        console.log('🔍 adjuntosToLoad desde sessionStorage:', adjuntosToLoad);
         if (adjuntosToLoad) {
             try {
                 this.adjuntos = JSON.parse(adjuntosToLoad);
-                console.log('✓ Adjuntos cargados:', this.adjuntos);
                 this.mostrarAdjuntosCargados();
             } catch (err) {
                 console.error('Error parseando adjuntos:', err);
             }
             sessionStorage.removeItem('adjuntosToLoad');
         } else {
-            console.log('❌ No hay adjuntosToLoad en sessionStorage');
         }
         
         // Cargar datos del reporte
         if (reportToLoad) {
             try {
-                console.log('🔍 reportToLoad raw:', reportToLoad);
-                console.log('🔍 tipo:', typeof reportToLoad);
                 // Validar strings problemáticos
                 if (reportToLoad === 'undefined' || reportToLoad === 'null' || reportToLoad.trim() === '') {
-                    console.log('🔍 reportToLoad inválido, limpiando');
                     sessionStorage.removeItem('reportToLoad');
                     return;
                 }
@@ -293,7 +276,6 @@ class ReporteMedico {
     }
 
     loadDataFromObject(data) {
-        console.log('loadDataFromObject() llamado con data:', data);
         Object.keys(data).forEach(key => {
             if (key === 'saltos' || key === 'unipodal') return;
             
@@ -307,7 +289,6 @@ class ReporteMedico {
                 } else {
                     element.value = data[key];
                 }
-                console.log(`Campo ${key} cargado con valor:`, data[key]);
             }
         });
 
@@ -493,7 +474,6 @@ class ReporteMedico {
                 comoNosConocisteSelect.addEventListener('change', (e) => {
                     this.handleComoNosConocisteChange(e.target.value);
                 });
-                console.log('Select "Cómo nos conociste" vinculado');
             }
 
             // Listener para botón gestionar referidos
@@ -503,7 +483,6 @@ class ReporteMedico {
                     e.preventDefault();
                     this.openReferidosModal();
                 });
-                console.log('Botón Gestionar Referidos vinculado');
             }
             
             // Agregar restricción numérica a peso y talla
@@ -625,18 +604,13 @@ class ReporteMedico {
                 fileInput.accept = '.pdf,.json';
                 fileInput.style.display = 'none';
                 document.body.appendChild(fileInput);
-                console.log('Input file creado');
             } else {
-                console.log('fileInput ya existe, agregando listener');
             }
             
             // Agregar listener (o reemplazarlo)
             fileInput.addEventListener('change', (event) => {
-                console.log('Evento change disparado en fileInput');
-                console.log('Archivos seleccionados:', event.target.files);
                 this.handleFileSelect(event);
             });
-            console.log('Listener change agregado a fileInput');
 
             // Botón Buscar Paciente
             const checkPatientBtn = document.getElementById('checkPatientBtn');
@@ -652,10 +626,8 @@ class ReporteMedico {
             if (loadFileBtn) {
                 loadFileBtn.addEventListener('click', (e) => {
                     e.preventDefault();
-                    console.log('Botón Cargar clickeado');
                     this.loadFile();
                 });
-                console.log('Botón Cargar vinculado');
             }
 
             // Listener para archivo adjunto (PDF/Imagen)
@@ -664,7 +636,6 @@ class ReporteMedico {
                 pdfImagenInput.addEventListener('change', (e) => {
                     this.handlePdfImagenSelect(e);
                 });
-                console.log('Input PDF/Imagen vinculado');
             }
 
             const saveBtn = document.getElementById('saveBtn');
@@ -673,7 +644,6 @@ class ReporteMedico {
                     e.preventDefault();
                     this.saveReportToDB();
                 });
-                console.log('Botón Guardar vinculado');
             }
 
             const printBtn = document.getElementById('printBtn');
@@ -682,7 +652,6 @@ class ReporteMedico {
                     e.preventDefault();
                     this.printReport();
                 });
-                console.log('Botón Descargar PDF vinculado');
             }
 
             // Agregar listener para botón Borrar adjuntos
@@ -692,7 +661,6 @@ class ReporteMedico {
                     e.preventDefault();
                     this.borrarAdjuntos();
                 });
-                console.log('Botón Borrar Adjuntos vinculado');
             }
 
             // Agregar listener para botón Limpiar en sidebar flotante
@@ -720,10 +688,8 @@ class ReporteMedico {
                     // Recalcular IMC en caso de que se haya completado
                     this.setReportDate();
                     this.showAlert('✓ Formulario limpiado correctamente', 'success');
-                    console.log('Formulario limpiado');
                 });
             });
-            console.log('Botón Limpiar en sidebar vinculado');
         } catch (error) {
             console.error('Error en setupEventListeners:', error);
         }
@@ -926,26 +892,19 @@ class ReporteMedico {
     }
 
     loadFile() {
-        console.log('loadFile() llamado');
         const fileInput = document.getElementById('fileInput');
-        console.log('fileInput encontrado:', fileInput);
-        console.log('fileInput en DOM:', document.body.contains(fileInput));
         
         if (fileInput) {
-            console.log('Disparando click en fileInput...');
             fileInput.value = ''; // Limpiar valor anterior
             fileInput.click();
-            console.log('Click disparado');
         } else {
             console.error('fileInput no encontrado en el DOM');
         }
     }
 
     async handleFileSelect(event) {
-        console.log('handleFileSelect() llamado');
         const file = event.target.files[0];
         if (!file) {
-            console.log('No file selected');
             return;
         }
 
@@ -956,7 +915,6 @@ class ReporteMedico {
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
-                    console.log('Leyendo archivo JSON...');
                     const data = JSON.parse(e.target.result);
                     this.loadDataFromObject(data);
                     this.showAlert('✓ Archivo JSON cargado correctamente', 'success');
@@ -1029,14 +987,11 @@ class ReporteMedico {
     }
 
     mostrarAdjuntosCargados() {
-        console.log('mostrarAdjuntosCargados() llamado, adjuntos:', this.adjuntos);
         if (this.adjuntos && this.adjuntos.length > 0) {
             const nombres = this.adjuntos.map(r => r.nombre).join(', ');
             document.getElementById('adjuntoNombre').textContent = nombres;
             document.getElementById('adjuntoInfo').style.display = 'block';
-            console.log('Adjuntos mostrados en UI:', nombres);
         } else {
-            console.log('No hay adjuntos para mostrar');
         }
     }
 
@@ -1103,7 +1058,6 @@ class ReporteMedico {
                 document.getElementById('adjuntoInfo').style.display = 'block';
 
                 this.showAlert(`✓ ${resultados.length} archivo(s) agregado(s). Total: ${this.adjuntos.length} archivo(s)`, 'success');
-                console.log('Archivos adjuntos actuales:', this.adjuntos.map(r => ({ nombre: r.nombre, tipo: r.tipo, tamaño: r.data.length })));
             })
             .catch(error => {
                 console.error('Error al procesar archivos:', error);
@@ -1251,7 +1205,6 @@ class ReporteMedico {
     }
 
     saveReportAsJSON() {
-        console.log('saveReportAsJSON() llamado');
         const nombrePaciente = document.getElementById('nombre').value.trim();
         const apellidoPaciente = document.getElementById('apellido').value.trim();
 
@@ -1359,13 +1312,11 @@ class ReporteMedico {
 
             if (existente) {
                 await window.supabaseClient.updateReporte(cedula, dataToSave, 'pisada');
-                console.log('Reporte de pisada actualizado en DB');
             } else {
                 dataToSave.fecha_creacion = new Date().toISOString();
                 dataToSave.creado_por = userEmail;
                 dataToSave.reporte_json.creado_por = userEmail;
                 await window.supabaseClient.saveReporte(dataToSave);
-                console.log('Reporte de pisada guardado en DB');
             }
 
         } catch (error) {
@@ -2314,9 +2265,7 @@ class ReporteMedico {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Script cargado, inicializando ReporteMedico...');
     window.reporte = new ReporteMedico();
-    console.log('ReporteMedico inicializado');
 });
 
 if (typeof module !== 'undefined' && module.exports) {

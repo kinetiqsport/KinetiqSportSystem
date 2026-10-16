@@ -25,11 +25,9 @@ function loadSupabaseLibrary() {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
         script.onload = () => {
-            console.log('✓ Librería Supabase cargada del CDN');
             resolve();
         };
         script.onerror = () => {
-            console.error('❌ Error cargando librería Supabase del CDN');
             reject(new Error('No se pudo cargar Supabase del CDN'));
         };
         document.head.appendChild(script);
@@ -48,7 +46,6 @@ class SupabaseClient {
             }
             
             this.supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
-            console.log('✓ Supabase conectado correctamente');
         } catch (error) {
             console.error('Error inicializando Supabase:', error);
             this.supabase = null;
@@ -228,7 +225,6 @@ class SupabaseClient {
                 .limit(limit);
             
             if (error) throw error;
-            console.log('✓ Sources data loaded:', data?.length, data?.slice(0,3));
             return data || [];
         } catch (error) {
             console.error('Error obteniendo fuentes de reportes:', error);

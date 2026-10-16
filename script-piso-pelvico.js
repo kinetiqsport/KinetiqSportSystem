@@ -231,7 +231,6 @@ class ReportePisoPelvico {
             try {
                 // Validar strings problemáticos
                 if (reportToLoad === 'undefined' || reportToLoad === 'null' || reportToLoad.trim() === '') {
-                    console.log('🔍 reportToLoad inválido, limpiando');
                     sessionStorage.removeItem('reportToLoad');
                     return;
                 }
@@ -479,7 +478,6 @@ class ReportePisoPelvico {
             comoNosConocisteSelect.addEventListener('change', (e) => {
                 this.handleComoNosConocisteChange(e.target.value);
             });
-            console.log('Select "Cómo nos conociste" vinculado');
         }
 
         // Listener para botón gestionar referidos
@@ -489,7 +487,6 @@ class ReportePisoPelvico {
                 e.preventDefault();
                 this.openReferidosModal();
             });
-            console.log('Botón Gestionar Referidos vinculado');
         }
 
         if (this.pesoInput) {
@@ -1203,13 +1200,11 @@ class ReportePisoPelvico {
 
         if (existente) {
             await window.supabaseClient.updateReporte(cedula, dataToSave, 'piso_pelvico');
-            console.log('Reporte piso pélvico actualizado en DB');
         } else {
             dataToSave.fecha_creacion = new Date().toISOString();
             dataToSave.creado_por = userEmail;
             dataToSave.reporte_json.creado_por = userEmail;
             await window.supabaseClient.saveReporte(dataToSave);
-            console.log('Reporte piso pélvico guardado en DB');
         }
     }
 

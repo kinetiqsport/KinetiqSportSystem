@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - KinetiqSports</title>
+    <link rel="icon" type="image/png" href="favicon.ico">
     <style>
         * {
             margin: 0;
@@ -274,7 +275,6 @@
                         return;
                     }
                     
-                    console.log('✓ Sesión de Supabase creada:', authData.user.id);
 
                     // 2. Verificar que el email autenticado esté en allowed_users
                     const userEmail = authData.user.email || userData.email;
@@ -294,7 +294,6 @@
                         return;
                     }
                     
-                    console.log('✓ Email verificado y autorizado:', userEmail);
                 }
 
                 // Guardar sesión

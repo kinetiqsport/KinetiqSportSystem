@@ -37,7 +37,6 @@ const content = [
     '// Generado por refresh-env.js - No editar manualmente',
     `window.SUPABASE_ANON_KEY = ${JSON.stringify(anonKey)};`,
     `window.GOOGLE_CLIENT_ID = ${JSON.stringify(clientId)};`,
-    'console.log("env-config loaded");',
     ''
 ].join('\n');
 
