@@ -307,8 +307,8 @@
     </style>
     <script src="env-config.js"></script>
     <script src="supabase-config.js?v=20261022_v1"></script>
-    <script src="kinetiq-common.js?v=20261022_v6"></script>
-    <script src="auth-guard.js?v=20261022_v3"></script>
+    <script src="kinetiq-common.js?v=20261022_v10"></script>
+    <script src="auth-guard.js?v=20261022_v4"></script>
 </head>
 <body>
     <header class="topbar">
@@ -366,7 +366,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                 </span>
                 <h3>Fisioterapia deportiva</h3>
-                <p>Nueva valoración: anamnesis, actividad física, postura, marcha y pruebas.</p>
+                <p>Valoración: anamnesis, actividad física, postura, marcha y pruebas.</p>
                 <span class="action-go">Iniciar valoración
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                 </span>
@@ -442,7 +442,9 @@
             const mesAnt = mes === 0 ? 11 : mes - 1;
             const anioMesAnt = mes === 0 ? anio - 1 : anio;
 
-            let enMes = 0, enMesAnt = 0, enAnio = 0;
+            // Para comparar justo: el mes en curso contra los mismos días del mes anterior (1 al día de hoy)
+            const diaHoy = hoy.getDate();
+            let enMes = 0, enMesAnt = 0, enMesAntMismosDias = 0, enAnio = 0;
             reportes.forEach(r => {
                 const d = fechaDe(r);
                 if (!d) return;
@@ -450,7 +452,10 @@
                     enAnio++;
                     if (d.getMonth() === mes) enMes++;
                 }
-                if (d.getFullYear() === anioMesAnt && d.getMonth() === mesAnt) enMesAnt++;
+                if (d.getFullYear() === anioMesAnt && d.getMonth() === mesAnt) {
+                    enMesAnt++;
+                    if (d.getDate() <= diaHoy) enMesAntMismosDias++;
+                }
             });
             const pacientes = new Set(reportes.map(r => String(r.cedula || r.id))).size;
 
@@ -462,9 +467,10 @@
             document.getElementById('kpiAnioSub').textContent = `Valoraciones en ${anio}`;
 
             const delta = document.getElementById('kpiMesDelta');
-            if (enMesAnt > 0) {
-                const pct = Math.round(((enMes - enMesAnt) / enMesAnt) * 100);
-                delta.textContent = `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}% vs. mes anterior`;
+            if (enMesAntMismosDias > 0) {
+                const pct = Math.round(((enMes - enMesAntMismosDias) / enMesAntMismosDias) * 100);
+                delta.textContent = `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}% vs. ${MESES[mesAnt]} 1–${diaHoy}`;
+                delta.title = `${enMes} este mes contra ${enMesAntMismosDias} en los mismos días de ${MESES[mesAnt]}`;
                 delta.className = 'kpi-delta ' + (pct >= 0 ? 'up' : 'down');
             } else {
                 delta.textContent = 'Sin datos del mes anterior';

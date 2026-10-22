@@ -234,6 +234,142 @@
         sincronizar();
     }
 
+    // ---------- Zonas de dolor ----------
+    // Clasifica texto libre ("inserción del gastrocnemio bilateral", "parte medial del muslo derecho"…)
+    // en regiones anatómicas. Tolera tildes, mayúsculas y errores de digitación frecuentes.
+    const ZONAS_DOLOR = [
+        { zona: 'Rodilla', patrones: [/rod[io]ll/, /rotul/, /patel/, /menisc/, /cruzado/, /\blca\b/, /poplite/, /condromalac/, /pata de ganso/, /cintilla/, /iliotibial/] },
+        { zona: 'Tobillo / Aquiles', patrones: [/tobill/, /aquil/, /maleol/, /cuello del? pie/, /peroneo/, /inversion forzada/] },
+        { zona: 'Pie', patrones: [/(?<!cuello del? )\bpies?\b/, /plantar/, /fasci/, /talon/, /metatar/, /metatrac/, /hall?ux/, /juanete/, /empeine/, /\bdedos? del pie/, /primer dedo/] },
+        { zona: 'Pierna (gemelo / tibia)', patrones: [/pierna/, /peirna/, /gemel/, /gastrocnem/, /soleo/, /pantorrill/, /\btibia/, /tibial/, /perone/, /periostit/, /canilla/, /compartimental/] },
+        { zona: 'Muslo', patrones: [/muslo/, /isquio/, /cuadricep/, /aductor/, /\bfemoral/, /\bfemur/, /recto anterior/] },
+        // Incluye errores frecuentes al escribir "cadera" (cedar, cedra, cedera)
+        { zona: 'Cadera / ingle / glúteo', patrones: [/cadera/, /\bced(ar|ra|era)\b/, /ingle/, /inguinal/, /pubi/, /pubalg/, /glute/, /nalga/, /piriforme/, /psoas/, /pelvi/, /trocant/, /iliac/] },
+        { zona: 'Zona lumbar', patrones: [/lumba/, /espalda baja/, /baja de la espalda/, /cintura/, /\bl[1-5]\b/, /\bs1\b/, /sacr/, /ciati/, /coxis/] },
+        { zona: 'Espalda media / tórax', patrones: [/dorsal/, /espalda media/, /espalda alta/, /alta de la espalda/, /pecho/, /costill/, /torac/, /escapul/, /omoplato/] },
+        { zona: 'Cuello / cervical', patrones: [/cervic/, /\bcuello\b(?! del? pie)/, /trapecio/] },
+        { zona: 'Hombro / brazo', patrones: [/hombro/, /manguito/, /supra ?espin/, /infra ?espin/, /glenohumer/, /labrum/, /deltoid/, /clavicul/, /acromi/, /\bbrazo/] },
+        { zona: 'Codo / antebrazo', patrones: [/\bcodo/, /epicond/, /epitrocl/, /antebrazo/, /\bradio\b/, /\bcubito/] },
+        { zona: 'Muñeca / mano', patrones: [/muneca/, /\bmanos?\b/, /pulgar/, /agarre/, /carpo/, /falange/] },
+        { zona: 'Miembros inferiores (general)', patrones: [/miembros? inferior/, /\bpiernas\b/] }
+    ];
+    // Espalda sin zona precisa: sólo cuenta si no se detectó lumbar ni espalda media
+    const ESPALDA_GENERAL = { zona: 'Espalda (sin especificar)', patrones: [/\bespalda\b/, /columna/, /escoliosis/] };
+    const SIN_DOLOR = /^(no|ninguno|ninguna|n\/a|na|-|no refiere( dolor)?|sin dolor|no presenta( dolor)?)\.?$/;
+
+    // Consultas sin zona de dolor: o no hay molestias, o es un chequeo / valoración de rendimiento
+    const SIN_MOLESTIAS = [/sin (molestias|dolor|alteraciones)/, /no refiere (dolor|molestias)/, /no presenta (dolor|molestias)/, /asintomatic/, /^no\.?$/];
+    const CHEQUEO = [/valoraci/, /evalua/, /evalci/, /chequeo/, /preparaci/, /rendi?e?mi?ento/, /fuerza/, /potencia/, /estado fisico/, /fo?r?talecimiento/, /record/, /maraton/, /running/, /perfil/, /movilidad/];
+
+    function normalizar(texto) {
+        return String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    // 'sin_molestias' | 'chequeo' | null. Usar sólo cuando zonasDolor() no encontró ninguna zona.
+    function tipoConsultaSinZona(texto) {
+        const t = normalizar(texto);
+        if (!t) return null;
+        if (SIN_MOLESTIAS.some(p => p.test(t))) return 'sin_molestias';
+        if (CHEQUEO.some(p => p.test(t))) return 'chequeo';
+        return null;
+    }
+
+    function zonasDolor(texto) {
+        const t = normalizar(texto);
+        if (!t || SIN_DOLOR.test(t)) return [];
+        const zonas = ZONAS_DOLOR.filter(z => z.patrones.some(p => p.test(t))).map(z => z.zona);
+        const espaldaPrecisa = zonas.includes('Zona lumbar') || zonas.includes('Espalda media / tórax');
+        if (!espaldaPrecisa && ESPALDA_GENERAL.patrones.some(p => p.test(t))) zonas.push(ESPALDA_GENERAL.zona);
+        return zonas;
+    }
+
+    // ---------- Dolor (EVA) ----------
+    // Usa el campo "escala del dolor"; si está vacío, busca "N/10" en el texto ("dolor 7/10 EVA").
+    function evaDe(json) {
+        const j = json || {};
+        const campo = parseInt(j.escalaDolor, 10);
+        if (campo >= 0 && campo <= 10 && String(j.escalaDolor).trim() !== '') return campo;
+        const texto = `${j.refiereDolor || ''} ${j.motivoConsulta || ''} ${j.localizacionDolor || ''}`;
+        const m = texto.match(/(?:^|[^\d])(10|[0-9])\s*\/\s*10\b/);
+        return m ? parseInt(m[1], 10) : null;
+    }
+
+    // ---------- Deportes ----------
+    // Agrupa el texto libre ("runnin g", "gym y running", "crossfir"…) en deportes.
+    const DEPORTES = [
+        { deporte: 'Running', patrones: [/\bru+n+i*n?g?\b/, /runn?i?n ?g/, /runnign/, /runing/, /corre/, /trot/, /atletismo/, /maraton/, /trail/] },
+        { deporte: 'Gimnasio / fuerza', patrones: [/\bgym\b/, /gimnasi/, /gimansi/, /pesas/, /fuerza/, /fortalec/, /funcional/, /funsional/, /calis?tenia/, /calsitenia/, /hyrox/, /action black/, /ejercicio en casa/] },
+        { deporte: 'CrossFit', patrones: [/cr[io]+ss? ?fi[tr]/] },
+        { deporte: 'Ciclismo / BMX', patrones: [/cicli/, /ciclying/, /cicling/, /bici/, /bcicleta/, /spinning/, /\bbmx\b/] },
+        { deporte: 'Triatlón', patrones: [/triatl/] },
+        { deporte: 'Natación', patrones: [/natac/, /nadar/] },
+        { deporte: 'Fútbol', patrones: [/futbol/] },
+        { deporte: 'Hockey', patrones: [/ho[cg]?h?key/, /hochey/] },
+        { deporte: 'Patinaje', patrones: [/patinaje/] },
+        { deporte: 'Pilates / barre', patrones: [/pilates/, /\bbarre\b/, /yoga/] },
+        { deporte: 'Baile / danza', patrones: [/bail/, /ballet/, /dan[sz]a/, /rumba/, /acrobacia/] },
+        { deporte: 'Tenis', patrones: [/tenn?is/] },
+        { deporte: 'Artes marciales / combate', patrones: [/jiu ?jitsu/, /mu[h]?ay ?tha[iy]/, /boxeo/, /kick ?boxing/, /karate/, /judo/] },
+        { deporte: 'Baloncesto', patrones: [/baloncesto/, /basquet/] },
+        { deporte: 'Voleibol', patrones: [/vol+e?y/, /voleibol/] },
+        { deporte: 'Rugby', patrones: [/rugb/] },
+        { deporte: 'Caminar / senderismo', patrones: [/camina/, /senderismo/] }
+    ];
+    const SIN_DEPORTE = /^(no|niega|ninguno|na|ko|sedentari[oa]|sedentarismo|no realiza( deporte)?|no,? iba al gym)\b/;
+
+    // Devuelve { sinDeporte: true } o { deportes: [...] } (vacío si no se reconoce)
+    function clasificarDeporte(texto) {
+        const t = normalizar(texto).replace(/[,.;]+$/, '');
+        if (!t) return { deportes: [] };
+        if (SIN_DEPORTE.test(t) || /^sedentari/.test(t)) return { sinDeporte: true, deportes: [] };
+        return { deportes: DEPORTES.filter(d => d.patrones.some(p => p.test(t))).map(d => d.deporte) };
+    }
+
+    // ---------- Piso pélvico ----------
+    const MOTIVOS_PELVICOS = [
+        { motivo: 'Embarazo', patrones: [/gestante/, /embaraz/, /gestacion/, /\bsemana \d/, /\d+ ?\+ ?\d/] },
+        { motivo: 'Posparto', patrones: [/post ?parto/, /posparto/, /puerper/, /cesarea/] },
+        { motivo: 'Incontinencia urinaria', patrones: [/incontinencia/, /escapes? (urinari|de orina)/, /goteo/, /perdida de orina/] },
+        { motivo: 'Prolapso', patrones: [/prolapso/] },
+        { motivo: 'Dolor sexual', patrones: [/dispareunia/, /vaginismo/, /dolor (a|en) la penetracion/] },
+        { motivo: 'Estreñimiento / defecatorio', patrones: [/estren/, /hemorroid/, /incontinencia fecal/] },
+        { motivo: 'Dolor pélvico / perineal', patrones: [/pelvic/, /perine/, /pubic/, /pubis/, /cocc?ix/, /coxis/, /vulv/] }
+    ];
+
+    // Motivo de una consulta del módulo de piso pélvico: categorías pélvicas o, si no hay,
+    // 'Musculoesquelético' (Nataly también atiende cervicalgias, hombros, tobillos… con este formulario)
+    function motivoPelvico(json) {
+        const j = json || {};
+        const pelvicos = t => MOTIVOS_PELVICOS.filter(m => m.patrones.some(p => p.test(t))).map(m => m.motivo);
+        const dx = normalizar(j.dxMedico);
+        const refiere = normalizar(j.refiereDolor);
+        // Manda el Dx médico: el relato puede mencionar antecedentes (p. ej. un parto anterior)
+        // que no son el motivo de la consulta
+        const dxPelvico = pelvicos(dx);
+        if (dxPelvico.length) {
+            const extra = pelvicos(refiere).filter(m => !dxPelvico.includes(m));
+            return { motivos: [...dxPelvico, ...extra], zonas: [] };
+        }
+        const dxZonas = zonasDolor(dx);
+        if (dxZonas.length) return { motivos: ['Musculoesquelético'], zonas: dxZonas };
+        const refPelvico = pelvicos(refiere);
+        if (refPelvico.length) return { motivos: refPelvico, zonas: [] };
+        const refZonas = zonasDolor(refiere);
+        return { motivos: refZonas.length ? ['Musculoesquelético'] : [], zonas: refZonas };
+    }
+
+    function especialidadQueRemite(texto) {
+        const t = normalizar(texto);
+        if (!t || /^(no|ninguno|na|-)$/.test(t)) return null;
+        if (/ginec/.test(t)) return 'Ginecología';
+        if (/fisiatr/.test(t)) return 'Fisiatría';
+        if (/urolog/.test(t)) return 'Urología';
+        if (/ortoped/.test(t)) return 'Ortopedia';
+        if (/coloproct|proctolog/.test(t)) return 'Coloproctología';
+        if (/obstet/.test(t)) return 'Obstetricia';
+        return 'Otro médico';
+    }
+
     // ---------- Estilo de los reportes PDF (jsPDF + AutoTable) ----------
     const TEMAS_PDF = {
         pisada: {
@@ -251,6 +387,32 @@
     };
 
     const pdf = {
+        // Logo ya preparado para el PDF: JPEG de 260 px sobre blanco (~10 KB).
+        // El PNG original con transparencia ocupaba ~1 MB dentro del PDF porque jsPDF lo guarda sin comprimir.
+        logoJpeg: null,
+
+        cargarLogo() {
+            if (pdf.logoJpeg || pdf._cargandoLogo) return pdf._cargandoLogo;
+            pdf._cargandoLogo = new Promise(resolve => {
+                const img = new Image();
+                img.onload = () => {
+                    const lado = 260;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = lado;
+                    canvas.height = lado;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, lado, lado);
+                    ctx.drawImage(img, 0, 0, lado, lado);
+                    pdf.logoJpeg = canvas.toDataURL('image/jpeg', 0.9);
+                    resolve(pdf.logoJpeg);
+                };
+                img.onerror = () => resolve(null);
+                img.src = 'kinetiq_logo.png';
+            });
+            return pdf._cargandoLogo;
+        },
+
         tema(modulo) {
             return { ...PDF_BASE, ...(TEMAS_PDF[modulo] || TEMAS_PDF.pisada) };
         },
@@ -324,7 +486,8 @@
             doc.setFillColor(255, 255, 255);
             doc.roundedRect(12, 8, 24, 24, 3.5, 3.5, 'F');
             try {
-                doc.addImage('kinetiq_logo.png', 'PNG', 13.5, 9.5, 21, 21);
+                if (pdf.logoJpeg) doc.addImage(pdf.logoJpeg, 'JPEG', 13.5, 9.5, 21, 21);
+                else doc.addImage('kinetiq_logo.png', 'PNG', 13.5, 9.5, 21, 21, undefined, 'FAST');
             } catch (e) {
                 doc.setTextColor(...t.acento);
                 doc.setFont('helvetica', 'bold');
@@ -441,6 +604,13 @@
         normalizarDias,
         descargarArchivo,
         descargarRespaldoJSON,
+        normalizar,
+        zonasDolor,
+        tipoConsultaSinZona,
+        evaDe,
+        clasificarDeporte,
+        motivoPelvico,
+        especialidadQueRemite,
         pdf
     };
 
@@ -449,6 +619,8 @@
         poblarSelectsDias();
         initEscalaDolor();
         initProgresoFormulario();
+        // En los formularios, dejar listo el logo liviano para el PDF
+        if (document.getElementById('reportForm')) pdf.cargarLogo();
     }
 
     if (document.readyState === 'loading') {

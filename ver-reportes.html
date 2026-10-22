@@ -10,9 +10,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="env-config.js"></script>
     <script src="supabase-config.js?v=20261022_v1"></script>
-    <script src="kinetiq-common.js?v=20261022_v6"></script>
-    <script src="analitica.js?v=20261022_v3"></script>
-    <script src="auth-guard.js?v=20261022_v3"></script>
+    <script src="kinetiq-common.js?v=20261022_v10"></script>
+    <script src="analitica.js?v=20261022_v4"></script>
+    <script src="auth-guard.js?v=20261022_v4"></script>
     <style>
         :root {
             --brand: #0A94B0;
@@ -391,11 +391,27 @@
             font-size: 13.5px;
             color: var(--ink-2);
             line-height: 1.5;
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+        }
+        /* Textos largos: 4 líneas y botón "Ver más" (se activa solo si el texto no cabe) */
+        .pc-block-text.recortado {
             display: -webkit-box;
-            -webkit-line-clamp: 2;
+            -webkit-line-clamp: 4;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+        .pc-ver-mas {
+            margin-top: 4px;
+            border: none;
+            background: none;
+            padding: 0;
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 12.5px;
+            cursor: pointer;
+        }
+        .pc-ver-mas:hover { text-decoration: underline; }
         .pc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
         .pc-chip {
             font-size: 12px;
@@ -403,10 +419,9 @@
             border-radius: 8px;
             background: #F1F4F6;
             color: var(--ink-2);
-            white-space: nowrap;
             max-width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
         }
         .pc-chip b { font-weight: 800; color: var(--ink); }
         .pc-chip.pain { background: var(--pain-bg, #FFF4E5); color: var(--pain-fg, #8A4B00); }
@@ -785,7 +800,7 @@
             </section>
             <section class="an-card an-span-7">
                 <h3>Datos clínicos</h3>
-                <div class="an-sub">Fisioterapia deportiva · todo el histórico</div>
+                <div class="an-sub" id="anClinicosSub">Según el período y el módulo seleccionados</div>
                 <div id="anClinicos"></div>
             </section>
         </div>
@@ -843,6 +858,8 @@
                     });
                     if (actualizarHash) history.replaceState(null, '', analitica ? '#analitica' : location.pathname + location.search);
                     if (analitica && window.KinetiqAnalitica) window.KinetiqAnalitica.mostrar();
+                    // Las tarjetas dibujadas con la pestaña oculta no se pudieron medir para "Ver más"
+                    if (!analitica && this.allReportes.length) this.renderReportes(this.filteredReportes);
                 };
                 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => mostrar(t.dataset.view)));
                 mostrar(location.hash === '#analitica' ? 'analitica' : 'pacientes', false);
@@ -1014,8 +1031,7 @@
                 const hayFiltros = !!(q || modulo !== 'todos' || profesional || grupo);
                 document.getElementById('resetFiltros').classList.toggle('visible', hayFiltros);
 
-                // Mantener el bloque "Datos clínicos" de la analítica al día
-                this.renderClinicalStats(this.allReportes);
+                // La analítica (incluido "Datos clínicos") se vuelve a dibujar si está visible
                 if (window.KinetiqAnalitica) window.KinetiqAnalitica.refrescar();
             }
 
@@ -1089,7 +1105,11 @@
                 if (!total) {
                     this.reportesContainer.innerHTML = '<div class="no-results">No hay pacientes que coincidan con la búsqueda o los filtros.</div>';
                 } else {
-                    grupos.slice(desde, hasta).forEach(g => this.reportesContainer.appendChild(this.createPatientCard(g)));
+                    grupos.slice(desde, hasta).forEach(g => {
+                        const card = this.createPatientCard(g);
+                        this.reportesContainer.appendChild(card);
+                        this.activarVerMas(card);
+                    });
                 }
                 this.renderPagination(totalPages);
             }
@@ -1238,6 +1258,7 @@
                     card.querySelectorAll('button.pc-tab').forEach(t => t.addEventListener('click', () => {
                         activo = parseInt(t.dataset.idx, 10);
                         pintar();
+                        this.activarVerMas(card);
                     }));
                     card.querySelectorAll('.open-btn').forEach(b => b.addEventListener('click', () => {
                         this.abrirReporte(list[parseInt(b.dataset.open, 10)], b);
@@ -1245,6 +1266,26 @@
                 };
                 pintar();
                 return card;
+            }
+
+            // Recorta a 4 líneas los textos largos y agrega "Ver más / Ver menos"
+            activarVerMas(card) {
+                card.querySelectorAll('.pc-block-text').forEach(el => {
+                    el.classList.add('recortado');
+                    if (el.scrollHeight <= el.clientHeight + 2) {
+                        el.classList.remove('recortado');
+                        return;
+                    }
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'pc-ver-mas';
+                    btn.textContent = 'Ver más';
+                    btn.addEventListener('click', () => {
+                        const recortado = el.classList.toggle('recortado');
+                        btn.textContent = recortado ? 'Ver más' : 'Ver menos';
+                    });
+                    el.insertAdjacentElement('afterend', btn);
+                });
             }
 
             parseAdjuntos(raw, tipoRaw) {
@@ -1302,45 +1343,19 @@
             }
 
             // ---------- Datos clínicos (bloque de la analítica) ----------
-            renderClinicalStats(reportes) {
+            // Sigue los filtros de período y módulo de la analítica
+            renderClinicalStats(reportes, modulo = 'todos') {
                 const el = document.getElementById('anClinicos');
                 if (!el) return;
-                const deportivos = (reportes || []).filter(r => this.getTipoReporte(r) === 'pisada');
-
-                const deportes = {};
-                deportivos.forEach(r => {
-                    const raw = String(this.getJson(r).deporte || '').trim();
-                    const key = this.normalizarTexto(raw);
-                    if (!key) return;
-                    if (!deportes[key]) deportes[key] = { label: raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase(), count: 0 };
-                    deportes[key].count++;
-                });
-                const topDeportes = Object.values(deportes).sort((a, b) => b.count - a.count).slice(0, 5);
-
-                const zonas = [
-                    { label: 'Rodilla', keys: ['rodilla', 'rotul', 'menisco', 'patel', 'ligamento cruzado'] },
-                    { label: 'Tobillo / pie', keys: ['tobillo', 'pie', 'fascia', 'plantar', 'aquiles', 'talon', 'metatars', 'calcane'] },
-                    { label: 'Pierna', keys: ['gemelo', 'pantorrilla', 'tibia', 'periostitis', 'soleo'] },
-                    { label: 'Muslo', keys: ['isquio', 'cuadriceps', 'aductor', 'muslo'] },
-                    { label: 'Cadera / pelvis', keys: ['cadera', 'ingle', 'gluteo', 'pubis', 'psoas', 'pelvi'] },
-                    { label: 'Columna lumbar', keys: ['lumbar', 'espalda baja', 'sacro', 'ciatic'] },
-                    { label: 'Cuello / dorsal', keys: ['cuello', 'cervical', 'dorsal', 'trapecio', 'espalda alta'] },
-                    { label: 'Hombro', keys: ['hombro', 'manguito', 'supraespinoso', 'escapul'] },
-                    { label: 'Codo / muñeca / mano', keys: ['codo', 'epicond', 'muneca', 'mano', 'dedo'] }
-                ];
-                const zonaCounts = zonas.map(z => ({ label: z.label, count: 0 }));
-                const dolores = [];
-                deportivos.forEach(r => {
-                    const json = this.getJson(r);
-                    const loc = this.normalizarTexto(json.localizacionDolor);
-                    if (loc) zonas.forEach((z, i) => { if (z.keys.some(k => loc.includes(k))) zonaCounts[i].count++; });
-                    const eva = parseInt(json.escalaDolor, 10);
-                    if (eva >= 1 && eva <= 10) dolores.push(eva);
-                });
-                const topZonas = zonaCounts.filter(z => z.count > 0).sort((a, b) => b.count - a.count).slice(0, 5);
-                const leve = dolores.filter(d => d <= 3).length;
-                const moderado = dolores.filter(d => d >= 4 && d <= 6).length;
-                const severo = dolores.filter(d => d >= 7).length;
+                const lista = reportes || [];
+                const deportivos = lista.filter(r => this.getTipoReporte(r) === 'pisada');
+                const pelvicos = lista.filter(r => this.getTipoReporte(r) === 'piso_pelvico');
+                const sub = document.getElementById('anClinicosSub');
+                if (sub) {
+                    sub.textContent = modulo === 'pisada' ? 'Fisioterapia deportiva · según el período seleccionado'
+                        : modulo === 'piso_pelvico' ? 'Piso pélvico · según el período seleccionado'
+                        : 'Ambos módulos · según el período seleccionado';
+                }
 
                 const barList = (items, color) => {
                     if (!items.length) return '<div class="an-empty">Sin datos</div>';
@@ -1355,17 +1370,115 @@
                         </div>`).join('');
                 };
                 const subtitulo = t => `<div class="pc-block-label" style="margin:12px 0 8px;">${t}</div>`;
-                el.innerHTML = `
-                    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;">
-                        <div>${subtitulo('Intensidad del dolor')}${barList([
-                            { label: 'Leve (1-3)', count: leve },
-                            { label: 'Moderado (4-6)', count: moderado },
-                            { label: 'Severo (7-10)', count: severo }
-                        ], '#e67e22')}</div>
-                        <div>${subtitulo('Zonas de dolor más comunes')}${barList(topZonas, '#c0392b')}</div>
-                        <div>${subtitulo('Deportes más frecuentes')}${barList(topDeportes, '#0A94B0')}</div>
-                    </div>`;
-                if (window.innerWidth < 720) el.firstElementChild.style.gridTemplateColumns = '1fr';
+                const nota = t => `<div class="an-sub" style="margin:2px 0 8px;">${t}</div>`;
+                const ranking = (conteo, max = 8) => Object.entries(conteo)
+                    .map(([label, count]) => ({ label, count }))
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, max);
+                const sumar = (conteo, clave) => { conteo[clave] = (conteo[clave] || 0) + 1; };
+                const intensidad = registros => {
+                    const evas = registros.map(r => Kinetiq.evaDe(this.getJson(r))).filter(v => v !== null && v >= 1);
+                    return {
+                        n: evas.length,
+                        items: [
+                            { label: 'Leve (1-3)', count: evas.filter(d => d <= 3).length },
+                            { label: 'Moderado (4-6)', count: evas.filter(d => d >= 4 && d <= 6).length },
+                            { label: 'Severo (7-10)', count: evas.filter(d => d >= 7).length }
+                        ]
+                    };
+                };
+                const columnas = html => `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">${html}</div>`;
+                const titulo = (t, color) => `<div style="display:flex;align-items:center;gap:8px;margin:4px 0 2px;font-weight:800;font-size:13.5px;color:${color};"><span style="width:8px;height:8px;border-radius:50%;background:${color};"></span>${t}</div>`;
+                const bloques = [];
+
+                // ===== Fisioterapia deportiva =====
+                if (modulo !== 'piso_pelvico') {
+                    const zonaCounts = {};
+                    const otrasConsultas = { sin_molestias: 0, chequeo: 0, sin_zona: 0 };
+                    let conTexto = 0, conZona = 0;
+                    const deportes = {};
+                    let sinDeporte = 0, otrosDeportes = 0;
+                    deportivos.forEach(r => {
+                        const json = this.getJson(r);
+                        const loc = String(json.localizacionDolor || '').trim();
+                        const motivo = String(json.motivoConsulta || '').trim();
+                        if (loc || motivo) conTexto++;
+                        let zonasPaciente = Kinetiq.zonasDolor(loc);
+                        if (!zonasPaciente.length) zonasPaciente = Kinetiq.zonasDolor(motivo);
+                        if (zonasPaciente.length) conZona++;
+                        else if (loc || motivo) {
+                            const tipo = Kinetiq.tipoConsultaSinZona(loc) || Kinetiq.tipoConsultaSinZona(motivo);
+                            otrasConsultas[tipo || 'sin_zona']++;
+                        }
+                        zonasPaciente.forEach(z => sumar(zonaCounts, z));
+
+                        const dep = Kinetiq.clasificarDeporte(json.deporte);
+                        if (dep.sinDeporte) sinDeporte++;
+                        else if (dep.deportes.length) dep.deportes.forEach(d => sumar(deportes, d));
+                        else if (String(json.deporte || '').trim()) otrosDeportes++;
+                    });
+                    const dolor = intensidad(deportivos);
+                    bloques.push(`
+                        ${modulo === 'todos' ? titulo('Fisioterapia deportiva', '#0A94B0') : ''}
+                        ${columnas(`
+                            <div>${subtitulo('Intensidad del dolor')}${nota(`EVA registrada en ${dolor.n} de ${deportivos.length} valoraciones`)}${barList(dolor.items, '#e67e22')}</div>
+                            <div>${subtitulo('Zonas de dolor más comunes')}${nota(`Zona identificada en ${conZona} de ${conTexto} valoraciones`)}${barList(ranking(zonaCounts), '#c0392b')}
+                                ${subtitulo('Consultas sin zona de dolor')}${barList([
+                                    { label: 'Chequeo / valoración de rendimiento', count: otrasConsultas.chequeo },
+                                    { label: 'Sin molestias', count: otrasConsultas.sin_molestias },
+                                    { label: 'Dolor sin zona especificada', count: otrasConsultas.sin_zona }
+                                ].filter(i => i.count > 0), '#8A989F')}</div>
+                            <div>${subtitulo('Deportes más practicados')}${barList(ranking(deportes), '#0A94B0')}
+                                ${(sinDeporte || otrosDeportes) ? subtitulo('Sin deporte / otros') + barList([
+                                    { label: 'Sin deporte / sedentario', count: sinDeporte },
+                                    { label: 'Otros', count: otrosDeportes }
+                                ].filter(i => i.count > 0), '#8A989F') : ''}</div>
+                        `)}`);
+                }
+
+                // ===== Piso pélvico =====
+                if (modulo !== 'pisada') {
+                    const motivos = {}, zonasMusculo = {}, remite = {};
+                    const sintomas = { 'Incontinencia urinaria': 0, 'Dolor en las relaciones sexuales': 0, 'Estreñimiento': 0, 'Usa protector íntimo': 0 };
+                    pelvicos.forEach(r => {
+                        const json = this.getJson(r);
+                        const m = Kinetiq.motivoPelvico(json);
+                        m.motivos.forEach(x => sumar(motivos, x));
+                        m.zonas.forEach(z => sumar(zonasMusculo, z));
+                        const esp = Kinetiq.especialidadQueRemite(json.especialistaRemite);
+                        if (esp) sumar(remite, esp);
+
+                        const checks = json.checkboxGroups || {};
+                        const radios = json.radioGroups || {};
+                        const tiene = (grupo, texto) => [].concat(checks[grupo] || []).some(v => Kinetiq.normalizar(v).includes(texto));
+                        if (tiene('formaMiccion', 'incontinencia') || m.motivos.includes('Incontinencia urinaria')) sintomas['Incontinencia urinaria']++;
+                        if (radios.dolorPenetracion || tiene('dolorFondo', 'penetracion') || tiene('alteracionSensitiva', 'dispareunia')) sintomas['Dolor en las relaciones sexuales']++;
+                        if (tiene('barreras', 'estren') || m.motivos.includes('Estreñimiento / defecatorio')) sintomas['Estreñimiento']++;
+                        if (/^(si|ocasional)/.test(Kinetiq.normalizar(json.usoProtector))) sintomas['Usa protector íntimo']++;
+                    });
+                    const dolor = intensidad(pelvicos);
+                    // Cada valoración cae en un solo grupo para el resumen (todo se recalcula con los datos actuales)
+                    let nPelvicas = 0, nMusculo = 0, nSinClasificar = 0;
+                    pelvicos.forEach(r => {
+                        const m = Kinetiq.motivoPelvico(this.getJson(r)).motivos;
+                        if (m.some(x => x !== 'Musculoesquelético')) nPelvicas++;
+                        else if (m.includes('Musculoesquelético')) nMusculo++;
+                        else nSinClasificar++;
+                    });
+                    const resumenMotivos = `De ${pelvicos.length} valoraciones: ${nPelvicas} de piso pélvico, ${nMusculo} musculoesqueléticas`
+                        + (nSinClasificar ? ` y ${nSinClasificar} sin motivo identificado` : '');
+                    bloques.push(`
+                        ${modulo === 'todos' ? titulo('Piso pélvico', '#8E24AA') : ''}
+                        ${columnas(`
+                            <div>${subtitulo('Motivo de consulta')}${nota(resumenMotivos)}${barList(ranking(motivos), '#8E24AA')}
+                                ${Object.keys(zonasMusculo).length ? subtitulo('Zonas (consultas musculoesqueléticas)') + barList(ranking(zonasMusculo), '#c0392b') : ''}</div>
+                            <div>${subtitulo('Síntomas registrados')}${barList(Object.entries(sintomas).map(([label, count]) => ({ label, count })).filter(i => i.count > 0), '#8E24AA')}
+                                ${subtitulo('Intensidad del dolor')}${nota(`EVA registrada en ${dolor.n} de ${pelvicos.length} valoraciones`)}${barList(dolor.items.filter(i => i.count > 0), '#e67e22')}</div>
+                            <div>${subtitulo('Especialidad que remite')}${barList(ranking(remite), '#6250d6')}</div>
+                        `)}`);
+                }
+
+                el.innerHTML = bloques.join('<div style="height:1px;background:var(--line);margin:18px 0 10px;"></div>');
             }
         }
 

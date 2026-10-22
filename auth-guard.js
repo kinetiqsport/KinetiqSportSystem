@@ -48,10 +48,12 @@
                 return;
             }
 
-            // Escuchar cambios de estado de autenticación (ej. cierre de sesión o token revocado)
+            // Escuchar cambios de estado de autenticación (ej. cierre de sesión o token revocado).
+            // Aquí sólo se limpia y se sale: volver a llamar a signOut dentro de este aviso deja a
+            // Supabase esperándose a sí mismo y la página se queda trabada.
             window.supabaseClient.supabase.auth.onAuthStateChange((event) => {
                 if (event === 'SIGNED_OUT') {
-                    secureLogout();
+                    setTimeout(() => salir(), 0);
                 }
             });
         } catch (err) {
@@ -60,17 +62,33 @@
     }
 
     // 3. Logout seguro: revoca sesión en Supabase y limpia almacenamiento sensible
+    let cerrandoSesion = false;
+    let motivoSalida = null;
+
+    function salir(motivo) {
+        const m = motivo || motivoSalida;
+        sessionStorage.clear();
+        localStorage.removeItem('preloadedReportes');
+        window.location.replace(m === 'inactividad' ? 'login.html?motivo=inactividad' : 'login.html');
+    }
+
     async function secureLogout(motivo) {
+        if (cerrandoSesion) return;
+        cerrandoSesion = true;
+        motivoSalida = typeof motivo === 'string' ? motivo : null;
         try {
             if (window.supabaseClient?.supabase) {
-                await window.supabaseClient.supabase.auth.signOut();
+                // scope 'local': cierra la sesión de este equipo sin sacar a los demás.
+                // Como máximo se esperan 3 s para no dejar al usuario bloqueado si no hay red.
+                await Promise.race([
+                    window.supabaseClient.supabase.auth.signOut({ scope: 'local' }),
+                    new Promise(resolve => setTimeout(resolve, 3000))
+                ]);
             }
         } catch (e) {
             console.warn('Error al hacer signOut en Supabase:', e);
         }
-        sessionStorage.clear();
-        localStorage.removeItem('preloadedReportes');
-        window.location.href = motivo === 'inactividad' ? 'login.html?motivo=inactividad' : 'login.html';
+        salir(motivoSalida);
     }
 
     // 4. Temporizador de inactividad (45 minutos) para proteger equipos y tablets compartidas

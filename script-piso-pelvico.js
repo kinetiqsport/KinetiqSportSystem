@@ -672,15 +672,25 @@ class ReportePisoPelvico {
         loading.style.display = 'block';
         results.innerHTML = '';
 
+        // Varias palabras ("laura gomez"): se busca la más larga y luego se exige que estén todas
+        const palabras = q.split(' ').filter(Boolean);
+        const principal = palabras.reduce((a, b) => (b.length > a.length ? b : a), '');
+        // Vocales como comodín (_): encuentra "valentina" aunque esté guardado "Valentína" y viceversa
+        const patron = Kinetiq.normalizar(principal).replace(/[aeiou]/g, '_');
+
         try {
-            const { data, error } = await window.supabaseClient.supabase
+            const { data: crudos, error } = await window.supabaseClient.supabase
                 .from('reportes')
                 .select('cedula, nombre, apellido, tipo_reporte, reporte_json, fecha_modificacion')
-                .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,cedula.ilike.%${q}%`)
+                .or(`nombre.ilike.%${patron}%,apellido.ilike.%${patron}%,cedula.ilike.%${principal}%`)
                 .order('fecha_modificacion', { ascending: false })
-                .limit(50);
+                .limit(100);
 
             if (error) throw error;
+            const data = (crudos || []).filter(r => {
+                const texto = Kinetiq.normalizar(`${r.nombre || ''} ${r.apellido || ''} ${r.cedula || ''} ${r.reporte_json?.nombre || ''} ${r.reporte_json?.apellido || ''}`);
+                return palabras.every(p => texto.includes(Kinetiq.normalizar(p)));
+            });
 
             loading.style.display = 'none';
 
@@ -1507,8 +1517,9 @@ class ReportePisoPelvico {
             if (!window.jspdf) throw new Error('jsPDF no está cargado');
 
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4');
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
 
+            await Kinetiq.pdf.cargarLogo();
             const tema = Kinetiq.pdf.preparar(doc, 'piso_pelvico');
             const primaryColor = tema.acento;
             const accentColor = tema.acento;

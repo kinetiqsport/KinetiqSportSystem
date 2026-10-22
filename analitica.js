@@ -139,7 +139,8 @@
         const pelvicos = filtrado.filter(r => tipo(r) === 'piso_pelvico').length;
         setText('anKpiPacientesSub', `${filtrado.length - pelvicos} fisio · ${pelvicos} piso pélvico`);
 
-        const evas = filtrado.map(r => parseInt(json(r).escalaDolor, 10)).filter(v => v >= 1 && v <= 10);
+        // Campo de escala del dolor o, si falta, el 'N/10' escrito en el texto
+        const evas = filtrado.map(r => Kinetiq.evaDe(json(r))).filter(v => v !== null && v >= 1 && v <= 10);
         setText('anKpiDolor', evas.length ? (evas.reduce((a, b) => a + b, 0) / evas.length).toFixed(1) : '–');
         setText('anKpiDolorSub', evas.length ? `EVA promedio · ${evas.length} valoraciones` : 'Sin registros de EVA');
 
@@ -345,7 +346,7 @@
                 r.cedula, r.nombre, r.apellido, j.edad, j.sexo, atendidoPor(r) || '',
                 fuente[j.comoNosConociste] || j.comoNosConociste || '',
                 j.referidoSeleccionado ? (referidosMap[j.referidoSeleccionado] || '') : '',
-                j.deporte, j.localizacionDolor, j.escalaDolor
+                j.deporte, j.localizacionDolor, Kinetiq.evaDe(j) ?? ''
             ].map(esc).join(';'));
         });
         const hoy = new Date().toISOString().slice(0, 10);
@@ -382,6 +383,7 @@
             renderReferidos(filtrado, (viewer && viewer.referidosMap) || {});
             renderProfesionales(filtrado, rango);
             renderPiramide(filtrado);
+            if (viewer && viewer.renderClinicalStats) viewer.renderClinicalStats(filtrado, modulo);
         } catch (e) {
             estado.textContent = 'No se pudieron cargar los gráficos. Revisa tu conexión a internet.';
         }
