@@ -49,7 +49,7 @@ Una aplicación web segura, intuitiva y de alto rendimiento que:
 * **Plan Terapéutico Especializado:** Biofeedback, terapia manual y reeducación abdominopélvica.
 
 ### 3. Motor Clínico de Reportes en PDF
-* Generación 100% en el cliente (client-side) mediante **pdfmake**.
+* Generación 100% en el cliente (client-side) mediante **jsPDF** + **jsPDF-AutoTable**, y unión de adjuntos PDF con **pdf-lib**.
 * Cuadrículas estandarizadas de precisión milimétrica (márgenes uniformes, tablas balanceadas).
 * Nomenclatura automática y limpia del archivo (`Nombre_Apellido_Fisioterapia_Deportiva.pdf`).
 * Inclusión de firmas institucionales, datos de contacto y recomendaciones personalizadas.
@@ -79,7 +79,7 @@ La aplicación maneja información de salud sensible, por lo que incorpora defen
 | **Frontend** | Vanilla JavaScript (ES6+ modular), HTML5 Semántico, CSS3 (CSS Grid & Flexbox) |
 | **Backend & Base de Datos** | [Supabase](https://supabase.com/) (PostgreSQL 15+, Row-Level Security, Auth JWT, Realtime) |
 | **Autenticación** | Google OAuth 2.0 (Google Identity Services) + Supabase Auth |
-| **Generación de Documentos** | [pdfmake](https://pdfmake.github.io/docs/) (Renderizado vectorial cliente) |
+| **Generación de Documentos** | [jsPDF](https://github.com/parallax/jsPDF) + AutoTable (renderizado cliente), [pdf-lib](https://pdf-lib.js.org/) (unión de adjuntos), [pdf.js](https://mozilla.github.io/pdf.js/) (lectura de PDFs) |
 | **Despliegue & Hosting** | [Vercel](https://vercel.com/) (Edge Network, Serverless rewrite configs) |
 
 ---

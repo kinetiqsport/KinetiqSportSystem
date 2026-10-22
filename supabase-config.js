@@ -23,7 +23,10 @@ function loadSupabaseLibrary() {
         
         // Crear script tag
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        // Versión fija + SRI: el navegador rechaza el archivo si el CDN lo modifica
+        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
+        script.integrity = 'sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o';
+        script.crossOrigin = 'anonymous';
         script.onload = () => {
             resolve();
         };
@@ -186,14 +189,22 @@ class SupabaseClient {
 
     async getAllReportes() {
         try {
-            const { data, error } = await this.supabase
-                .from('reportes')
-                .select('id, cedula, nombre, apellido, tipo_reporte, fecha_creacion, fecha_modificacion, reporte_json, tipo_archivo_adjunto')
-                .order('fecha_modificacion', { ascending: false })
-                .limit(500);
-            
-            if (error) throw error;
-            return data || [];
+            // Paginado: PostgREST limita cada respuesta, así que se piden bloques hasta traer todos
+            const PAGE_SIZE = 500;
+            const todos = [];
+            for (let from = 0; ; from += PAGE_SIZE) {
+                const { data, error } = await this.supabase
+                    .from('reportes')
+                    .select('id, cedula, nombre, apellido, tipo_reporte, fecha_creacion, fecha_modificacion, reporte_json, tipo_archivo_adjunto')
+                    .order('fecha_modificacion', { ascending: false })
+                    .order('id', { ascending: true })
+                    .range(from, from + PAGE_SIZE - 1);
+
+                if (error) throw error;
+                todos.push(...(data || []));
+                if (!data || data.length < PAGE_SIZE) break;
+            }
+            return todos;
         } catch (error) {
             console.error('Error listando reportes:', error);
             throw error;
@@ -234,10 +245,12 @@ class SupabaseClient {
 
     async searchReportes(query, limit = 100) {
         try {
+            const q = window.Kinetiq ? window.Kinetiq.sanitizeSearch(query) : String(query ?? '').replace(/[,()"'\\*%:.]/g, ' ').trim();
+            if (!q) return [];
             const { data, error } = await this.supabase
                 .from('reportes')
                 .select('id, cedula, nombre, apellido, tipo_reporte, fecha_creacion, fecha_modificacion, archivo_adjunto, tipo_archivo_adjunto')
-                .or(`nombre.ilike.%${query}%,apellido.ilike.%${query}%,cedula.ilike.%${query}%`)
+                .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,cedula.ilike.%${q}%`)
                 .order('fecha_modificacion', { ascending: false })
                 .limit(limit);
             

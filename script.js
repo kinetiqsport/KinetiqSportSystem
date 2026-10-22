@@ -183,10 +183,10 @@ class ReporteMedico {
         container.innerHTML = this.referidos.map(r => `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #e0e4e8; border-radius: 8px; margin-bottom: 8px; background: #f8fafc;">
                 <div>
-                    <strong style="color: #0A94B0;">${r.nombre}</strong>
-                    ${r.contacto ? `<div style="font-size: 12px; color: #95a5a6;">${r.contacto}</div>` : ''}
+                    <strong style="color: #0A94B0;">${Kinetiq.escapeHtml(r.nombre)}</strong>
+                    ${r.contacto ? `<div style="font-size: 12px; color: #95a5a6;">${Kinetiq.escapeHtml(r.contacto)}</div>` : ''}
                 </div>
-                <button type="button" data-referido-id="${r.id}" class="btn-delete-referido" style="padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Eliminar</button>
+                <button type="button" data-referido-id="${Kinetiq.escapeHtml(r.id)}" class="btn-delete-referido" style="padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Eliminar</button>
             </div>
         `).join('');
         
@@ -280,12 +280,16 @@ class ReporteMedico {
             if (key === 'saltos' || key === 'unipodal') return;
             
             const element = document.getElementById(key);
-            if (element) {
+            // Los campos de archivo no aceptan valores por código (reportes viejos guardaron la ruta falsa del archivo)
+            if (element && element.type !== 'file') {
                 if (element.type === 'checkbox') {
                     element.checked = Boolean(data[key]);
                 } else if (key === 'referidoSeleccionado') {
                     // Guardar para aplicar después de cargar referidos
                     this._pendingReferidoValue = data[key];
+                } else if (element.hasAttribute('data-dias')) {
+                    // Reportes antiguos guardaban texto libre ("5 días")
+                    element.value = Kinetiq.normalizarDias(data[key]);
                 } else if (element.tagName === 'SELECT') {
                     element.value = data[key];
                     if (!element.value && data[key]) {
@@ -308,19 +312,6 @@ class ReporteMedico {
         if (data.atendido_por && !data.atendidoPor) {
             const el = document.getElementById('atendidoPor');
             if (el) el.value = data.atendido_por;
-        }
-
-        if (data.unipodal) {
-            Object.keys(data.unipodal).forEach(unipodalType => {
-                const unipodalData = data.unipodal[unipodalType];
-                const inputs = document.querySelectorAll(`input[data-unipodal="${unipodalType}"]`);
-                inputs.forEach(input => {
-                    const col = input.getAttribute('data-col');
-                    if (unipodalData[col] !== undefined && unipodalData[col] !== null) {
-                        input.value = unipodalData[col];
-                    }
-                });
-            });
         }
 
         this.calculateIMC();
@@ -508,104 +499,6 @@ class ReporteMedico {
                 this.restrictToNumbers(this.tallaInput, true);
                 this.calculateIMC();
                 this.validateTalla();
-            });
-
-            // Validaciones para campos de días en Actividad Física
-            const diasEntrenamientoInput = document.getElementById('diasEntrenamiento');
-            const diasGimnasioInput = document.getElementById('diasGimnasio');
-            const diasDescansoInput = document.getElementById('diasDescanso');
-
-            if (diasEntrenamientoInput) {
-                diasEntrenamientoInput.addEventListener('input', () => {
-                    this.restrictToNumbers(diasEntrenamientoInput);
-                    this.validateDias(diasEntrenamientoInput);
-                });
-            }
-            if (diasGimnasioInput) {
-                diasGimnasioInput.addEventListener('input', () => {
-                    this.restrictToNumbers(diasGimnasioInput);
-                    this.validateDias(diasGimnasioInput);
-                });
-            }
-            if (diasDescansoInput) {
-                diasDescansoInput.addEventListener('input', () => {
-                    this.restrictToNumbers(diasDescansoInput);
-                    this.validateDias(diasDescansoInput);
-                });
-            }
-
-            // Validaciones para campos de Análisis Biomecánico (Ojos Abiertos)
-            const bioFieldsOA = [
-                'areaElipseIzq', 'areaElipseDer', 'areaElipseAsim',
-                'desvIntIzq', 'desvIntDer', 'desvIntAsim',
-                'bipodLateralIzq', 'bipodLateralDer', 'bipodLateralAsim',
-                'distPesoTalonIzq', 'distPesoTalonDer', 'distPesoDedosIzq', 'distPesoDedosDer',
-                'asimAmpTalonDedosIzq', 'asimAmpTalonDedosDer'
-            ];
-
-            bioFieldsOA.forEach(fieldId => {
-                const input = document.getElementById(fieldId);
-                if (input) {
-                    input.addEventListener('input', () => {
-                        this.restrictToNumbers(input, true);
-                    });
-                }
-            });
-
-            // Validaciones para campos de Análisis Biomecánico (Ojos Cerrados)
-            const bioFieldsCC = [
-                'areaElipseIzqCC', 'areaElipseDerCC', 'areaElipseAsimCC',
-                'desvIntIzqCC', 'desvIntDerCC', 'desvIntAsimCC',
-                'bipodLateralIzqCC', 'bipodLateralDerCC', 'bipodLateralAsimCC',
-                'distPesoTalonIzqCC', 'distPesoTalonDerCC', 'distPesoDedosIzqCC', 'distPesoDedosDerCC',
-                'asimAmpTalonDedosIzqCC', 'asimAmpTalonDedosDerCC'
-            ];
-
-            bioFieldsCC.forEach(fieldId => {
-                const input = document.getElementById(fieldId);
-                if (input) {
-                    input.addEventListener('input', () => {
-                        this.restrictToNumbers(input, true);
-                    });
-                }
-            });
-
-            // Validaciones para Distribución de Peso Unipodal
-            const unipodalInputs = document.querySelectorAll('.unipodal-input');
-            unipodalInputs.forEach(input => {
-                input.addEventListener('input', () => {
-                    this.restrictToNumbers(input, true);
-                });
-            });
-
-            // Validaciones para Sentadilla
-            const sentadillaFields = [
-                'sentNumSentadillas', 'sentDistPesoIzq', 'sentDistPesoDer',
-                'sentFuerzaIzqKg', 'sentFuerzaDerKg', 'sentAsimPorcentaje'
-            ];
-            sentadillaFields.forEach(fieldId => {
-                const input = document.getElementById(fieldId);
-                if (input) {
-                    const allowDecimals = fieldId !== 'sentNumSentadillas';
-                    input.addEventListener('input', () => {
-                        this.restrictToNumbers(input, allowDecimals);
-                    });
-                }
-            });
-
-            // Validaciones para Flexiones
-            const flexionesFields = [
-                'flexNumReps', 'flexDistPesoIzq', 'flexDistPesoDer',
-                'flexFuerzaIzqKg', 'flexFuerzaDerKg', 'flexAsimPorcentaje'
-            ];
-            flexionesFields.forEach(fieldId => {
-                const input = document.getElementById(fieldId);
-                if (input) {
-                    const allowDecimals = fieldId !== 'flexNumReps';
-                    input.addEventListener('input', () => {
-                        this.restrictToNumbers(input, allowDecimals);
-                    });
-                }
             });
 
             // Buscar o crear input file
@@ -877,18 +770,6 @@ class ReporteMedico {
         return true;
     }
 
-    validateDias(input) {
-        const value = parseInt(input.value);
-        
-        if (input.value && (isNaN(value) || value < 0 || value > 7)) {
-            this.showFieldError(input, 'Los días deben estar entre 0 y 7');
-            return false;
-        }
-        
-        this.clearFieldError(input);
-        return true;
-    }
-
     setReportDate() {
         const today = new Date();
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -922,9 +803,9 @@ class ReporteMedico {
         }
 
         // Límite de seguridad: máximo 15MB por archivo para evitar sobrecarga de memoria
-        const MAX_SIZE = 15 * 1024 * 1024;
+        const MAX_SIZE = Kinetiq.MAX_CARGA_MB * 1024 * 1024;
         if (file.size > MAX_SIZE) {
-            this.showAlert('El archivo supera el tamaño máximo permitido (15 MB).', 'error');
+            this.showAlert(`El archivo supera el tamaño máximo permitido (${Kinetiq.MAX_CARGA_MB} MB).`, 'error');
             return;
         }
 
@@ -973,6 +854,11 @@ class ReporteMedico {
                                 data = this.decodeBase64Json(cleanBase64);
                             }
                         }
+
+                        // PDFs nuevos: sólo traen la referencia, los datos se leen de la base de datos
+                        if (!data && subject && subject.includes('KINETIQ_REF:')) {
+                            data = await this.cargarDesdeReferencia(subject.split('KINETIQ_REF:')[1]);
+                        }
                     } catch (eMeta) {
                         console.warn('Metadatos digitales no disponibles con PDFLib:', eMeta);
                     }
@@ -1006,6 +892,18 @@ class ReporteMedico {
         }
 
         this.showAlert('Formato no soportado. Por favor selecciona un archivo .pdf o .json.', 'error');
+    }
+
+    async cargarDesdeReferencia(refStr) {
+        try {
+            const ref = JSON.parse(String(refStr).trim());
+            if (!ref?.cc || !window.supabaseClient?.supabase) return null;
+            const reporte = await window.supabaseClient.getReporteByCedulaTipo(ref.cc, ref.tipo || 'pisada');
+            return reporte?.reporte_json || null;
+        } catch (e) {
+            console.warn('No se pudo cargar el reporte referenciado desde la base de datos:', e);
+            return null;
+        }
     }
 
     decodeBase64Json(cleanBase64) {
@@ -1069,7 +967,8 @@ class ReporteMedico {
         const escNext = nextHeaders.map(h => h.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|');
         const regex = new RegExp(escHeader + '\\s*([\\s\\S]*?)(?=' + escNext + '|$)', 'i');
         const m = text.match(regex);
-        return m ? m[1] : '';
+        // Quitar el número de la siguiente sección (insignia "05" del diseño nuevo del PDF)
+        return m ? m[1].replace(/\s+\d{2}\s*$/, '') : '';
     }
 
     parseOldPdfText(text) {
@@ -1086,7 +985,7 @@ class ReporteMedico {
             cc: this.extractBetween(secDatos || text, 'CC:', ['Celular:', 'Edad:']),
             celular: this.extractBetween(secDatos || text, 'Celular:', ['Edad:', 'Sexo:']),
             edad: this.extractBetween(secDatos || text, 'Edad:', ['años', 'Sexo:']).replace(/\D/g, ''),
-            sexo: this.extractBetween(secDatos || text, 'Sexo:', ['Ocupación:', 'Dominancia:', 'Peso:']),
+            sexo: this.extractBetween(secDatos || text, 'Sexo:', ['Ocupación:', 'Dominancia:', 'Peso:', 'Talla:', 'IMC:', 'Anamnesis']),
             ocupacion: this.extractBetween(secDatos || text, 'Ocupación:', ['Dominancia:', 'Peso:', 'Talla:']),
             dominancia: this.extractBetween(secDatos || text, 'Dominancia:', ['Peso:', 'Talla:']),
             peso: this.extractBetween(secDatos || text, 'Peso:', ['Kg', 'kg', 'Talla:']).replace(/[^0-9.]/g, ''),
@@ -1162,12 +1061,12 @@ class ReporteMedico {
             return;
         }
 
-        const maxSize = 10 * 1024 * 1024; // 10MB
+        const maxSize = Kinetiq.MAX_ADJUNTO_MB * 1024 * 1024;
         const tiposValidos = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
 
         const lecturas = files.map(file => new Promise((resolve, reject) => {
             if (file.size > maxSize) {
-                reject(new Error(`El archivo ${file.name} supera 10MB`));
+                reject(new Error(`El archivo ${file.name} supera ${Kinetiq.MAX_ADJUNTO_MB}MB`));
                 return;
             }
             if (!tiposValidos.includes(file.type)) {
@@ -1326,7 +1225,7 @@ class ReporteMedico {
             await this.guardarEnDB();
             
             // Cerrar modal
-            document.getElementById('confirmModal').classList.remove('active');
+            this.resetConfirmModal();
             
             // Mostrar mensaje de éxito
             this.showAlert('✓ Reporte guardado correctamente', 'success');
@@ -1339,7 +1238,7 @@ class ReporteMedico {
             console.error('Error en executeSaveReport:', error);
             
             // Cerrar modal
-            document.getElementById('confirmModal').classList.remove('active');
+            this.resetConfirmModal();
             
             this.showAlert('Error al guardar: ' + error.message, 'error');
         }
@@ -1378,7 +1277,7 @@ class ReporteMedico {
         const formData = {};
 
         document.querySelectorAll('input, select, textarea').forEach(element => {
-            if (element.id && element.id !== 'fileInput') {
+            if (element.id && element.type !== 'file') {
                 if (element.type === 'checkbox') {
                     formData[element.id] = element.checked;
                 } else {
@@ -1387,26 +1286,13 @@ class ReporteMedico {
             }
         });
 
-        const unipodalData = {};
-        ['talon', 'punta'].forEach(type => {
-            const cols = ['izq', 'der', 'asim'];
-            const typeData = {};
-            cols.forEach(col => {
-                const input = document.querySelector(`input[data-unipodal="${type}"][data-col="${col}"]`);
-                if (input) typeData[col] = input.value;
-            });
-            unipodalData[type] = typeData;
-        });
-        formData.unipodal = unipodalData;
-
         return formData;
     }
 
     async guardarEnDB() {
         try {
-            if (!window.supabaseClient) {
-                console.warn('Supabase no configurado, saltando guardado en DB');
-                return;
+            if (!window.supabaseClient?.supabase) {
+                throw new Error('Base de datos no disponible. Revisa tu conexión e intenta de nuevo.');
             }
 
             const nombre = document.getElementById('nombre').value.trim();
@@ -1414,8 +1300,7 @@ class ReporteMedico {
             const cedula = document.getElementById('cc').value.trim();
 
             if (!cedula) {
-                console.warn('No hay cédula, no se puede guardar en DB');
-                return;
+                throw new Error('La cédula es obligatoria para guardar el reporte.');
             }
 
             const reporteData = this.collectFormData();
@@ -1441,11 +1326,9 @@ class ReporteMedico {
             if (this.adjuntos && this.adjuntos.length > 0) {
                 dataToSave.archivo_adjunto = JSON.stringify(this.adjuntos);
                 dataToSave.tipo_archivo_adjunto = this.adjuntos.length > 1 ? 'multiple' : this.adjuntos[0].tipo;
-                this.adjuntosEliminadosFlag = false;
             } else if (this.adjuntosEliminadosFlag) {
                 dataToSave.archivo_adjunto = null;
                 dataToSave.tipo_archivo_adjunto = null;
-                this.adjuntosEliminadosFlag = false;
             }
 
             // Verificar si ya existe un reporte de pisada con esta cédula
@@ -1459,10 +1342,22 @@ class ReporteMedico {
                 dataToSave.reporte_json.creado_por = userEmail;
                 await window.supabaseClient.saveReporte(dataToSave);
             }
+            this.adjuntosEliminadosFlag = false;
 
         } catch (error) {
             console.error('Error guardando en DB:', error);
+            throw error;
         }
+    }
+
+    resetConfirmModal() {
+        const modal = document.getElementById('confirmModal');
+        if (!modal) return;
+        modal.classList.remove('active');
+        modal.querySelector('.modal-loading')?.classList.remove('active');
+        const buttons = modal.querySelector('.modal-buttons');
+        if (buttons) buttons.style.display = '';
+        modal.querySelectorAll('.modal-buttons button').forEach(b => { b.disabled = false; });
     }
 
     async printReport() {
@@ -1481,7 +1376,12 @@ class ReporteMedico {
         const modal = document.getElementById('confirmModal');
         const modalCancel = document.getElementById('modalCancel');
         const modalConfirm = document.getElementById('modalConfirm');
-        
+
+        // Restaurar textos (showSaveConfirmModal los cambia)
+        modal.querySelector('.modal-icon').textContent = '📄';
+        modal.querySelector('.modal-title').textContent = '¿Descargar y Guardar Reporte?';
+        modal.querySelector('.modal-message').textContent = 'Se descargará el PDF y los datos del paciente se guardarán en la base de datos de forma segura.';
+
         modal.classList.add('active');
         
         // Remover listeners previos
@@ -1523,52 +1423,16 @@ class ReporteMedico {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
             
-            const primaryColor = [10, 148, 176];   // #0A94B0
-            const accentColor = [8, 125, 148];     // #087D94
-            const textDark = [33, 33, 33];
-            const bgLight = [235, 241, 248];
-            const borderColor = [180, 190, 200];
-            
-            let yPos = 15;
+            const tema = Kinetiq.pdf.preparar(doc, 'pisada');
+            const primaryColor = tema.acento;
+            const textDark = tema.tinta;
 
-            doc.setFillColor(...primaryColor);
-            doc.rect(0, 0, 210, 33, 'F');
-
-            // Logo contenedor blanco redondeado (idéntico al formulario web)
-            doc.setFillColor(255, 255, 255);
-            doc.roundedRect(12, 4.5, 24, 24, 3, 3, 'F');
-            try {
-                doc.addImage('kinetiq_logo.png', 'PNG', 13.5, 6, 21, 21);
-            } catch (e) {
-                try {
-                    doc.addImage('logo.jpeg', 'JPEG', 13.5, 6, 21, 21);
-                } catch (e2) {
-                    doc.setTextColor(...primaryColor);
-                    doc.setFontSize(16);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('KS', 24, 18, { align: 'center' });
-                }
-            }
-
-            // Title (en 2 líneas para evitar superposición con los datos del paciente a la derecha)
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(10.5);
-            doc.setFont('helvetica', 'normal');
-            doc.text('VALORACIÓN POR', 42, 13);
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'bold');
-            doc.text('FISIOTERAPIA DEPORTIVA', 42, 21);
-
-            // Patient info on the right side
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(255, 255, 255);
-            const hoy = new Date();
-            const fechaLarga = hoy.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
-            doc.text(`Paciente: ${nombrePaciente} ${apellidoPaciente}`, 198, 15, { align: 'right' });
-            doc.text(`Fecha: ${fechaLarga}`, 198, 22, { align: 'right' });
-
-            yPos = 42;
+            let yPos = Kinetiq.pdf.encabezado(doc, {
+                etiqueta: 'Valoración por',
+                titulo: 'Fisioterapia Deportiva',
+                paciente: `${nombrePaciente} ${apellidoPaciente}`.trim(),
+                cedula: document.getElementById('cc')?.value?.trim()
+            });
 
             // ==================== PÁGINA 1: DATOS GENERALES ====================
             this.addSectionHeader(doc, 'DATOS GENERALES', yPos, primaryColor);
@@ -1652,7 +1516,7 @@ class ReporteMedico {
                 document.getElementById('motivoConsulta')?.value?.trim() ||
                 document.getElementById('notasAdicionales')?.value?.trim() ||
                 this.hasData(['postura','marcha','hods','lunge','observaciones']);
-            if (necesitaPagina2 && !anamnesisPageBreak) {
+            if (necesitaPagina2 && yPos > 230) {
                 doc.addPage();
                 yPos = 20;
             }
@@ -1739,21 +1603,6 @@ class ReporteMedico {
                 yPos = doc.lastAutoTable.finalY + 10;
             }
 
-            // FOOTER EN TODAS LAS PÁGINAS
-            const pageCount = doc.getNumberOfPages();
-            for (let i = 1; i <= pageCount; i++) {
-                doc.setPage(i);
-                // Footer line
-                doc.setDrawColor(10, 148, 176);
-                doc.setLineWidth(0.5);
-                doc.line(12, 280, 198, 280);
-                doc.setFontSize(7);
-                doc.setFont('helvetica', 'normal');
-                doc.setTextColor(150, 160, 170);
-                doc.text('KINETIQ SPORTS · Sistema Inteligente de Evaluación Biomecánica', 12, 285);
-                doc.text(`Página ${i} de ${pageCount}`, 198, 285, { align: 'right' });
-            }
-
             // Agregar imágenes adjuntas como nuevas páginas
             if (this.adjuntos && this.adjuntos.length > 0) {
                 const imagenes = this.adjuntos.filter(a => a.tipo.startsWith('image/'));
@@ -1761,6 +1610,8 @@ class ReporteMedico {
                     await this.agregarArchivoAlPDF(doc, imagen);
                 }
             }
+
+            Kinetiq.pdf.pie(doc, 'Valoración por fisioterapia deportiva', nombreCompleto);
 
             // Exportar a bytes
             let pdfBytes = doc.output('arraybuffer');
@@ -1782,10 +1633,9 @@ class ReporteMedico {
                         }
                     }
 
-                    // Incrustar copia digital de seguridad en metadatos Subject
-                    const rawPayload = JSON.stringify(reporteData);
-                    const encodedData = btoa(unescape(encodeURIComponent(rawPayload)));
-                    mainDoc.setSubject('KINETIQ_DATA:' + encodedData);
+                    // Sólo una referencia al registro (sin datos clínicos): este PDF se entrega al paciente
+                    const cedulaRef = document.getElementById('cc')?.value?.trim() || '';
+                    mainDoc.setSubject('KINETIQ_REF:' + JSON.stringify({ cc: cedulaRef, tipo: 'pisada' }));
                     mainDoc.setTitle(filename);
 
                     pdfBytes = await mainDoc.save();
@@ -1815,7 +1665,7 @@ class ReporteMedico {
             }
             
             // Cerrar modal
-            document.getElementById('confirmModal').classList.remove('active');
+            this.resetConfirmModal();
             
             if (dbSuccess) {
                 this.showAlert('✓ PDF descargado y guardado en base de datos correctamente', 'success');
@@ -1823,26 +1673,22 @@ class ReporteMedico {
                     window.location.href = 'bienvenida.html';
                 }, 2000);
             } else {
-                this.showAlert('⚠️ PDF descargado con copia digital de seguridad. Si hubo un problema al guardar en la base de datos, puedes subir este PDF más tarde con el botón "Cargar".', 'warning');
+                Kinetiq.descargarRespaldoJSON(this.collectFormData(), nombreCompleto);
+                this.showAlert('⚠️ El PDF se descargó, pero NO se pudo guardar en la base de datos. Se descargó un respaldo .json: cárgalo con el botón "Cargar" y presiona "Guardar" cuando vuelva la conexión.', 'error');
             }
 
         } catch (error) {
             console.error('Error en generateAndSavePDF:', error);
             
             // Cerrar modal
-            document.getElementById('confirmModal').classList.remove('active');
+            this.resetConfirmModal();
             
             this.showAlert('Error al generar PDF: ' + error.message, 'error');
         }
     }
 
-    addSectionHeader(doc, title, yPos, primaryColor) {
-        doc.setFillColor(...primaryColor);
-        doc.roundedRect(12, yPos, 186, 9, 2, 2, 'F');
-        doc.setFontSize(9);
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.text(title, 18, yPos + 6.5);
+    addSectionHeader(doc, title, yPos) {
+        Kinetiq.pdf.seccion(doc, title, yPos);
     }
 
     onlyFilled(rows) {
@@ -1871,24 +1717,8 @@ class ReporteMedico {
 
             doc.addPage();
             
-            const primaryColor = [10, 148, 176];   // #0A94B0
-            const accentColor = [8, 125, 148];     // #087D94
-            
-            let yPos = 15;
-            
-            // Header
-            doc.setFillColor(...primaryColor);
-            doc.rect(0, 0, 210, 35, 'F');
-            
-            doc.setFillColor(...accentColor);
-            doc.rect(0, 32, 210, 3, 'F');
-            
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text('ANEXO ADJUNTO', 15, 20);
-            
-            yPos = 45;
+            Kinetiq.pdf.anexo(doc, adjunto.nombre);
+            let yPos = 34;
             
             // Agregar la imagen
             const img = new Image();
@@ -1994,6 +1824,12 @@ class ReporteMedico {
             return;
         }
 
+        const q = Kinetiq.sanitizeSearch(query);
+        if (q.length < 2) {
+            results.innerHTML = '<p style="color: #7f8c8d; text-align: center; padding: 20px;">Escribe al menos 2 caracteres válidos...</p>';
+            return;
+        }
+
         loading.style.display = 'block';
         results.innerHTML = '';
 
@@ -2001,8 +1837,9 @@ class ReporteMedico {
             const { data, error } = await window.supabaseClient.supabase
                 .from('reportes')
                 .select('cedula, nombre, apellido, tipo_reporte, reporte_json, fecha_modificacion')
-                .or(`nombre.ilike.%${query}%,apellido.ilike.%${query}%,cedula.ilike.%${query}%`)
-                .order('fecha_modificacion', { ascending: false });
+                .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,cedula.ilike.%${q}%`)
+                .order('fecha_modificacion', { ascending: false })
+                .limit(50);
 
             if (error) throw error;
 
@@ -2016,7 +1853,7 @@ class ReporteMedico {
             this.renderSearchResults(data);
         } catch (error) {
             loading.style.display = 'none';
-            results.innerHTML = `<p style="color: #e74c3c; text-align: center; padding: 20px;">Error: ${error.message}</p>`;
+            results.innerHTML = `<p style="color: #e74c3c; text-align: center; padding: 20px;">Error: ${Kinetiq.escapeHtml(error.message)}</p>`;
         }
     }
 
@@ -2055,31 +1892,30 @@ class ReporteMedico {
                 }
             });
 
-            let buttonsHtml = '';
-            tipos.forEach(tipo => {
-                const report = records.find(r => (r.tipo_reporte || 'pisada') === tipo);
-                const label = tipo === 'piso_pelvico' ? '\u{1FA80} Ver P\u00E9lvico' : '\u{1F463} Ver Pisada';
-                const bg = tipo === 'piso_pelvico' ? '#087D94' : '#0A94B0';
-                const target = tipo === 'piso_pelvico' ? 'reporte-piso-pelvico.html' : 'index.html';
-                buttonsHtml += `<button onclick="event.stopPropagation();(function(){
-                    var r = ${JSON.stringify(report).replace(/<\/script>/gi, '<\\/script>')};
-                    sessionStorage.setItem('reportToLoad',JSON.stringify(r.reporte_json));
-                    if(r.adjuntos) sessionStorage.setItem('adjuntosToLoad',JSON.stringify(r.adjuntos));
-                    window.location.href='${target}';
-                })()" style="padding:8px 16px;background:${bg};color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin-left:6px;">${label}</button>`;
-            });
-
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <strong style="font-size: 15px; color: #0A94B0;">${datos.nombre || first.nombre || 'Sin nombre'} ${datos.apellido || first.apellido || ''}</strong>
-                        <div style="font-size: 12px; color: #95a5a6; margin-top: 2px;">CC: ${first.cedula || '-'} — Click para cargar datos en este formulario</div>
+                        <strong style="font-size: 15px; color: #0A94B0;">${Kinetiq.escapeHtml(datos.nombre || first.nombre || 'Sin nombre')} ${Kinetiq.escapeHtml(datos.apellido || first.apellido || '')}</strong>
+                        <div style="font-size: 12px; color: #95a5a6; margin-top: 2px;">CC: ${Kinetiq.escapeHtml(first.cedula || '-')} — Click para cargar datos en este formulario</div>
                     </div>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        ${buttonsHtml}
-                    </div>
+                    <div class="search-result-actions" style="display:flex;align-items:center;gap:8px;"></div>
                 </div>
             `;
+
+            const actions = card.querySelector('.search-result-actions');
+            tipos.forEach(tipo => {
+                const report = records.find(r => (r.tipo_reporte || 'pisada') === tipo);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = tipo === 'piso_pelvico' ? '\u{1FA80} Ver Pélvico' : '\u{1F463} Ver Pisada';
+                btn.style.cssText = `padding:8px 16px;background:${tipo === 'piso_pelvico' ? '#087D94' : '#0A94B0'};color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin-left:6px;`;
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    sessionStorage.setItem('reportToLoad', JSON.stringify(report.reporte_json || {}));
+                    window.location.href = tipo === 'piso_pelvico' ? 'reporte-piso-pelvico.html' : 'index.html';
+                });
+                actions.appendChild(btn);
+            });
             results.appendChild(card);
         });
     }
@@ -2121,287 +1957,7 @@ class ReporteMedico {
             alertDiv.style.opacity = '0';
             alertDiv.style.transition = 'opacity 0.3s ease';
             setTimeout(() => alertDiv.remove(), 300);
-        }, 3000);
-    }
-
-    // =========================================================================
-    // SISTEMA DE MÚLTIPLES VALORACIONES
-    // =========================================================================
-    initMultipleValoraciones() {
-        this.fuerzaComparativaList = [];
-        this.rangoActivoList = [];
-
-        // Botón Agregar Fuerza Comparativa
-        const addFuerzaBtn = document.getElementById('addFuerzaBtn');
-        if (addFuerzaBtn) {
-            addFuerzaBtn.addEventListener('click', () => this.agregarFuerzaComparativa());
-        }
-
-        // Botón Agregar Rango Activo
-        const addRAMBtn = document.getElementById('addRAMBtn');
-        if (addRAMBtn) {
-            addRAMBtn.addEventListener('click', () => this.agregarRangoActivo());
-        }
-
-        // Validación de solo números para inputs de fuerza
-        const fuerzaInputs = [
-            'fuerzaMaxIzq', 'fuerzaMaxDer', 'fuerzaMaxAsim',
-            'rfdIzq', 'rfdDer', 'rfdAsim',
-            'fatigaIzq', 'fatigaDer', 'fatigaAsim'
-        ];
-        fuerzaInputs.forEach(id => {
-            const input = document.getElementById(id);
-            if (input) {
-                input.addEventListener('input', () => {
-                    this.restrictToNumbers(input, true);
-                });
-            }
-        });
-
-        // Validación de solo números para inputs de rango activo
-        const ramInputs = ['anguloMaxIzq', 'anguloMaxDer', 'velocidadRADIzq', 'velocidadRADDer'];
-        ramInputs.forEach(id => {
-            const input = document.getElementById(id);
-            if (input) {
-                input.addEventListener('input', () => {
-                    this.restrictToNumbers(input, true);
-                });
-            }
-        });
-
-        // Validación para pasivo también
-        const pasivoInputs = ['anguloPasivoIzq', 'anguloPasivoDer'];
-        pasivoInputs.forEach(id => {
-            const input = document.getElementById(id);
-            if (input) {
-                input.addEventListener('input', () => {
-                    this.restrictToNumbers(input, true);
-                });
-            }
-        });
-    }
-
-    agregarFuerzaComparativa() {
-        const musculo = document.getElementById('musculoFuerza').value.trim();
-        const fuerzaMaxIzq = document.getElementById('fuerzaMaxIzq').value;
-        const fuerzaMaxDer = document.getElementById('fuerzaMaxDer').value;
-        const fuerzaMaxAsim = document.getElementById('fuerzaMaxAsim').value;
-        const rfdIzq = document.getElementById('rfdIzq').value;
-        const rfdDer = document.getElementById('rfdDer').value;
-        const rfdAsim = document.getElementById('rfdAsim').value;
-        const fatigaIzq = document.getElementById('fatigaIzq').value;
-        const fatigaDer = document.getElementById('fatigaDer').value;
-        const fatigaAsim = document.getElementById('fatigaAsim').value;
-
-        if (!musculo) {
-            this.showAlert('⚠️ Ingresa el nombre del músculo', 'warning');
-            return;
-        }
-
-        const valoracion = {
-            musculo,
-            fuerzaMax: { izq: fuerzaMaxIzq, der: fuerzaMaxDer, asim: fuerzaMaxAsim },
-            rfd: { izq: rfdIzq, der: rfdDer, asim: rfdAsim },
-            fatiga: { izq: fatigaIzq, der: fatigaDer, asim: fatigaAsim }
-        };
-
-        this.fuerzaComparativaList.push(valoracion);
-        this.renderFuerzaList();
-        this.limpiarCamposFuerza();
-        this.showAlert('✓ Valoración de fuerza agregada', 'success');
-
-        // Guardar en hidden input
-        document.getElementById('fuerzaComparativaData').value = JSON.stringify(this.fuerzaComparativaList);
-    }
-
-    agregarRangoActivo() {
-        const articulacion = document.getElementById('articulacionRAM').value.trim();
-        const anguloMaxIzq = document.getElementById('anguloMaxIzq').value;
-        const anguloMaxDer = document.getElementById('anguloMaxDer').value;
-        const velocidadRADIzq = document.getElementById('velocidadRADIzq').value;
-        const velocidadRADDer = document.getElementById('velocidadRADDer').value;
-        const anguloPasivoIzq = document.getElementById('anguloPasivoIzq').value;
-        const anguloPasivoDer = document.getElementById('anguloPasivoDer').value;
-
-        if (!articulacion) {
-            this.showAlert('⚠️ Ingresa el nombre de la articulación', 'warning');
-            return;
-        }
-
-        const valoracion = {
-            articulacion,
-            anguloMax: { izq: anguloMaxIzq, der: anguloMaxDer },
-            velocidadRAD: { izq: velocidadRADIzq, der: velocidadRADDer },
-            anguloPasivo: { izq: anguloPasivoIzq, der: anguloPasivoDer }
-        };
-
-        this.rangoActivoList.push(valoracion);
-        this.renderRAMList();
-        this.limpiarCamposRAM();
-        this.showAlert('✓ Valoración de movimiento agregada', 'success');
-
-        // Guardar en hidden input
-        document.getElementById('rangoActivoData').value = JSON.stringify(this.rangoActivoList);
-    }
-
-    renderFuerzaList() {
-        const listContainer = document.getElementById('fuerzaList');
-        if (!listContainer) return;
-
-        if (this.fuerzaComparativaList.length === 0) {
-            listContainer.innerHTML = '';
-            return;
-        }
-
-        let html = '<div style="margin-top: 20px;"><h3 style="color: #0A94B0; font-size: 16px; margin-bottom: 10px;">Valoraciones Agregadas:</h3>';
-        
-        this.fuerzaComparativaList.forEach((val, index) => {
-            html += `
-                <div style="background: #f7fbfd; border-left: 4px solid #00C8D4; padding: 15px; margin-bottom: 10px; border-radius: 6px; position: relative;">
-                    <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 5px;">
-                        <button type="button" onclick="reporte.editarFuerza(${index})" 
-                            style="background: #0A94B0; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px;">
-                            ✏️ Editar
-                        </button>
-                        <button type="button" onclick="reporte.eliminarFuerza(${index})" 
-                            style="background: #e74c3c; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px;">
-                            🗑️ Eliminar
-                        </button>
-                    </div>
-                    <p style="font-weight: 600; color: #0A94B0; margin-bottom: 8px;">Músculo: ${val.musculo}</p>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px;">
-                        <div><strong>Fuerza Max:</strong> I:${val.fuerzaMax.izq || '-'} D:${val.fuerzaMax.der || '-'} A:${val.fuerzaMax.asim || '-'}%</div>
-                        <div><strong>RFD:</strong> I:${val.rfd.izq || '-'} D:${val.rfd.der || '-'} A:${val.rfd.asim || '-'}%</div>
-                        <div><strong>Fatiga:</strong> I:${val.fatiga.izq || '-'} D:${val.fatiga.der || '-'} A:${val.fatiga.asim || '-'}%</div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-        listContainer.innerHTML = html;
-    }
-
-    renderRAMList() {
-        const listContainer = document.getElementById('ramList');
-        if (!listContainer) return;
-
-        if (this.rangoActivoList.length === 0) {
-            listContainer.innerHTML = '';
-            return;
-        }
-
-        let html = '<div style="margin-top: 20px;"><h3 style="color: #0A94B0; font-size: 16px; margin-bottom: 10px;">Valoraciones Agregadas:</h3>';
-        
-        this.rangoActivoList.forEach((val, index) => {
-            html += `
-                <div style="background: #f7fbfd; border-left: 4px solid #00C8D4; padding: 15px; margin-bottom: 10px; border-radius: 6px; position: relative;">
-                    <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 5px;">
-                        <button type="button" onclick="reporte.editarRAM(${index})" 
-                            style="background: #0A94B0; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px;">
-                            ✏️ Editar
-                        </button>
-                        <button type="button" onclick="reporte.eliminarRAM(${index})" 
-                            style="background: #e74c3c; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px;">
-                            🗑️ Eliminar
-                        </button>
-                    </div>
-                    <p style="font-weight: 600; color: #0A94B0; margin-bottom: 8px;">Articulación: ${val.articulacion}</p>
-                    <div style="font-size: 13px;">
-                        <div style="margin-bottom: 5px;"><strong>Ángulo Activo:</strong> Izq: ${val.anguloMax.izq || '-'}° Der: ${val.anguloMax.der || '-'}°</div>
-                        <div style="margin-bottom: 5px;"><strong>Velocidad RAD:</strong> Izq: ${val.velocidadRAD.izq || '-'} Der: ${val.velocidadRAD.der || '-'}</div>
-                        <div style="border-top: 1px solid #00C8D4; padding-top: 5px; margin-top: 5px;"><strong>Ángulo Pasivo:</strong> Izq: ${val.anguloPasivo.izq || '-'}° Der: ${val.anguloPasivo.der || '-'}°</div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-        listContainer.innerHTML = html;
-    }
-
-    editarFuerza(index) {
-        const val = this.fuerzaComparativaList[index];
-        
-        // Cargar datos en los campos
-        document.getElementById('musculoFuerza').value = val.musculo;
-        document.getElementById('fuerzaMaxIzq').value = val.fuerzaMax.izq;
-        document.getElementById('fuerzaMaxDer').value = val.fuerzaMax.der;
-        document.getElementById('fuerzaMaxAsim').value = val.fuerzaMax.asim;
-        document.getElementById('rfdIzq').value = val.rfd.izq;
-        document.getElementById('rfdDer').value = val.rfd.der;
-        document.getElementById('rfdAsim').value = val.rfd.asim;
-        document.getElementById('fatigaIzq').value = val.fatiga.izq;
-        document.getElementById('fatigaDer').value = val.fatiga.der;
-        document.getElementById('fatigaAsim').value = val.fatiga.asim;
-        
-        // Eliminar de la lista (se volverá a agregar al hacer click en Agregar)
-        this.fuerzaComparativaList.splice(index, 1);
-        this.renderFuerzaList();
-        document.getElementById('fuerzaComparativaData').value = JSON.stringify(this.fuerzaComparativaList);
-        
-        // Scroll al formulario
-        document.getElementById('musculoFuerza').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        this.showAlert('✏️ Editando valoración - Modifica y presiona "Agregar"', 'info');
-    }
-
-    editarRAM(index) {
-        const val = this.rangoActivoList[index];
-        
-        // Cargar datos en los campos
-        document.getElementById('articulacionRAM').value = val.articulacion;
-        document.getElementById('anguloMaxIzq').value = val.anguloMax.izq;
-        document.getElementById('anguloMaxDer').value = val.anguloMax.der;
-        document.getElementById('velocidadRADIzq').value = val.velocidadRAD.izq;
-        document.getElementById('anguloPasivoIzq').value = val.anguloPasivo?.izq || '';
-        document.getElementById('anguloPasivoDer').value = val.anguloPasivo?.der || '';
-        document.getElementById('velocidadRADDer').value = val.velocidadRAD.der;
-        
-        // Eliminar de la lista (se volverá a agregar al hacer click en Agregar)
-        this.rangoActivoList.splice(index, 1);
-        this.renderRAMList();
-        document.getElementById('rangoActivoData').value = JSON.stringify(this.rangoActivoList);
-        
-        // Scroll al formulario
-        document.getElementById('articulacionRAM').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        this.showAlert('✏️ Editando valoración - Modifica y presiona "Agregar"', 'info');
-    }
-
-    eliminarFuerza(index) {
-        this.fuerzaComparativaList.splice(index, 1);
-        this.renderFuerzaList();
-        document.getElementById('fuerzaComparativaData').value = JSON.stringify(this.fuerzaComparativaList);
-        this.showAlert('✓ Valoración eliminada', 'success');
-    }
-
-    eliminarRAM(index) {
-        this.rangoActivoList.splice(index, 1);
-        this.renderRAMList();
-        document.getElementById('rangoActivoData').value = JSON.stringify(this.rangoActivoList);
-        this.showAlert('✓ Valoración eliminada', 'success');
-    }
-
-    limpiarCamposFuerza() {
-        document.getElementById('musculoFuerza').value = '';
-        document.getElementById('fuerzaMaxIzq').value = '';
-        document.getElementById('fuerzaMaxDer').value = '';
-        document.getElementById('fuerzaMaxAsim').value = '';
-        document.getElementById('rfdIzq').value = '';
-        document.getElementById('rfdDer').value = '';
-        document.getElementById('rfdAsim').value = '';
-        document.getElementById('fatigaIzq').value = '';
-        document.getElementById('fatigaDer').value = '';
-        document.getElementById('fatigaAsim').value = '';
-    }
-
-    limpiarCamposRAM() {
-        document.getElementById('articulacionRAM').value = '';
-        document.getElementById('anguloMaxIzq').value = '';
-        document.getElementById('anguloMaxDer').value = '';
-        document.getElementById('anguloPasivoIzq').value = '';
-        document.getElementById('anguloPasivoDer').value = '';
-        document.getElementById('velocidadRADIzq').value = '';
-        document.getElementById('velocidadRADDer').value = '';
+        }, type === 'error' || type === 'warning' ? 8000 : 3000);
     }
 }
 

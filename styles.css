@@ -1309,3 +1309,558 @@ textarea.field-missing, select.field-missing {
         display: none;
     }
 }
+
+/* ===================== ÍNDICE DE SECCIONES Y PROGRESO ===================== */
+.form-progress {
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(6px);
+    border: 1px solid #E3E9EC;
+    border-radius: 12px;
+    padding: 10px 14px 12px;
+    margin-bottom: 18px;
+    box-shadow: 0 6px 18px rgba(11, 20, 23, 0.06);
+}
+.form-progress-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #5B6B73;
+}
+.form-progress-pct { color: var(--primary-color); font-size: 14px; }
+.form-progress-bar {
+    height: 6px;
+    background: #EDF2F4;
+    border-radius: 3px;
+    margin: 6px 0 10px;
+    overflow: hidden;
+}
+.form-progress-bar span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #0A94B0, #19C3E0);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+.form-progress-pills {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    padding-bottom: 2px;
+}
+.form-progress-pill {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 11px;
+    border-radius: 999px;
+    border: 1px solid #DCE4E8;
+    background: #fff;
+    color: #5B6B73;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.form-progress-pill:hover { border-color: var(--primary-color); color: var(--primary-color); }
+.form-progress-pill .pill-check {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #C9D4D9;
+    display: inline-grid;
+    place-items: center;
+    font-size: 9px;
+    line-height: 1;
+    color: #fff;
+}
+.form-progress-pill.partial .pill-check { border-color: var(--primary-color); background: linear-gradient(90deg, var(--primary-color) 50%, #fff 50%); }
+.form-progress-pill.done { background: #E6F6FA; border-color: #A9DCE7; color: #075E70; }
+.form-progress-pill.done .pill-check { background: var(--primary-color); border-color: var(--primary-color); }
+.form-progress-pill.done .pill-check::after { content: '✓'; font-weight: 900; }
+.form-progress-pill.active { outline: 2px solid rgba(10, 148, 176, 0.35); outline-offset: 1px; color: #0F1A1F; }
+
+/* ===================== ESCALA DE DOLOR (EVA) ===================== */
+.eva-select-oculto {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+.eva-scale {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 5px;
+}
+.eva-btn {
+    height: 40px;
+    border-radius: 9px;
+    border: 1.5px solid #DCE4E8;
+    background: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    color: #33434A;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.15s, background 0.15s, border-color 0.15s, color 0.15s;
+}
+.eva-btn::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    bottom: 4px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--eva-color);
+}
+.eva-btn:hover { border-color: var(--eva-color); transform: translateY(-1px); }
+.eva-btn:focus-visible { outline: 3px solid rgba(10, 148, 176, 0.35); outline-offset: 1px; }
+.eva-btn.selected {
+    background: var(--eva-color);
+    border-color: var(--eva-color);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.eva-btn.selected::after { background: rgba(255, 255, 255, 0.7); }
+.eva-legend {
+    margin-top: 6px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #8A989F;
+}
+@media (max-width: 520px) {
+    .eva-scale { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .form-progress { padding: 8px 10px 10px; }
+}
+
+/* =========================================================================
+   REDISEÑO 2026 - Mismo lenguaje visual del inicio y la analítica
+   (sobrescribe los estilos anteriores; el color de acento cambia por módulo)
+   ========================================================================= */
+
+body:is(.modulo-deportivo, .modulo-pelvico) {
+    --font-primary: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+    --ink: #0F1A1F;
+    --ink-soft: #5B6B73;
+    --ink-muted: #8A989F;
+    --surface: #FFFFFF;
+    --canvas: #F3F6F8;
+    --line: #E3E9EC;
+    --line-strong: #D5DEE2;
+    --dark: #0B1417;
+    --accent-soft: #E6F6FA;
+    --accent-ring: rgba(10, 148, 176, 0.22);
+    --border-radius: 10px;
+}
+
+body.modulo-pelvico {
+    --primary-color: #8E24AA;
+    --secondary-color: #6A1B9A;
+    --accent-soft: #F5E9F8;
+    --accent-ring: rgba(142, 36, 170, 0.2);
+}
+
+body:is(.modulo-deportivo, .modulo-pelvico) {
+    background: var(--canvas);
+    color: var(--ink);
+    font-size: 14px;
+}
+
+:is(.modulo-deportivo, .modulo-pelvico) .container {
+    max-width: 1180px;
+    padding: 20px 24px 120px;
+}
+
+/* ---------- Encabezado oscuro ---------- */
+:is(.modulo-deportivo, .modulo-pelvico) .header {
+    background:
+        radial-gradient(circle at 8% 0%, rgba(25, 195, 224, 0.28) 0, transparent 38%), linear-gradient(160deg, #0B1417 0%, #0F2A31 100%);
+    border-radius: 18px;
+    padding: 24px 28px;
+    margin-bottom: 18px;
+    box-shadow: 0 12px 30px rgba(11, 20, 23, 0.16);
+}
+body.modulo-pelvico .header {
+    background:
+        radial-gradient(circle at 8% 0%, rgba(186, 104, 200, 0.32) 0, transparent 38%), linear-gradient(160deg, #140B17 0%, #2A0F31 100%);
+}
+:is(.modulo-deportivo, .modulo-pelvico) .header::before { display: none; }
+:is(.modulo-deportivo, .modulo-pelvico) .header-content { gap: 28px; }
+:is(.modulo-deportivo, .modulo-pelvico) .logo-section {
+    padding: 6px 10px;
+    border-radius: 14px;
+    box-shadow: none;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .logo { max-width: 84px; }
+:is(.modulo-deportivo, .modulo-pelvico) .main-title {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.6px;
+    line-height: 1.12;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .main-title .line2 {
+    font-size: 30px;
+    font-weight: 800;
+    opacity: 1;
+    background: linear-gradient(90deg, #19C3E0, #7FE3F2);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+body.modulo-pelvico .main-title .line2 {
+    background: linear-gradient(90deg, #D58BE5, #F0C4F7);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .date-section { gap: 8px; }
+:is(.modulo-deportivo, .modulo-pelvico) .date-section .info-row {
+    font-size: 13px;
+    opacity: 1;
+    color: rgba(255, 255, 255, 0.78);
+    gap: 8px;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .date-section .info-row a { color: #fff; opacity: 1; font-weight: 600; }
+:is(.modulo-deportivo, .modulo-pelvico) .report-date { opacity: 1; text-transform: capitalize; }
+:is(.modulo-deportivo, .modulo-pelvico) .ui-icon { width: 16px; height: 16px; flex: 0 0 auto; }
+:is(.modulo-deportivo, .modulo-pelvico) .date-section .ui-icon { opacity: 0.7; }
+
+/* ---------- Contenido y secciones como tarjetas ---------- */
+:is(.modulo-deportivo, .modulo-pelvico) .main-content {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    margin-bottom: 24px;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .form-container {
+    gap: 18px;
+    counter-reset: seccion;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .section {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(11, 20, 23, 0.04);
+}
+:is(.modulo-deportivo, .modulo-pelvico) .section-header {
+    background: var(--surface);
+    color: var(--ink);
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid var(--line);
+    border-radius: 16px 16px 0 0;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .section-header::before { display: none; }
+:is(.modulo-deportivo, .modulo-pelvico) .section-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-left: 0;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    color: var(--ink);
+}
+:is(.modulo-deportivo, .modulo-pelvico) .section-header h2::before {
+    counter-increment: seccion;
+    content: counter(seccion, decimal-leading-zero);
+    display: inline-grid;
+    place-items: center;
+    min-width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: var(--accent-soft);
+    color: var(--primary-color);
+    font-size: 12.5px;
+    font-weight: 800;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .section > div:not(.section-header), :is(.modulo-deportivo, .modulo-pelvico) .section-content { padding: 22px 24px; }
+/* Secciones cuyo contenido va directo dentro de la tarjeta (sin contenedor) */
+:is(.modulo-deportivo, .modulo-pelvico) .section > .form-group,
+:is(.modulo-deportivo, .modulo-pelvico) .section > .form-grid-2,
+:is(.modulo-deportivo, .modulo-pelvico) .section > .form-grid-3,
+:is(.modulo-deportivo, .modulo-pelvico) .section > .form-grid-4 {
+    padding-left: 24px;
+    padding-right: 24px;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .section > .section-header + .form-group, :is(.modulo-deportivo, .modulo-pelvico) .section > .section-header + .form-grid-2, :is(.modulo-deportivo, .modulo-pelvico) .section > .section-header + .form-grid-3, :is(.modulo-deportivo, .modulo-pelvico) .section > .section-header + .form-grid-4 { padding-top: 22px; }
+:is(.modulo-deportivo, .modulo-pelvico) .section > .form-group:last-child, :is(.modulo-deportivo, .modulo-pelvico) .section > .form-grid-2:last-child, :is(.modulo-deportivo, .modulo-pelvico) .section > .form-grid-3:last-child, :is(.modulo-deportivo, .modulo-pelvico) .section > .form-grid-4:last-child { padding-bottom: 22px; }
+:is(.modulo-deportivo, .modulo-pelvico) .antecedents-grid { padding: 0 24px 22px; gap: 18px; }
+
+/* ---------- Campos ---------- */
+:is(.modulo-deportivo, .modulo-pelvico) .form-grid-2, :is(.modulo-deportivo, .modulo-pelvico) .form-grid-4 { gap: 16px 20px; margin-bottom: 16px; }
+:is(.modulo-deportivo, .modulo-pelvico) .form-group { margin-bottom: 14px; }
+:is(.modulo-deportivo, .modulo-pelvico) .form-group label {
+    color: #33434A;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-bottom: 6px;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .form-control {
+    min-height: 44px;
+    padding: 10px 13px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: #FBFCFD;
+    font-size: 14px;
+    color: var(--ink);
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .form-control::placeholder { color: #A3B0B6; }
+:is(.modulo-deportivo, .modulo-pelvico) .form-control:hover { border-color: #BFCBD1; }
+:is(.modulo-deportivo, .modulo-pelvico) .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px var(--accent-ring);
+    background: #fff;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .form-control[readonly] { background: #F1F4F6; color: var(--ink-soft); }
+:is(.modulo-deportivo, .modulo-pelvico) textarea.form-control { min-height: 96px; }
+:is(.modulo-deportivo, .modulo-pelvico) select.form-control {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 38px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235B6B73' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+}
+
+/* Campo lleno: sutil, sin el verde intenso */
+:is(.modulo-deportivo, .modulo-pelvico) .field-filled,
+:is(.modulo-deportivo, .modulo-pelvico) textarea.field-filled,
+:is(.modulo-deportivo, .modulo-pelvico) select.field-filled {
+    background-color: #fff !important;
+    border-color: #BFD3DA !important;
+}
+body.modulo-pelvico .field-filled { border-color: #D9C3E0 !important; }
+:is(.modulo-deportivo, .modulo-pelvico) .field-filled:focus { box-shadow: 0 0 0 4px var(--accent-ring) !important; border-color: var(--primary-color) !important; }
+:is(.modulo-deportivo, .modulo-pelvico) .field-missing,
+:is(.modulo-deportivo, .modulo-pelvico) textarea.field-missing,
+:is(.modulo-deportivo, .modulo-pelvico) select.field-missing {
+    background-color: #FFF6F6 !important;
+    border-color: #E57373 !important;
+}
+
+/* ---------- Casillas y opciones como "chips" (piso pélvico) ---------- */
+:is(.modulo-deportivo, .modulo-pelvico) .checkbox-group,
+:is(.modulo-deportivo, .modulo-pelvico) .radio-group {
+    gap: 8px;
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .checkbox-label,
+:is(.modulo-deportivo, .modulo-pelvico) .radio-label {
+    padding: 8px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    color: #33434A;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .checkbox-label:hover, :is(.modulo-deportivo, .modulo-pelvico) .radio-label:hover { border-color: var(--primary-color); }
+:is(.modulo-deportivo, .modulo-pelvico) .checkbox-label:has(input:checked),
+:is(.modulo-deportivo, .modulo-pelvico) .radio-label:has(input:checked) {
+    background: var(--accent-soft);
+    border-color: var(--primary-color);
+    color: var(--secondary-color);
+}
+:is(.modulo-deportivo, .modulo-pelvico) .form-control-inline {
+    border-radius: 8px;
+    border-color: var(--line-strong);
+    min-height: 34px;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .form-control-inline:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px var(--accent-ring); }
+
+/* ---------- Adjuntos ---------- */
+:is(.modulo-deportivo, .modulo-pelvico) .file-upload-card {
+    border: 1.5px dashed var(--line-strong);
+    background: #FBFCFD;
+    box-shadow: none;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .file-upload-card:hover { border-color: var(--primary-color); box-shadow: none; background: var(--accent-soft); }
+:is(.modulo-deportivo, .modulo-pelvico) .file-upload-icon { box-shadow: inset 0 0 0 1px var(--line); }
+:is(.modulo-deportivo, .modulo-pelvico) .file-upload-text strong { color: var(--ink); }
+:is(.modulo-deportivo, .modulo-pelvico) .file-upload-cta { background: var(--dark); box-shadow: none; }
+
+/* ---------- Barra de acciones flotante ---------- */
+:is(.modulo-deportivo, .modulo-pelvico) .floating-sidebar {
+    background: var(--dark);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 18px;
+    padding: 10px 8px;
+    gap: 6px;
+    box-shadow: 0 16px 40px rgba(11, 20, 23, 0.28);
+}
+:is(.modulo-deportivo, .modulo-pelvico) .action-button,
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.neutral,
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.warning,
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.info,
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.success,
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.danger {
+    width: 64px;
+    height: 58px;
+    border-radius: 12px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: rgba(255, 255, 255, 0.82);
+}
+:is(.modulo-deportivo, .modulo-pelvico) .action-button .ui-icon { width: 20px; height: 20px; }
+:is(.modulo-deportivo, .modulo-pelvico) .action-button:hover,
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.neutral:hover,
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.warning:hover,
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.info:hover,
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.danger:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    transform: none;
+    box-shadow: none;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.success,
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.success:hover {
+    background: var(--primary-color);
+    color: #fff;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.success:hover { filter: brightness(1.08); transform: none; box-shadow: 0 6px 16px var(--accent-ring); }
+:is(.modulo-deportivo, .modulo-pelvico) .action-button.info { color: #fff; }
+:is(.modulo-deportivo, .modulo-pelvico) .action-button-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.1px; margin-top: 5px; }
+
+/* ---------- Pie ---------- */
+:is(.modulo-deportivo, .modulo-pelvico) .footer {
+    background: transparent;
+    color: var(--ink-muted);
+    opacity: 1;
+    padding: 8px 0 0;
+    font-size: 12.5px;
+}
+
+/* ---------- Modales y avisos ---------- */
+:is(.modulo-deportivo, .modulo-pelvico) .modal-content { border-radius: 20px; padding: 32px; }
+:is(.modulo-deportivo, .modulo-pelvico) .modal-icon {
+    width: 64px;
+    height: 64px;
+    font-size: 30px;
+    border-radius: 18px;
+    background: var(--accent-soft);
+    margin-bottom: 18px;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .modal-title { color: var(--ink); font-size: 21px; font-weight: 800; }
+:is(.modulo-deportivo, .modulo-pelvico) .modal-message { color: var(--ink-soft); font-size: 15px; margin-bottom: 24px; }
+:is(.modulo-deportivo, .modulo-pelvico) .modal-btn {
+    border-radius: 12px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .modal-btn-cancel { background: #EEF2F4; color: #33434A; }
+:is(.modulo-deportivo, .modulo-pelvico) .modal-btn-cancel:hover { background: #E1E7EA; transform: none; }
+:is(.modulo-deportivo, .modulo-pelvico) .modal-btn-confirm { background: var(--primary-color); }
+:is(.modulo-deportivo, .modulo-pelvico) .modal-btn-confirm:hover { transform: none; filter: brightness(1.06); box-shadow: 0 8px 20px var(--accent-ring); }
+:is(.modulo-deportivo, .modulo-pelvico) .spinner { border-color: #EDF2F4; border-top-color: var(--primary-color); }
+:is(.modulo-deportivo, .modulo-pelvico) .alert { border-radius: 12px; font-family: inherit; }
+
+/* ---------- Responsive del rediseño ---------- */
+@media (max-width: 1024px) {
+    :is(.modulo-deportivo, .modulo-pelvico) .header-content { gap: 14px; }
+    :is(.modulo-deportivo, .modulo-pelvico) .main-title, :is(.modulo-deportivo, .modulo-pelvico) .main-title .line2 { font-size: 24px; }
+}
+@media (max-width: 768px) {
+    :is(.modulo-deportivo, .modulo-pelvico) .container { padding: 12px 12px 110px; }
+    :is(.modulo-deportivo, .modulo-pelvico) .header { padding: 18px 16px; border-radius: 16px; }
+    :is(.modulo-deportivo, .modulo-pelvico) .section-header { padding: 14px 16px 12px; }
+    :is(.modulo-deportivo, .modulo-pelvico) .section > div:not(.section-header), :is(.modulo-deportivo, .modulo-pelvico) .section-content { padding: 16px; }
+    :is(.modulo-deportivo, .modulo-pelvico) .section > .form-group, :is(.modulo-deportivo, .modulo-pelvico) .section > .form-grid-2, :is(.modulo-deportivo, .modulo-pelvico) .section > .form-grid-3, :is(.modulo-deportivo, .modulo-pelvico) .section > .form-grid-4 { padding-left: 16px; padding-right: 16px; }
+    :is(.modulo-deportivo, .modulo-pelvico) .antecedents-grid { padding: 0 16px 16px; }
+    :is(.modulo-deportivo, .modulo-pelvico) .floating-sidebar {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        width: auto;
+        justify-content: space-between;
+        padding: 6px;
+        border-radius: 16px;
+    }
+    :is(.modulo-deportivo, .modulo-pelvico) .action-button,
+    :is(.modulo-deportivo, .modulo-pelvico) .action-button.neutral,
+    :is(.modulo-deportivo, .modulo-pelvico) .action-button.warning,
+    :is(.modulo-deportivo, .modulo-pelvico) .action-button.info,
+    :is(.modulo-deportivo, .modulo-pelvico) .action-button.success,
+    :is(.modulo-deportivo, .modulo-pelvico) .action-button.danger {
+        flex: 1 1 0;
+        width: auto;
+        min-width: 44px;
+        height: 52px;
+    }
+    :is(.modulo-deportivo, .modulo-pelvico) .action-button-label { font-size: 9.5px; }
+}
+@media (max-width: 480px) {
+    :is(.modulo-deportivo, .modulo-pelvico) .main-title, :is(.modulo-deportivo, .modulo-pelvico) .main-title .line2 { font-size: 20px; }
+    :is(.modulo-deportivo, .modulo-pelvico) .form-control { font-size: 16px; } /* Evita el zoom automático de iOS */
+    :is(.modulo-deportivo, .modulo-pelvico) .action-button-label { display: block; font-size: 9px; }
+    :is(.modulo-deportivo, .modulo-pelvico) .modal-content { padding: 24px 18px; }
+}
+
+/* Reservar espacio para la barra de acciones flotante a la derecha */
+@media (min-width: 769px) and (max-width: 1440px) {
+    :is(.modulo-deportivo, .modulo-pelvico) .container { padding-right: 112px; }
+}
+
+/* Filas que van directo dentro de la tarjeta: sin relleno vertical entre filas */
+:is(.modulo-deportivo, .modulo-pelvico) .section > div:is(.form-group, .form-grid-2, .form-grid-3, .form-grid-4) {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+:is(.modulo-deportivo, .modulo-pelvico) .section > .section-header + div:is(.form-group, .form-grid-2, .form-grid-3, .form-grid-4) { padding-top: 22px; }
+:is(.modulo-deportivo, .modulo-pelvico) .section > div:is(.form-group, .form-grid-2, .form-grid-3, .form-grid-4):last-child { padding-bottom: 22px; margin-bottom: 0; }
+@media (max-width: 768px) {
+    :is(.modulo-deportivo, .modulo-pelvico) .section > .section-header + div:is(.form-group, .form-grid-2, .form-grid-3, .form-grid-4) { padding-top: 16px; }
+    :is(.modulo-deportivo, .modulo-pelvico) .section > div:is(.form-group, .form-grid-2, .form-grid-3, .form-grid-4):last-child { padding-bottom: 16px; }
+}
+
+/* Encabezado compacto en tablet/celular: logo pequeño + título en una fila */
+@media (max-width: 1024px) {
+    :is(.modulo-deportivo, .modulo-pelvico) .header-content {
+        grid-template-columns: auto 1fr;
+        text-align: left;
+        gap: 12px 16px;
+    }
+    :is(.modulo-deportivo, .modulo-pelvico) .title-section { text-align: left; }
+    :is(.modulo-deportivo, .modulo-pelvico) .date-section {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 6px 16px;
+        text-align: left;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+}
+@media (max-width: 768px) {
+    :is(.modulo-deportivo, .modulo-pelvico) .logo-section { padding: 4px 6px; border-radius: 10px; }
+    :is(.modulo-deportivo, .modulo-pelvico) .logo { max-width: 48px; }
+    :is(.modulo-deportivo, .modulo-pelvico) .date-section .info-row { font-size: 12px; }
+}
+
+/* Índice de progreso con el acento del módulo de piso pélvico */
+body.modulo-pelvico .form-progress-bar span { background: linear-gradient(90deg, #8E24AA, #C46BD6); }
+body.modulo-pelvico .form-progress-pill.done { background: var(--accent-soft); border-color: #D9B8E2; color: var(--secondary-color); }
+body.modulo-pelvico .form-progress-pill.active { outline-color: var(--accent-ring); }

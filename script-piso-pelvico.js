@@ -173,10 +173,10 @@ class ReportePisoPelvico {
         container.innerHTML = this.referidos.map(r => `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #e0e4e8; border-radius: 8px; margin-bottom: 8px; background: #f8fafc;">
                 <div>
-                    <strong style="color: #0A94B0;">${r.nombre}</strong>
-                    ${r.contacto ? `<div style="font-size: 12px; color: #95a5a6;">${r.contacto}</div>` : ''}
+                    <strong style="color: #0A94B0;">${Kinetiq.escapeHtml(r.nombre)}</strong>
+                    ${r.contacto ? `<div style="font-size: 12px; color: #95a5a6;">${Kinetiq.escapeHtml(r.contacto)}</div>` : ''}
                 </div>
-                <button type="button" data-referido-id="${r.id}" class="btn-delete-referido" style="padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Eliminar</button>
+                <button type="button" data-referido-id="${Kinetiq.escapeHtml(r.id)}" class="btn-delete-referido" style="padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Eliminar</button>
             </div>
         `).join('');
         
@@ -265,7 +265,8 @@ class ReportePisoPelvico {
             if (key === 'checkboxGroups' || key === 'radioGroups') return;
 
             const element = document.getElementById(key);
-            if (element) {
+            // Los campos de archivo no aceptan valores por código (reportes viejos guardaron la ruta falsa del archivo)
+            if (element && element.type !== 'file') {
                 if (element.type === 'checkbox') {
                     element.checked = Boolean(data[key]);
                 } else if (key === 'referidoSeleccionado') {
@@ -662,6 +663,12 @@ class ReportePisoPelvico {
             return;
         }
 
+        const q = Kinetiq.sanitizeSearch(query);
+        if (q.length < 2) {
+            results.innerHTML = '<p style="color: #7f8c8d; text-align: center; padding: 20px;">Escribe al menos 2 caracteres válidos...</p>';
+            return;
+        }
+
         loading.style.display = 'block';
         results.innerHTML = '';
 
@@ -669,8 +676,9 @@ class ReportePisoPelvico {
             const { data, error } = await window.supabaseClient.supabase
                 .from('reportes')
                 .select('cedula, nombre, apellido, tipo_reporte, reporte_json, fecha_modificacion')
-                .or(`nombre.ilike.%${query}%,apellido.ilike.%${query}%,cedula.ilike.%${query}%`)
-                .order('fecha_modificacion', { ascending: false });
+                .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,cedula.ilike.%${q}%`)
+                .order('fecha_modificacion', { ascending: false })
+                .limit(50);
 
             if (error) throw error;
 
@@ -684,7 +692,7 @@ class ReportePisoPelvico {
             this.renderSearchResults(data);
         } catch (error) {
             loading.style.display = 'none';
-            results.innerHTML = `<p style="color: #e74c3c; text-align: center; padding: 20px;">Error: ${error.message}</p>`;
+            results.innerHTML = `<p style="color: #e74c3c; text-align: center; padding: 20px;">Error: ${Kinetiq.escapeHtml(error.message)}</p>`;
         }
     }
 
@@ -723,31 +731,30 @@ class ReportePisoPelvico {
                 }
             });
 
-            let buttonsHtml = '';
-            tipos.forEach(tipo => {
-                const report = records.find(r => (r.tipo_reporte || 'pisada') === tipo);
-                const label = tipo === 'piso_pelvico' ? '\u{1FA80} Ver P\u00E9lvico' : '\u{1F463} Ver Pisada';
-                const bg = tipo === 'piso_pelvico' ? '#087D94' : '#0A94B0';
-                const target = tipo === 'piso_pelvico' ? 'reporte-piso-pelvico.html' : 'index.html';
-                buttonsHtml += `<button onclick="event.stopPropagation();(function(){
-                    var r = ${JSON.stringify(report).replace(/<\/script>/gi, '<\\/script>')};
-                    sessionStorage.setItem('reportToLoad',JSON.stringify(r.reporte_json));
-                    if(r.adjuntos) sessionStorage.setItem('adjuntosToLoad',JSON.stringify(r.adjuntos));
-                    window.location.href='${target}';
-                })()" style="padding:8px 16px;background:${bg};color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin-left:6px;">${label}</button>`;
-            });
-
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <strong style="font-size: 15px; color: #0A94B0;">${datos.nombre || first.nombre || 'Sin nombre'} ${datos.apellido || first.apellido || ''}</strong>
-                        <div style="font-size: 12px; color: #95a5a6; margin-top: 2px;">CC: ${first.cedula || '-'} — Click para cargar datos en este formulario</div>
+                        <strong style="font-size: 15px; color: #0A94B0;">${Kinetiq.escapeHtml(datos.nombre || first.nombre || 'Sin nombre')} ${Kinetiq.escapeHtml(datos.apellido || first.apellido || '')}</strong>
+                        <div style="font-size: 12px; color: #95a5a6; margin-top: 2px;">CC: ${Kinetiq.escapeHtml(first.cedula || '-')} — Click para cargar datos en este formulario</div>
                     </div>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        ${buttonsHtml}
-                    </div>
+                    <div class="search-result-actions" style="display:flex;align-items:center;gap:8px;"></div>
                 </div>
             `;
+
+            const actions = card.querySelector('.search-result-actions');
+            tipos.forEach(tipo => {
+                const report = records.find(r => (r.tipo_reporte || 'pisada') === tipo);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = tipo === 'piso_pelvico' ? '\u{1FA80} Ver Pélvico' : '\u{1F463} Ver Pisada';
+                btn.style.cssText = `padding:8px 16px;background:${tipo === 'piso_pelvico' ? '#087D94' : '#0A94B0'};color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin-left:6px;`;
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    sessionStorage.setItem('reportToLoad', JSON.stringify(report.reporte_json || {}));
+                    window.location.href = tipo === 'piso_pelvico' ? 'reporte-piso-pelvico.html' : 'index.html';
+                });
+                actions.appendChild(btn);
+            });
             results.appendChild(card);
         });
     }
@@ -930,9 +937,9 @@ class ReportePisoPelvico {
         if (!file) return;
 
         // Límite de seguridad: máximo 15MB por archivo para evitar sobrecarga de memoria
-        const MAX_SIZE = 15 * 1024 * 1024;
+        const MAX_SIZE = Kinetiq.MAX_CARGA_MB * 1024 * 1024;
         if (file.size > MAX_SIZE) {
-            this.showAlert('El archivo supera el tamaño máximo permitido (15 MB).', 'error');
+            this.showAlert(`El archivo supera el tamaño máximo permitido (${Kinetiq.MAX_CARGA_MB} MB).`, 'error');
             return;
         }
 
@@ -980,6 +987,11 @@ class ReportePisoPelvico {
                                 data = this.decodeBase64Json(cleanBase64);
                             }
                         }
+
+                        // PDFs nuevos: sólo traen la referencia, los datos se leen de la base de datos
+                        if (!data && subject && subject.includes('KINETIQ_REF:')) {
+                            data = await this.cargarDesdeReferencia(subject.split('KINETIQ_REF:')[1]);
+                        }
                     } catch (eMeta) {
                         console.warn('Metadatos digitales no disponibles con PDFLib:', eMeta);
                     }
@@ -1013,6 +1025,18 @@ class ReportePisoPelvico {
         }
 
         this.showAlert('Formato no soportado. Por favor selecciona un archivo .pdf o .json.', 'error');
+    }
+
+    async cargarDesdeReferencia(refStr) {
+        try {
+            const ref = JSON.parse(String(refStr).trim());
+            if (!ref?.cc || !window.supabaseClient?.supabase) return null;
+            const reporte = await window.supabaseClient.getReporteByCedulaTipo(ref.cc, ref.tipo || 'piso_pelvico');
+            return reporte?.reporte_json || null;
+        } catch (e) {
+            console.warn('No se pudo cargar el reporte referenciado desde la base de datos:', e);
+            return null;
+        }
     }
 
     decodeBase64Json(cleanBase64) {
@@ -1072,11 +1096,19 @@ class ReportePisoPelvico {
 
     getSection(text, header, nextHeaders) {
         if (!text) return '';
+        // Cortar también en cualquier otro título conocido: si una sección no está en el PDF,
+        // la anterior no debe extenderse hasta el final del documento
+        const TITULOS = ['DATOS GENERALES', 'ANAMNESIS', 'ANTECEDENTES OCUPACIONALES', 'DINÁMICA MICCIONAL', 'DINÁMICA DEFECATORIA',
+            'DINÁMICA OBSTETRA', 'DINÁMICA MENSTRUAL', 'DINÁMICA SEXUAL', 'ESTADO DEL PACIENTE', 'GENITOURINARIO',
+            'DESARROLLO DE LA ACTIVIDAD', 'NOTAS DE ANÁLISIS Y PLAN', 'OBJETIVOS', 'ATENCIÓN EN MÓDULO DE PISO PÉLVICO',
+            'RECOMENDACIONES', 'SIGNOS DE ALARMA', 'KINETIQ SPORTS'];
+        nextHeaders = [...nextHeaders, ...TITULOS.filter(t => t !== header)];
         const escHeader = header.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
         const escNext = nextHeaders.map(h => h.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|');
         const regex = new RegExp(escHeader + '\\s*([\\s\\S]*?)(?=' + escNext + '|$)', 'i');
         const m = text.match(regex);
-        return m ? m[1] : '';
+        // Quitar el número de la siguiente sección (insignia "05" del diseño nuevo del PDF)
+        return m ? m[1].replace(/\s+\d{2}\s*$/, '') : '';
     }
 
     parseOldPdfText(text) {
@@ -1103,19 +1135,19 @@ class ReportePisoPelvico {
             cc: this.extractBetween(secDatos || text, 'CC:', ['Celular:', 'Edad:']),
             celular: this.extractBetween(secDatos || text, 'Celular:', ['Edad:', 'Sexo:']),
             edad: this.extractBetween(secDatos || text, 'Edad:', ['años', 'Sexo:']).replace(/\D/g, ''),
-            sexo: this.extractBetween(secDatos || text, 'Sexo:', ['Ocupación:', 'Peso:']),
+            sexo: this.extractBetween(secDatos || text, 'Sexo:', ['Ocupación:', 'Peso:', 'Talla:', 'IMC:', 'Anamnesis']),
             ocupacion: this.extractBetween(secDatos || text, 'Ocupación:', ['Peso:', 'Talla:']),
             peso: this.extractBetween(secDatos || text, 'Peso:', ['Kg', 'kg', 'Talla:']).replace(/[^0-9.]/g, ''),
             talla: this.extractBetween(secDatos || text, 'Talla:', ['cm', 'IMC:']).replace(/[^0-9.]/g, ''),
             
-            acompanante: this.extractBetween(secAnamnesis || text, 'Paciente ingresa en compañía de:', ['Dx médico:', 'Refiere dolor']),
-            dxMedico: this.extractBetween(secAnamnesis || text, 'Dx médico:', ['Refiere dolor / molestia:', 'Especialista']),
-            refiereDolor: this.extractBetween(secAnamnesis || text, 'Refiere dolor / molestia:', ['Especialista que remite:', 'Ciclo de terapia:']),
-            especialistaRemite: this.extractBetween(secAnamnesis || text, 'Especialista que remite:', ['Ciclo de terapia:', 'Medicamentos:']),
-            cicloTerapia: this.extractBetween(secAnamnesis || text, 'Ciclo de terapia:', ['Medicamentos:', 'Exámenes:']),
-            medicamentos: this.extractBetween(secAnamnesis || text, 'Medicamentos:', ['Exámenes:', 'Barreras:', 'Expectativa']),
-            examenes: this.extractBetween(secAnamnesis || text, 'Exámenes:', ['Barreras:', 'Facilitadores:', 'Expectativa']),
-            expectativaPaciente: this.extractBetween(secAnamnesis || text, 'Expectativa del paciente:', ['ANTECEDENTES OCUPACIONALES', 'DINÁMICA']),
+            acompanante: this.extractBetween(secAnamnesis || text, 'Paciente ingresa en compañía de:', ['Dx médico:', 'Refiere dolor']).replace(/\.$/, ''),
+            dxMedico: this.extractBetween(secAnamnesis || text, 'Dx médico:', ['Refiere dolor / molestia:', 'Especialista']).replace(/\.$/, ''),
+            refiereDolor: this.extractBetween(secAnamnesis || text, 'Refiere dolor / molestia:', ['Especialista que remite:', 'Ciclo de terapia:']).replace(/\.$/, ''),
+            especialistaRemite: this.extractBetween(secAnamnesis || text, 'Especialista que remite:', ['Ciclo de terapia:', 'Medicamentos:']).replace(/\.$/, ''),
+            cicloTerapia: this.extractBetween(secAnamnesis || text, 'Ciclo de terapia:', ['Medicamentos:', 'Exámenes:']).replace(/\.$/, ''),
+            medicamentos: this.extractBetween(secAnamnesis || text, 'Medicamentos:', ['Exámenes:', 'Barreras:', 'Expectativa']).replace(/\.$/, ''),
+            examenes: this.extractBetween(secAnamnesis || text, 'Exámenes:', ['Barreras:', 'Facilitadores:', 'Expectativa']).replace(/\.$/, ''),
+            expectativaPaciente: this.extractBetween(secAnamnesis || text, 'Expectativa del paciente:', ['ANTECEDENTES OCUPACIONALES', 'DINÁMICA']).replace(/\.$/, ''),
 
             desempenoLaboral: this.extractBetween(secOcup || text, 'Ocupación:', ['Tipo trabajo:', 'Puesto ergonómico']),
             tipoTrabajo: this.extractBetween(secOcup || text, 'Tipo trabajo:', ['Puesto ergonómico:', 'Pausas activas:']),
@@ -1221,12 +1253,12 @@ class ReportePisoPelvico {
             return;
         }
 
-        const maxSize = 10 * 1024 * 1024;
+        const maxSize = Kinetiq.MAX_ADJUNTO_MB * 1024 * 1024;
         const tiposValidos = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
 
         const lecturas = files.map(file => new Promise((resolve, reject) => {
             if (file.size > maxSize) {
-                reject(new Error(`El archivo ${file.name} supera 10MB`));
+                reject(new Error(`El archivo ${file.name} supera ${Kinetiq.MAX_ADJUNTO_MB}MB`));
                 return;
             }
             if (!tiposValidos.includes(file.type)) {
@@ -1351,53 +1383,52 @@ class ReportePisoPelvico {
     async executeSaveReport() {
         try {
             await this.guardarEnDB();
-            document.getElementById('confirmModal').classList.remove('active');
+            this.resetConfirmModal();
             this.showAlert('✓ Reporte guardado correctamente', 'success');
             setTimeout(() => window.location.href = 'bienvenida.html', 1500);
         } catch (error) {
             console.error('Error en executeSaveReport:', error);
-            document.getElementById('confirmModal').classList.remove('active');
+            this.resetConfirmModal();
             this.showAlert('Error al guardar: ' + error.message, 'error');
         }
     }
 
     async guardarEnDB() {
-        if (!window.supabaseClient) {
-            console.warn('Supabase no configurado');
-            return;
+        if (!window.supabaseClient?.supabase) {
+            throw new Error('Base de datos no disponible. Revisa tu conexión e intenta de nuevo.');
         }
 
         const nombre = document.getElementById('nombre').value.trim();
         const apellido = document.getElementById('apellido')?.value.trim() || '';
         const cedula = document.getElementById('cc').value.trim();
 
-        if (!cedula) return;
+        if (!cedula) throw new Error('La cédula es obligatoria para guardar el reporte.');
 
         const reporteData = this.collectFormData();
         const currentUser = await window.supabaseClient.getCurrentUser();
         const userId = currentUser?.id;
         const userEmail = currentUser?.email || sessionStorage.getItem('userEmail') || null;
 
+        const atendidoPor = document.getElementById('atendidoPor')?.value || Kinetiq.PROFESIONALES.piso_pelvico[0];
+
         const dataToSave = {
             cedula,
             nombre,
             apellido,
-            atendido_por: 'Nataly',
+            atendido_por: atendidoPor,
             user_id: userId || null,
             modificado_por: userEmail,
             tipo_reporte: 'piso_pelvico',
-            reporte_json: { ...reporteData, atendidoPor: 'Nataly', atendido_por: 'Nataly', modificado_por: userEmail },
+            reporte_json: { ...reporteData, atendidoPor: atendidoPor, atendido_por: atendidoPor, modificado_por: userEmail },
             fecha_modificacion: new Date().toISOString()
         };
 
         if (this.adjuntos && this.adjuntos.length > 0) {
             dataToSave.archivo_adjunto = JSON.stringify(this.adjuntos);
             dataToSave.tipo_archivo_adjunto = this.adjuntos.length > 1 ? 'multiple' : this.adjuntos[0].tipo;
-            this.adjuntosEliminadosFlag = false;
         } else if (this.adjuntosEliminadosFlag) {
             dataToSave.archivo_adjunto = null;
             dataToSave.tipo_archivo_adjunto = null;
-            this.adjuntosEliminadosFlag = false;
         }
 
         const existente = await window.supabaseClient.getReporteByCedulaTipo(cedula, 'piso_pelvico');
@@ -1410,6 +1441,17 @@ class ReportePisoPelvico {
             dataToSave.reporte_json.creado_por = userEmail;
             await window.supabaseClient.saveReporte(dataToSave);
         }
+        this.adjuntosEliminadosFlag = false;
+    }
+
+    resetConfirmModal() {
+        const modal = document.getElementById('confirmModal');
+        if (!modal) return;
+        modal.classList.remove('active');
+        modal.querySelector('.modal-loading')?.classList.remove('active');
+        const buttons = modal.querySelector('.modal-buttons');
+        if (buttons) buttons.style.display = '';
+        modal.querySelectorAll('.modal-buttons button').forEach(b => { b.disabled = false; });
     }
 
     async printReport() {
@@ -1467,43 +1509,17 @@ class ReportePisoPelvico {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
 
-            const primaryColor = [10, 148, 176];
-            const accentColor = [8, 125, 148];
-            const textDark = [33, 33, 33];
+            const tema = Kinetiq.pdf.preparar(doc, 'piso_pelvico');
+            const primaryColor = tema.acento;
+            const accentColor = tema.acento;
+            const textDark = tema.tinta;
 
-            let yPos = 15;
-            const pageWidth = 210;
-
-            // HEADER
-            doc.setFillColor(...primaryColor);
-            doc.rect(0, 0, 210, 33, 'F');
-
-            // Logo
-            try {
-                doc.addImage('logo.jpeg', 'JPEG', 12, 5, 30, 21);
-            } catch (e) {
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(24);
-                doc.setFont('helvetica', 'bold');
-                doc.text('KS', 18, 24);
-            }
-
-            // Title
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(19);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Reporte de Piso Pélvico', 52, 14);
-
-            // Patient info on the right side
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(255, 255, 255);
-            const today = new Date();
-            const fechaLarga = today.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
-            doc.text(`Paciente: ${nombrePaciente} ${apellidoPaciente}`, 198, 16, { align: 'right' });
-            doc.text(`Fecha: ${fechaLarga}`, 198, 23, { align: 'right' });
-
-            yPos = 42;
+            let yPos = Kinetiq.pdf.encabezado(doc, {
+                etiqueta: 'Reporte de',
+                titulo: 'Piso Pélvico',
+                paciente: `${nombrePaciente} ${apellidoPaciente}`.trim(),
+                cedula: document.getElementById('cc')?.value?.trim()
+            });
 
             const tableMargin = { left: 12, right: 12, bottom: 25 };
 
@@ -1569,7 +1585,7 @@ class ReportePisoPelvico {
             if (this.hasData(['desempenoLaboral','tipoTrabajo','puestoErgonomico','pausasActivas','actividadFisicaLaboral','consumoCigarrillo','consumoAlcohol']) || this.getCheckboxValues('habitosAlimenticios').length) {
             if (yPos > 240) { doc.addPage(); yPos = 20; }
             this.addSectionHeader(doc, 'ANTECEDENTES OCUPACIONALES', yPos, primaryColor, accentColor);
-            yPos += 9;
+            yPos += 12;
 
             const habitos = this.getCheckboxValues('habitosAlimenticios').join(', ') || '-';
             doc.autoTable({
@@ -1911,20 +1927,6 @@ class ReportePisoPelvico {
                 yPos = this.addTextSection(doc, 'SIGNOS DE ALARMA', signosVal, yPos, primaryColor, accentColor, textDark);
             }
 
-            // FOOTER EN TODAS LAS PÁGINAS
-            const pageCount = doc.getNumberOfPages();
-            for (let i = 1; i <= pageCount; i++) {
-                doc.setPage(i);
-                doc.setDrawColor(10, 148, 176);
-                doc.setLineWidth(0.5);
-                doc.line(12, 280, 198, 280);
-                doc.setFontSize(7);
-                doc.setFont('helvetica', 'normal');
-                doc.setTextColor(150, 160, 170);
-                doc.text('KINETIQ SPORTS · Sistema Inteligente de Evaluación Biomecánica', 12, 285);
-                doc.text(`Página ${i} de ${pageCount}`, 198, 285, { align: 'right' });
-            }
-
             // Adjuntar imágenes
             if (this.adjuntos && this.adjuntos.length > 0) {
                 const imagenes = this.adjuntos.filter(a => a.tipo.startsWith('image/'));
@@ -1932,6 +1934,8 @@ class ReportePisoPelvico {
                     await this.agregarArchivoAlPDF(doc, imagen);
                 }
             }
+
+            Kinetiq.pdf.pie(doc, 'Reporte de piso pélvico', nombreCompleto);
 
             let pdfBytes = doc.output('arraybuffer');
 
@@ -1952,10 +1956,9 @@ class ReportePisoPelvico {
                         }
                     }
 
-                    // Incrustar copia digital de seguridad en metadatos Subject
-                    const rawPayload = JSON.stringify(reporteData);
-                    const encodedData = btoa(unescape(encodeURIComponent(rawPayload)));
-                    mainDoc.setSubject('KINETIQ_DATA:' + encodedData);
+                    // Sólo una referencia al registro (sin datos clínicos): este PDF se entrega al paciente
+                    const cedulaRef = document.getElementById('cc')?.value?.trim() || '';
+                    mainDoc.setSubject('KINETIQ_REF:' + JSON.stringify({ cc: cedulaRef, tipo: 'piso_pelvico' }));
                     mainDoc.setTitle(filename);
 
                     pdfBytes = await mainDoc.save();
@@ -1983,29 +1986,25 @@ class ReportePisoPelvico {
                 console.error('Error guardando en base de datos al descargar PDF:', dbErr);
             }
 
-            document.getElementById('confirmModal').classList.remove('active');
+            this.resetConfirmModal();
 
             if (dbSuccess) {
                 this.showAlert('✓ PDF descargado y guardado en base de datos correctamente', 'success');
                 setTimeout(() => window.location.href = 'bienvenida.html', 2000);
             } else {
-                this.showAlert('⚠️ PDF descargado con copia digital de seguridad. Si hubo un problema al guardar en la base de datos, puedes subir este PDF más tarde con el botón "Cargar".', 'warning');
+                Kinetiq.descargarRespaldoJSON(this.collectFormData(), nombreCompleto);
+                this.showAlert('⚠️ El PDF se descargó, pero NO se pudo guardar en la base de datos. Se descargó un respaldo .json: cárgalo con el botón "Cargar" y presiona "Guardar" cuando vuelva la conexión.', 'error');
             }
 
         } catch (error) {
             console.error('Error en generateAndSavePDF:', error);
-            document.getElementById('confirmModal').classList.remove('active');
+            this.resetConfirmModal();
             this.showAlert('Error al generar PDF: ' + error.message, 'error');
         }
     }
 
-    addSectionHeader(doc, title, yPos, primaryColor, accentColor) {
-        doc.setFillColor(...primaryColor);
-        doc.roundedRect(12, yPos, 186, 9, 2, 2, 'F');
-        doc.setFontSize(9);
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.text(title, 18, yPos + 6.5);
+    addSectionHeader(doc, title, yPos) {
+        Kinetiq.pdf.seccion(doc, title, yPos);
     }
 
     addTextSection(doc, title, text, yPos, primaryColor, accentColor, textDark) {
@@ -2065,17 +2064,7 @@ class ReportePisoPelvico {
             if (!adjunto?.tipo || !adjunto.tipo.startsWith('image/')) return;
 
             doc.addPage();
-            const primaryColor = [10, 148, 176];
-            const accentColor = [8, 125, 148];
-
-            doc.setFillColor(...primaryColor);
-            doc.rect(0, 0, 210, 35, 'F');
-            doc.setFillColor(...accentColor);
-            doc.rect(0, 32, 210, 3, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text('ANEXO ADJUNTO', 15, 20);
+            Kinetiq.pdf.anexo(doc, adjunto.nombre);
 
             const img = new Image();
             img.src = adjunto.data;
@@ -2089,7 +2078,7 @@ class ReportePisoPelvico {
                     } else {
                         if (height > maxHeight) { width = (width * maxHeight) / height; height = maxHeight; }
                     }
-                    doc.addImage(adjunto.data, adjunto.tipo.split('/')[1].toUpperCase(), (210 - width) / 2, 45, width, height);
+                    doc.addImage(adjunto.data, adjunto.tipo.split('/')[1].toUpperCase(), (210 - width) / 2, 34, width, height);
                     resolve();
                 };
             });
@@ -2110,7 +2099,7 @@ class ReportePisoPelvico {
             alertDiv.style.opacity = '0';
             alertDiv.style.transition = 'opacity 0.3s ease';
             setTimeout(() => alertDiv.remove(), 300);
-        }, 3000);
+        }, type === 'error' || type === 'warning' ? 8000 : 3000);
     }
 }
 

@@ -3,264 +3,553 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporte Médico - Sistema</title>
+    <title>Inicio - KinetiqSports</title>
     <link rel="icon" type="image/png" href="favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --brand: #0A94B0;
+            --brand-strong: #087D94;
+            --brand-glow: #19C3E0;
+            --pelvic: #8E24AA;
+            --ink: #0F1A1F;
+            --ink-soft: #5B6B73;
+            --ink-muted: #8A989F;
+            --bg: #F3F6F8;
+            --surface: #FFFFFF;
+            --line: #E3E9EC;
+            --dark: #0B1417;
         }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #003A5D 0%, #00C8D4 100%);
+            font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
             min-height: 100vh;
+        }
+
+        /* ---------- Barra superior ---------- */
+        .topbar {
+            background: var(--dark);
+            color: #fff;
+        }
+        .topbar-inner {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 14px 24px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            padding: 20px;
+            justify-content: space-between;
+            gap: 16px;
         }
-
-        .home-container {
-            max-width: 500px;
-            width: 100%;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 58, 93, 0.3);
-            overflow: hidden;
-            animation: slideUp 0.5s ease-out;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .header {
-            background: linear-gradient(135deg, #003A5D 0%, #005073 100%);
-            color: white;
-            padding: 50px 30px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 32px;
-            margin-bottom: 8px;
-            font-weight: 700;
-        }
-
-        .header p {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-
-        .content {
-            padding: 40px 30px;
-            text-align: center;
-        }
-
-        .info-box {
-            background: #F7FBFD;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #00C8D4;
-            margin-bottom: 30px;
-            color: #666666;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-
-        .buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .btn {
-            padding: 16px 24px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
+        .brand {
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 12px;
-            font-size: 16px;
-            text-transform: uppercase;
+            font-weight: 800;
             letter-spacing: 0.3px;
         }
+        .brand img {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            background: #fff;
+            border-radius: 10px;
+            padding: 3px;
+        }
+        .brand small {
+            display: block;
+            font-weight: 500;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 0;
+        }
+        .user-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .user-info img {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 2px solid rgba(25, 195, 224, 0.6);
+        }
+        .logout-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 8px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .logout-btn:hover { background: rgba(255, 255, 255, 0.16); }
+        .logout-btn svg { width: 16px; height: 16px; }
 
-        .btn-new {
-            background: linear-gradient(135deg, #00C8D4 0%, #00a8c4 100%);
-            color: white;
+        /* ---------- Hero ---------- */
+        .hero {
+            background:
+                radial-gradient(circle at 12% 0%, rgba(25, 195, 224, 0.25) 0, transparent 40%),
+                linear-gradient(180deg, var(--dark) 0%, #0F2A31 100%);
+            color: #fff;
+            padding: 36px 0 96px;
+        }
+        .wrap {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        .hero .date {
+            font-size: 13px;
+            text-transform: capitalize;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 600;
+        }
+        .hero h1 {
+            margin-top: 6px;
+            font-size: clamp(26px, 3.2vw, 36px);
+            font-weight: 800;
+            letter-spacing: -0.6px;
+        }
+        .hero p {
+            margin-top: 8px;
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 15px;
         }
 
-        .btn-new:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0, 200, 212, 0.3);
+        /* ---------- KPIs ---------- */
+        .kpis {
+            margin-top: -64px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
         }
-
-        .btn-view {
-            background: linear-gradient(135deg, #003A5D 0%, #005073 100%);
-            color: white;
+        .kpi {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 18px 18px 16px;
+            box-shadow: 0 10px 30px rgba(11, 20, 23, 0.08);
         }
+        .kpi-label {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--ink-soft);
+        }
+        .kpi-value {
+            margin-top: 6px;
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: -0.8px;
+            color: var(--ink);
+        }
+        .kpi-delta {
+            margin-top: 4px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--ink-muted);
+        }
+        .kpi-delta.up { color: #1E8449; }
+        .kpi-delta.down { color: #B03A2E; }
 
-        .btn-view:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0, 58, 93, 0.3);
+        /* ---------- Acciones ---------- */
+        .section-title {
+            margin: 34px 0 14px;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--ink);
+        }
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        .action-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 22px;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            text-decoration: none;
+            color: var(--ink);
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        }
+        .action-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent, var(--brand));
+            box-shadow: 0 14px 34px rgba(11, 20, 23, 0.1);
+        }
+        .action-card:focus-visible {
+            outline: 3px solid rgba(10, 148, 176, 0.35);
+            outline-offset: 2px;
+        }
+        .action-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: grid;
+            place-items: center;
+            background: var(--accent-soft, #E6F6FA);
+            color: var(--accent, var(--brand));
+        }
+        .action-icon svg { width: 24px; height: 24px; }
+        .action-card h3 { font-size: 17px; font-weight: 700; }
+        .action-card p { font-size: 13.5px; line-height: 1.5; color: var(--ink-soft); }
+        .action-go {
+            margin-top: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--accent, var(--brand));
+        }
+        .action-go svg { width: 16px; height: 16px; transition: transform 0.2s; }
+        .action-card:hover .action-go svg { transform: translateX(3px); }
+        .action-card.pelvic { --accent: var(--pelvic); --accent-soft: #F5E9F8; }
+        .action-card.stats { --accent: #0F1A1F; --accent-soft: #EEF1F3; }
+
+        /* ---------- Recientes ---------- */
+        .recent {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            overflow: hidden;
+        }
+        .recent-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 20px;
+            border-top: 1px solid var(--line);
+            cursor: pointer;
+            background: none;
+            border-left: none;
+            border-right: none;
+            border-bottom: none;
+            width: 100%;
+            font-family: inherit;
+            text-align: left;
+            color: inherit;
+            transition: background 0.15s;
+        }
+        .recent-item:first-child { border-top: none; }
+        .recent-item:hover { background: #F7FAFB; }
+        .avatar {
+            flex: 0 0 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-weight: 800;
+            font-size: 14px;
+            background: #E6F6FA;
+            color: var(--brand-strong);
+        }
+        .avatar.pelvic { background: #F5E9F8; color: var(--pelvic); }
+        .recent-name { font-weight: 700; font-size: 14.5px; }
+        .recent-meta { font-size: 12.5px; color: var(--ink-muted); margin-top: 2px; }
+        .recent-tag {
+            margin-left: auto;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: #E6F6FA;
+            color: var(--brand-strong);
+            white-space: nowrap;
+        }
+        .recent-tag.pelvic { background: #F5E9F8; color: var(--pelvic); }
+        .recent-empty {
+            padding: 22px 20px;
+            font-size: 14px;
+            color: var(--ink-muted);
         }
 
         .footer {
-            background: #F7FBFD;
-            padding: 20px;
             text-align: center;
-            color: #999999;
-            font-size: 12px;
-            border-top: 1px solid #E8F4F8;
+            padding: 36px 24px 28px;
+            font-size: 12.5px;
+            color: var(--ink-muted);
         }
 
-        .logout-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            background: #e74c3c;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
+        @media (max-width: 900px) {
+            .kpis { grid-template-columns: repeat(2, 1fr); }
+            .actions { grid-template-columns: 1fr; }
         }
-
-        .logout-btn:hover {
-            background: #c0392b;
-        }
-
-        .user-info {
-            text-align: center;
-            color: #7f8c8d;
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-
-        .user-info img {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-right: 10px;
-            vertical-align: middle;
-        }
-
-        @media (max-width: 480px) {
-            .header {
-                padding: 40px 20px;
-            }
-
-            .header h1 {
-                font-size: 28px;
-            }
-
-            .content {
-                padding: 30px 20px;
-            }
-
-            .btn {
-                font-size: 14px;
-            }
+        @media (max-width: 520px) {
+            .topbar-inner { padding: 12px 16px; }
+            .wrap { padding: 0 16px; }
+            .user-info span { display: none; }
+            .brand small { display: none; }
+            .kpi-value { font-size: 26px; }
+            .recent-tag { display: none; }
         }
     </style>
     <script src="env-config.js"></script>
-    <script src="supabase-config.js"></script>
-    <script src="auth-guard.js"></script>
-    <script>
-        // Proteger página: verificar que esté logueado
-        window.addEventListener('load', () => {
-            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-            if (isLoggedIn) {
-                // Mostrar info del usuario
-                const userName = sessionStorage.getItem('userName');
-                const userPicture = sessionStorage.getItem('userPicture');
-                const userInfoDiv = document.getElementById('userInfo');
-                
-                if (userInfoDiv && userName) {
-                    let html = `<span>${userName}</span>`;
-                    if (userPicture) {
-                        html = `<img src="${userPicture}" alt="Avatar"> ${html}`;
-                    }
-                    userInfoDiv.innerHTML = html;
-                }
+    <script src="supabase-config.js?v=20261022_v1"></script>
+    <script src="kinetiq-common.js?v=20261022_v6"></script>
+    <script src="auth-guard.js?v=20261022_v3"></script>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <div class="brand">
+                <img src="kinetiq_logo.png" alt="">
+                <div>Kinetiq Sports<small>Plataforma clínica</small></div>
+            </div>
+            <div class="user-box">
+                <div class="user-info" id="userInfo"></div>
+                <button class="logout-btn" onclick="logout()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                    Cerrar sesión
+                </button>
+            </div>
+        </div>
+    </header>
 
-                // Preload reportes data in background
-                preloadReportesData();
+    <section class="hero">
+        <div class="wrap">
+            <div class="date" id="todayDate"></div>
+            <h1 id="greeting">Hola 👋</h1>
+            <p>¿Qué quieres hacer hoy?</p>
+        </div>
+    </section>
+
+    <main class="wrap">
+        <div class="kpis">
+            <div class="kpi">
+                <div class="kpi-label">Valoraciones este mes</div>
+                <div class="kpi-value" id="kpiMes">—</div>
+                <div class="kpi-delta" id="kpiMesDelta">&nbsp;</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-label">Mes anterior</div>
+                <div class="kpi-value" id="kpiMesAnterior">—</div>
+                <div class="kpi-delta" id="kpiMesAnteriorSub">&nbsp;</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-label">Pacientes registrados</div>
+                <div class="kpi-value" id="kpiPacientes">—</div>
+                <div class="kpi-delta">Total histórico</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-label">Este año</div>
+                <div class="kpi-value" id="kpiAnio">—</div>
+                <div class="kpi-delta" id="kpiAnioSub">&nbsp;</div>
+            </div>
+        </div>
+
+        <h2 class="section-title">Accesos rápidos</h2>
+        <div class="actions">
+            <a href="index.html" class="action-card">
+                <span class="action-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </span>
+                <h3>Fisioterapia deportiva</h3>
+                <p>Nueva valoración: anamnesis, actividad física, postura, marcha y pruebas.</p>
+                <span class="action-go">Iniciar valoración
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </span>
+            </a>
+            <a href="reporte-piso-pelvico.html" class="action-card pelvic">
+                <span class="action-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+                </span>
+                <h3>Piso pélvico</h3>
+                <p>Valoración completa: dinámicas miccional, defecatoria, obstétrica y sexual.</p>
+                <span class="action-go">Iniciar valoración
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </span>
+            </a>
+            <a href="ver-reportes.html" class="action-card stats">
+                <span class="action-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+                </span>
+                <h3>Pacientes y analítica</h3>
+                <p>Registro de pacientes con buscador y filtros, y la analítica completa de la clínica.</p>
+                <span class="action-go">Ver pacientes
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </span>
+            </a>
+        </div>
+
+        <h2 class="section-title">Últimos pacientes</h2>
+        <div class="recent" id="recentList">
+            <div class="recent-empty">Cargando pacientes recientes...</div>
+        </div>
+    </main>
+
+    <footer class="footer">© Kinetiq Sports · Reporte médico digital</footer>
+
+    <script>
+        const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+        function renderHeader() {
+            const hoy = new Date();
+            document.getElementById('todayDate').textContent =
+                hoy.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+            const hora = hoy.getHours();
+            const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
+            const userName = sessionStorage.getItem('userName') || '';
+            const nombre = userName.split(' ')[0];
+            document.getElementById('greeting').textContent = nombre ? `${saludo}, ${nombre} 👋` : `${saludo} 👋`;
+
+            const userInfo = document.getElementById('userInfo');
+            const userPicture = sessionStorage.getItem('userPicture');
+            if (userName) {
+                if (userPicture && /^https:\/\//.test(userPicture)) {
+                    const img = document.createElement('img');
+                    img.src = userPicture;
+                    img.alt = '';
+                    img.referrerPolicy = 'no-referrer';
+                    userInfo.appendChild(img);
+                }
+                const span = document.createElement('span');
+                span.textContent = userName;
+                userInfo.appendChild(span);
             }
-        });
+        }
+
+        function fechaDe(r) {
+            const d = new Date(r.fecha_creacion || r.fecha_modificacion);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        function renderResumen(reportes) {
+            const hoy = new Date();
+            const mes = hoy.getMonth(), anio = hoy.getFullYear();
+            const mesAnt = mes === 0 ? 11 : mes - 1;
+            const anioMesAnt = mes === 0 ? anio - 1 : anio;
+
+            let enMes = 0, enMesAnt = 0, enAnio = 0;
+            reportes.forEach(r => {
+                const d = fechaDe(r);
+                if (!d) return;
+                if (d.getFullYear() === anio) {
+                    enAnio++;
+                    if (d.getMonth() === mes) enMes++;
+                }
+                if (d.getFullYear() === anioMesAnt && d.getMonth() === mesAnt) enMesAnt++;
+            });
+            const pacientes = new Set(reportes.map(r => String(r.cedula || r.id))).size;
+
+            document.getElementById('kpiMes').textContent = enMes;
+            document.getElementById('kpiMesAnterior').textContent = enMesAnt;
+            document.getElementById('kpiMesAnteriorSub').textContent = MESES[mesAnt].charAt(0).toUpperCase() + MESES[mesAnt].slice(1);
+            document.getElementById('kpiPacientes').textContent = pacientes;
+            document.getElementById('kpiAnio').textContent = enAnio;
+            document.getElementById('kpiAnioSub').textContent = `Valoraciones en ${anio}`;
+
+            const delta = document.getElementById('kpiMesDelta');
+            if (enMesAnt > 0) {
+                const pct = Math.round(((enMes - enMesAnt) / enMesAnt) * 100);
+                delta.textContent = `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}% vs. mes anterior`;
+                delta.className = 'kpi-delta ' + (pct >= 0 ? 'up' : 'down');
+            } else {
+                delta.textContent = 'Sin datos del mes anterior';
+                delta.className = 'kpi-delta';
+            }
+        }
+
+        function renderRecientes(reportes) {
+            const cont = document.getElementById('recentList');
+            const recientes = [...reportes]
+                .sort((a, b) => new Date(b.fecha_modificacion || b.fecha_creacion) - new Date(a.fecha_modificacion || a.fecha_creacion))
+                .slice(0, 4);
+
+            if (!recientes.length) {
+                cont.innerHTML = '<div class="recent-empty">Aún no hay pacientes registrados.</div>';
+                return;
+            }
+
+            cont.innerHTML = '';
+            recientes.forEach(r => {
+                const pelvic = r.tipo_reporte === 'piso_pelvico';
+                const nombre = `${r.nombre || ''} ${r.apellido || ''}`.trim() || 'Paciente sin nombre';
+                const iniciales = nombre.split(/\s+/).slice(0, 2).map(p => p.charAt(0).toUpperCase()).join('');
+                const fecha = new Date(r.fecha_modificacion || r.fecha_creacion);
+                const fechaTxt = isNaN(fecha.getTime()) ? '' : fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'recent-item';
+                item.innerHTML = `
+                    <span class="avatar ${pelvic ? 'pelvic' : ''}">${Kinetiq.escapeHtml(iniciales)}</span>
+                    <span>
+                        <div class="recent-name">${Kinetiq.escapeHtml(nombre)}</div>
+                        <div class="recent-meta">CC ${Kinetiq.escapeHtml(r.cedula || '-')}${fechaTxt ? ' · ' + Kinetiq.escapeHtml(fechaTxt) : ''}</div>
+                    </span>
+                    <span class="recent-tag ${pelvic ? 'pelvic' : ''}">${pelvic ? 'Piso pélvico' : 'Fisio deportiva'}</span>
+                `;
+                item.addEventListener('click', () => {
+                    sessionStorage.setItem('reportToLoad', JSON.stringify(r.reporte_json || {}));
+                    window.location.href = pelvic ? 'reporte-piso-pelvico.html' : 'index.html';
+                });
+                cont.appendChild(item);
+            });
+        }
+
+        function mostrar(reportes) {
+            renderResumen(reportes);
+            renderRecientes(reportes);
+        }
 
         async function preloadReportesData() {
-            // Wait for Supabase to be ready
+            // Usar la caché de la pestaña si existe para pintar al instante
+            try {
+                const cached = JSON.parse(sessionStorage.getItem('preloadedReportes') || 'null');
+                if (cached && Array.isArray(cached.data)) mostrar(cached.data);
+            } catch (e) {}
+
             let attempts = 0;
             while ((!window.supabaseClient || !window.supabaseClient.supabase) && attempts < 20) {
                 await new Promise(resolve => setTimeout(resolve, 250));
                 attempts++;
             }
             if (!window.supabaseClient || !window.supabaseClient.supabase) {
+                if (!sessionStorage.getItem('preloadedReportes')) {
+                    document.getElementById('recentList').innerHTML = '<div class="recent-empty">No se pudo conectar con la base de datos.</div>';
+                }
                 return;
             }
 
             try {
-                // Precargar lista de reportes en segundo plano (sin archivo_adjunto masivo)
+                // Precargar lista de reportes (sin archivo_adjunto) y guardarla en la caché de la pestaña
                 const data = await window.supabaseClient.getAllReportes();
-                if (data && data.length > 0) {
-                    try {
-                        const cache = { data, timestamp: Date.now() };
-                        localStorage.setItem('preloadedReportes', JSON.stringify(cache));
-                    } catch (quotaErr) {}
-                }
-            } catch (error) {}
+                mostrar(data || []);
+                try {
+                    sessionStorage.setItem('preloadedReportes', JSON.stringify({ data, timestamp: Date.now() }));
+                } catch (quotaErr) {}
+            } catch (error) {
+                document.getElementById('recentList').innerHTML = '<div class="recent-empty">No se pudieron cargar los pacientes recientes.</div>';
+            }
+        }
+
+        renderHeader();
+        if (sessionStorage.getItem('isLoggedIn') || sessionStorage.getItem('demoMode') === 'true') {
+            preloadReportesData();
         }
     </script>
-</head>
-<body>
-    <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
-    <div class="home-container">
-        <div class="header">
-            <h1>Reporte Médico</h1>
-            <p>Sistema de Gestión de Reportes</p>
-        </div>
-
-        <div class="content">
-            <div class="user-info" id="userInfo"></div>
-            
-            <div class="info-box">
-                Selecciona una opción para continuar. Todos tus reportes se guardan automáticamente en el sistema.
-            </div>
-
-            <div class="buttons">
-                <a href="index.html" class="btn btn-new">
-                    👣 Valoración por Fisioterapia Deportiva
-                </a>
-                <a href="reporte-piso-pelvico.html" class="btn btn-new" style="background: linear-gradient(135deg, #087D94 0%, #0A94B0 100%);">
-                    🫀 Reporte de Piso Pélvico
-                </a>
-                <a href="ver-reportes.html" class="btn btn-view" style="background: linear-gradient(135deg, #0A94B0 0%, #087D94 100%);">
-                    📊 Reportes y Estadísticas
-                </a>
-            </div>
-        </div>
-
-        <div class="footer">
-            <p>© KinetiqSports - Reporte Médico Digital</p>
-        </div>
-    </div>
 </body>
 </html>

@@ -5,214 +5,345 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - KinetiqSports</title>
     <link rel="icon" type="image/png" href="favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --brand: #0A94B0;
+            --brand-strong: #087D94;
+            --brand-glow: #19C3E0;
+            --ink: #0F1A1F;
+            --ink-soft: #5B6B73;
+            --panel-dark: #0B1417;
+            --surface: #FFFFFF;
+            --line: #E3E9EC;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+            background: var(--panel-dark);
+            color: var(--ink);
+            min-height: 100vh;
+        }
+        .login-shell {
+            display: grid;
+            grid-template-columns: 1.15fr 1fr;
+            min-height: 100vh;
         }
 
-        body {
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0A94B0 0%, #087D94 100%);
-            min-height: 100vh;
+        /* ---------- Panel de marca ---------- */
+        .brand-panel {
+            position: relative;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 18% 22%, rgba(25, 195, 224, 0.28) 0, transparent 42%),
+                radial-gradient(circle at 85% 80%, rgba(10, 148, 176, 0.35) 0, transparent 45%),
+                linear-gradient(160deg, #0B1417 0%, #0E2329 55%, #0B1417 100%);
+            color: #fff;
+            padding: 56px 64px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .brand-panel .motion-lines {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.55;
+            pointer-events: none;
+        }
+        .motion-lines path {
+            stroke-dasharray: 1400;
+            stroke-dashoffset: 1400;
+            animation: draw 3.2s ease forwards;
+        }
+        .motion-lines path:nth-child(2) { animation-delay: 0.25s; }
+        .motion-lines path:nth-child(3) { animation-delay: 0.5s; }
+        .motion-lines path:nth-child(4) { animation-delay: 0.75s; }
+        @keyframes draw { to { stroke-dashoffset: 0; } }
+
+        .brand-top, .brand-body, .brand-foot { position: relative; z-index: 1; }
+        .brand-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 14px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+        }
+        .brand-chip .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--brand-glow);
+            box-shadow: 0 0 0 4px rgba(25, 195, 224, 0.2);
+        }
+        .brand-body h2 {
+            font-size: clamp(30px, 3.4vw, 46px);
+            line-height: 1.12;
+            font-weight: 800;
+            letter-spacing: -0.8px;
+            max-width: 520px;
+        }
+        .brand-body h2 span { color: var(--brand-glow); }
+        .brand-body p {
+            margin-top: 16px;
+            font-size: 16px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.72);
+            max-width: 460px;
+        }
+        .feature-list {
+            list-style: none;
+            margin-top: 32px;
+            display: grid;
+            gap: 14px;
+        }
+        .feature-list li {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.88);
+        }
+        .feature-icon {
+            flex: 0 0 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            background: rgba(25, 195, 224, 0.12);
+            border: 1px solid rgba(25, 195, 224, 0.28);
+            color: var(--brand-glow);
+        }
+        .feature-icon svg { width: 18px; height: 18px; }
+        .brand-foot {
+            font-size: 12.5px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* ---------- Panel de acceso ---------- */
+        .auth-panel {
+            background: var(--surface);
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 48px 32px;
         }
-
         .login-container {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 60px 40px;
-            max-width: 450px;
             width: 100%;
+            max-width: 400px;
             animation: slideUp 0.5s ease;
         }
-
         @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-
-        .login-header {
-            text-align: center;
-            margin-bottom: 40px;
+        .logo-img {
+            width: 132px;
+            height: 132px;
+            object-fit: contain;
+            display: block;
+            margin: 0 0 18px -10px;
         }
-
-        .logo {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            background: linear-gradient(135deg, #0A94B0 0%, #087D94 100%);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-        }
-
         .login-header h1 {
-            font-size: 28px;
-            color: #2c3e50;
-            margin-bottom: 8px;
-            font-weight: 700;
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: -0.6px;
+            color: var(--ink);
         }
-
         .login-header p {
-            color: #7f8c8d;
-            font-size: 14px;
+            margin-top: 8px;
+            color: var(--ink-soft);
+            font-size: 15px;
+            line-height: 1.55;
         }
-
-        .login-content {
-            margin-bottom: 30px;
-        }
-
-        .info-box {
-            background: #f0f4ff;
-            border-left: 4px solid #0A94B0;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            font-size: 14px;
-            color: #555;
-            line-height: 1.5;
-        }
-
+        .login-content { margin-top: 32px; }
         .google-btn {
             width: 100%;
+            min-height: 52px;
             padding: 14px;
-            background: white;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
+            background: #fff;
+            border: 1.5px solid var(--line);
+            border-radius: 12px;
             cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
+            font-family: inherit;
+            font-size: 15.5px;
+            font-weight: 700;
+            color: var(--ink);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 12px;
-            transition: all 0.3s ease;
-            margin-bottom: 15px;
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
         }
-
         .google-btn:hover {
-            border-color: #0A94B0;
-            background: #f9f9f9;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+            border-color: var(--brand);
+            box-shadow: 0 8px 24px rgba(10, 148, 176, 0.16);
+            transform: translateY(-1px);
         }
-
-        .google-btn img {
-            width: 20px;
-            height: 20px;
+        .google-btn:focus-visible {
+            outline: 3px solid rgba(10, 148, 176, 0.35);
+            outline-offset: 2px;
         }
-
-        .loading {
+        .secure-note {
+            margin-top: 18px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--ink-soft);
+        }
+        .secure-note svg { flex: 0 0 16px; margin-top: 2px; color: var(--brand); }
+        .notice {
             display: none;
-            text-align: center;
-        }
-
-        .loading.active {
-            display: block;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #0A94B0;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            color: #7f8c8d;
+            padding: 12px 14px;
+            border-radius: 10px;
             font-size: 14px;
+            line-height: 1.45;
+            margin-bottom: 16px;
         }
-
+        .notice.active { display: block; }
+        .info-notice {
+            background: #EAF7FA;
+            border: 1px solid #BFE6EE;
+            color: #075E70;
+        }
         .error-message {
-            background: #ffe5e5;
-            border-left: 4px solid #e74c3c;
-            padding: 12px;
-            border-radius: 6px;
-            color: #c0392b;
-            font-size: 14px;
-            margin-bottom: 15px;
             display: none;
+            background: #FDECEC;
+            border: 1px solid #F5C2C0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            color: #A93226;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        .error-message.active { display: block; }
+        .loading { display: none; text-align: center; margin-top: 18px; }
+        .loading.active { display: block; }
+        .spinner {
+            border: 3px solid #E6EEF1;
+            border-top-color: var(--brand);
+            border-radius: 50%;
+            width: 34px;
+            height: 34px;
+            animation: spin 0.9s linear infinite;
+            margin: 6px auto 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { color: var(--ink-soft); font-size: 14px; }
+        .auth-foot {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--line);
+            font-size: 12.5px;
+            color: #8A989F;
         }
 
-        .error-message.active {
-            display: block;
+        @media (max-width: 900px) {
+            .login-shell { grid-template-columns: 1fr; }
+            .brand-panel { display: none; }
+            .auth-panel { min-height: 100vh; padding: 32px 20px; }
+            .logo-img { margin: 0 auto 14px; width: 116px; height: 116px; }
+            .login-header { text-align: center; }
+            .login-header h1 { font-size: 26px; }
         }
-
-        @media (max-width: 480px) {
-            .login-container {
-                padding: 40px 20px;
-            }
-
-            .login-header h1 {
-                font-size: 24px;
-            }
-
-            .google-btn {
-                font-size: 14px;
-                padding: 12px;
-            }
+        @media (prefers-reduced-motion: reduce) {
+            .motion-lines path, .login-container { animation: none; stroke-dashoffset: 0; }
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-header">
-            <div class="logo">🏥</div>
-            <h1>KinetiqSports</h1>
-            <p>Sistema de Gestión de Reportes Médicos</p>
-        </div>
+    <div class="login-shell">
+        <aside class="brand-panel" aria-hidden="true">
+            <svg class="motion-lines" viewBox="0 0 800 900" preserveAspectRatio="xMidYMid slice" fill="none">
+                <path d="M-40 640 C 160 560, 300 700, 480 600 S 760 420, 860 470" stroke="#19C3E0" stroke-width="1.6" stroke-opacity="0.55"/>
+                <path d="M-40 690 C 170 610, 320 750, 500 650 S 770 470, 860 520" stroke="#19C3E0" stroke-width="1.2" stroke-opacity="0.35"/>
+                <path d="M-40 740 C 180 660, 340 800, 520 700 S 780 520, 860 570" stroke="#0A94B0" stroke-width="1" stroke-opacity="0.4"/>
+                <path d="M-40 180 C 200 120, 380 260, 560 170 S 760 60, 860 100" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.12"/>
+            </svg>
 
-        <div class="login-content">
-            <div class="error-message" id="errorMessage"></div>
-
-            <div class="info-box">
-                Inicia sesión con tu cuenta de Google para acceder a tus reportes médicos.
+            <div class="brand-top">
+                <span class="brand-chip"><span class="dot"></span> Plataforma clínica · Kinetiq Sports</span>
             </div>
 
-            <!-- Login con Google -->
-            <button class="google-btn" id="googleLoginBtn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                Iniciar con Google
-            </button>
-
-            <!-- Loading -->
-            <div class="loading" id="loadingBox">
-                <div class="spinner"></div>
-                <p class="loading-text">Iniciando sesión...</p>
+            <div class="brand-body">
+                <h2>Valoración biomecánica y <span>piso pélvico</span>, en un solo lugar.</h2>
+                <p>Registra la valoración, genera el reporte en PDF y sigue las estadísticas de la clínica en segundos.</p>
+                <ul class="feature-list">
+                    <li>
+                        <span class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        </span>
+                        Valoración por fisioterapia deportiva
+                    </li>
+                    <li>
+                        <span class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6M9 11h2"/></svg>
+                        </span>
+                        Reportes PDF listos para el paciente
+                    </li>
+                    <li>
+                        <span class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+                        </span>
+                        Estadísticas de pacientes y referidos
+                    </li>
+                </ul>
             </div>
-        </div>
+
+            <div class="brand-foot">© Kinetiq Sports · Información clínica protegida</div>
+        </aside>
+
+        <main class="auth-panel">
+            <div class="login-container">
+                <div class="login-header">
+                    <img src="kinetiq_logo.png" alt="Kinetiq Sports" class="logo-img">
+                    <h1>Bienvenido de nuevo</h1>
+                    <p>Ingresa con la cuenta de Google autorizada por la clínica.</p>
+                </div>
+
+                <div class="login-content">
+                    <div class="notice info-notice" id="infoNotice" role="status"></div>
+                    <div class="error-message" id="errorMessage" role="alert"></div>
+
+                    <!-- Login con Google -->
+                    <button class="google-btn" id="googleLoginBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        </svg>
+                        Continuar con Google
+                    </button>
+
+                    <!-- Loading -->
+                    <div class="loading" id="loadingBox">
+                        <div class="spinner"></div>
+                        <p class="loading-text">Iniciando sesión...</p>
+                    </div>
+
+                    <div class="secure-note">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <span>Solo el personal autorizado puede ingresar. La sesión se cierra tras 45 minutos de inactividad.</span>
+                    </div>
+                </div>
+
+                <div class="auth-foot">© Kinetiq Sports · Reporte médico digital</div>
+            </div>
+        </main>
     </div>
 
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="env-config.js?v=20261012"></script>
-    <script src="supabase-config.js"></script>
+    <script src="supabase-config.js?v=20261022_v1"></script>
     <script>
         const googleLoginBtn = document.getElementById('googleLoginBtn');
         const errorMessage = document.getElementById('errorMessage');
@@ -324,6 +455,14 @@
             setTimeout(() => {
                 errorMessage.classList.remove('active');
             }, 5000);
+        }
+
+        // Avisar por qué se cerró la sesión (lo envía auth-guard.js)
+        const motivo = new URLSearchParams(window.location.search).get('motivo');
+        if (motivo === 'inactividad') {
+            const infoNotice = document.getElementById('infoNotice');
+            infoNotice.textContent = 'Tu sesión se cerró por 45 minutos de inactividad. Vuelve a ingresar para continuar.';
+            infoNotice.classList.add('active');
         }
 
         // Verificar si ya está logueado

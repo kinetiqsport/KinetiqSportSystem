@@ -7,6 +7,9 @@
 // auth-guard.js - Verificación y protección centralizada de sesión con Supabase
 
 (function() {
+    // Limpiar caché clínica antigua: antes se guardaba en localStorage y sobrevivía al cerrar el navegador
+    try { localStorage.removeItem('preloadedReportes'); } catch (e) {}
+
     // Si estamos en modo demostración/portafolio, permitir navegación para el showcase de LinkedIn
     if (sessionStorage.getItem('demoMode') === 'true') {
         window.logout = function() {
@@ -57,7 +60,7 @@
     }
 
     // 3. Logout seguro: revoca sesión en Supabase y limpia almacenamiento sensible
-    async function secureLogout() {
+    async function secureLogout(motivo) {
         try {
             if (window.supabaseClient?.supabase) {
                 await window.supabaseClient.supabase.auth.signOut();
@@ -67,7 +70,7 @@
         }
         sessionStorage.clear();
         localStorage.removeItem('preloadedReportes');
-        window.location.href = 'login.html';
+        window.location.href = motivo === 'inactividad' ? 'login.html?motivo=inactividad' : 'login.html';
     }
 
     // 4. Temporizador de inactividad (45 minutos) para proteger equipos y tablets compartidas
@@ -78,7 +81,7 @@
         clearTimeout(inactivityTimer);
         inactivityTimer = setTimeout(() => {
             console.warn('AuthGuard: Sesión cerrada por inactividad prolongada (45 min)');
-            secureLogout();
+            secureLogout('inactividad');
         }, INACTIVITY_LIMIT_MS);
     }
 
