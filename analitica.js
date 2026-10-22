@@ -403,6 +403,18 @@
         mostrar() {
             actualizar();
         },
+        // Período elegido en la analítica, para abrir el registro de pacientes con el mismo rango
+        rangoActual() {
+            const sel = document.getElementById('anRango');
+            if (!sel) return null;
+            const r = rangoSeleccionado();
+            if (!r.desde && r.preset !== 'custom') return null;
+            const fmt = d => d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+            const etiqueta = r.preset === 'custom'
+                ? `${r.desde ? fmt(r.desde) : 'inicio'} – ${fmt(r.hasta)}`
+                : sel.options[sel.selectedIndex].text;
+            return { desde: r.desde ? r.desde.toISOString() : null, hasta: r.hasta.toISOString(), etiqueta };
+        },
         refrescar() {
             const view = document.getElementById('analyticsView');
             if (view && view.classList.contains('open')) actualizar();

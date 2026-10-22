@@ -11,7 +11,7 @@
     <script src="env-config.js"></script>
     <script src="supabase-config.js?v=20261022_v1"></script>
     <script src="kinetiq-common.js?v=20261022_v10"></script>
-    <script src="analitica.js?v=20261022_v4"></script>
+    <script src="analitica.js?v=20261022_v5"></script>
     <script src="auth-guard.js?v=20261022_v4"></script>
     <style>
         :root {
@@ -274,6 +274,74 @@
             display: none;
         }
         .reset-btn.visible { display: inline; }
+        .filter-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            height: 34px;
+            padding: 0 12px;
+            border-radius: 9px;
+            border: 1px solid var(--line-strong);
+            background: #fff;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--ink-2);
+            cursor: pointer;
+        }
+        .filter-btn:hover, .filter-btn[aria-expanded="true"] { border-color: var(--brand); color: var(--brand-strong); }
+        .filter-btn .count {
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: var(--brand);
+            color: #fff;
+            font-size: 11.5px;
+            display: inline-grid;
+            place-items: center;
+        }
+        .adv-filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 12px 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--line);
+        }
+        .adv-filters[hidden] { display: none; }
+        .adv-filters .rango { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .adv-filters .an-field select, .adv-filters .an-field input { width: 100%; min-width: 0; }
+        .adv-nota { grid-column: 1 / -1; font-size: 12px; color: var(--ink-muted); }
+        .active-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+        .active-filters:empty { display: none; }
+        .filtro-activo {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 6px 5px 11px;
+            border-radius: 999px;
+            background: #E6F6FA;
+            border: 1px solid #A9DCE7;
+            color: #075E70;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+        .filtro-activo button {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(7, 94, 112, 0.12);
+            color: #075E70;
+            cursor: pointer;
+            font-size: 11px;
+            line-height: 1;
+        }
+        .filtro-activo button:hover { background: rgba(7, 94, 112, 0.25); }
+        /* Barras de la analítica que llevan al registro filtrado */
+        .source-item.ir-pacientes { cursor: pointer; border-radius: 8px; margin-left: -6px; margin-right: -6px; padding: 4px 6px; transition: background 0.15s; }
+        .source-item.ir-pacientes:hover { background: #F3F7F9; }
+        .source-item.ir-pacientes:hover .source-label { color: var(--brand-strong); text-decoration: underline; }
+        .source-item.ir-pacientes:focus-visible { outline: 2px solid rgba(10,148,176,0.4); }
 
         .result-info {
             /* Al cambiar de página queda justo debajo de la barra superior fija */
@@ -605,6 +673,9 @@
             .segmented button { flex: 1; padding: 7px 6px; }
             .chips { flex-wrap: nowrap; overflow-x: auto; width: 100%; padding-bottom: 2px; scrollbar-width: none; }
             .filter-row .spacer { display: none; }
+            .adv-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+            .adv-filters .an-field label { font-size: 11.5px; }
+            .adv-filters .an-field select, .adv-filters .an-field input { font-size: 14px; padding: 0 6px; }
             .pc-head { padding: 14px 14px 10px; }
             .pc-body { padding: 0 14px 12px; }
             .pc-foot { padding: 10px 14px; flex-direction: column; align-items: stretch; }
@@ -675,21 +746,67 @@
                 </div>
                 <div class="chips" id="filtroProfesional" role="group" aria-label="Profesional"></div>
                 <span class="spacer"></span>
-                <select id="filtroGrupo" class="filter-select" aria-label="Grupo de pacientes">
-                    <option value="">Todos los grupos</option>
-                    <option value="menores">Menores de 18</option>
-                    <option value="mayores">Adultos mayores (60+)</option>
-                    <option value="peso">Sobre 100 kg</option>
-                    <option value="masculino">Masculino</option>
-                    <option value="femenino">Femenino</option>
-                </select>
+                <button type="button" id="toggleFiltros" class="filter-btn" aria-expanded="false" aria-controls="panelFiltros">
+                    <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+                    Filtros <span class="count" id="filtrosCount" hidden>0</span>
+                </button>
                 <select id="orden" class="filter-select" aria-label="Ordenar">
                     <option value="recientes">Más recientes</option>
                     <option value="antiguos">Más antiguos</option>
                     <option value="nombre">Nombre (A–Z)</option>
+                    <option value="dolor">Mayor dolor primero</option>
                 </select>
                 <button type="button" id="resetFiltros" class="reset-btn">Limpiar filtros</button>
             </div>
+
+            <!-- Filtros avanzados: se combinan entre sí (todos deben cumplirse) -->
+            <div class="adv-filters" id="panelFiltros" hidden>
+                <div class="an-field">
+                    <label for="fSexo">Sexo</label>
+                    <select id="fSexo" data-filtro="sexo">
+                        <option value="">Todos</option>
+                        <option value="F">Femenino</option>
+                        <option value="M">Masculino</option>
+                    </select>
+                </div>
+                <div class="an-field">
+                    <label>Edad (años)</label>
+                    <div class="rango">
+                        <input type="number" id="fEdadMin" data-filtro="edadMin" min="0" max="120" placeholder="Desde" inputmode="numeric">
+                        <input type="number" id="fEdadMax" data-filtro="edadMax" min="0" max="120" placeholder="Hasta" inputmode="numeric">
+                    </div>
+                </div>
+                <div class="an-field">
+                    <label>Dolor (EVA)</label>
+                    <div class="rango">
+                        <select id="fEvaMin" data-filtro="evaMin" aria-label="Dolor desde"></select>
+                        <select id="fEvaMax" data-filtro="evaMax" aria-label="Dolor hasta"></select>
+                    </div>
+                </div>
+                <div class="an-field">
+                    <label for="fZona">Zona de dolor</label>
+                    <select id="fZona" data-filtro="zona"></select>
+                </div>
+                <div class="an-field">
+                    <label for="fDeporte">Deporte</label>
+                    <select id="fDeporte" data-filtro="deporte"></select>
+                </div>
+                <div class="an-field">
+                    <label for="fPeriodo">Registrado</label>
+                    <select id="fPeriodo" data-filtro="periodo">
+                        <option value="">En cualquier fecha</option>
+                        <option value="mes">Este mes</option>
+                        <option value="3m">Últimos 3 meses</option>
+                        <option value="anio">Este año</option>
+                    </select>
+                </div>
+                <div class="an-field">
+                    <label for="fPesoMin">Peso mínimo (kg)</label>
+                    <input type="number" id="fPesoMin" data-filtro="pesoMin" min="0" max="300" placeholder="Ej. 100" inputmode="decimal">
+                </div>
+                <p class="adv-nota">El filtro de dolor solo muestra valoraciones con EVA registrada (en el campo o escrita como “7/10”).</p>
+            </div>
+            <div class="active-filters" id="filtrosActivos"></div>
         </div>
 
         <div id="errorContainer"></div>
@@ -820,7 +937,8 @@
                 this.errorContainer = document.getElementById('errorContainer');
                 this.allReportes = [];
                 this.filteredReportes = [];
-                this.filtros = { modulo: 'todos', profesional: null, grupo: '', orden: 'recientes' };
+                this.filtros = this.filtrosVacios();
+                this._atributos = new WeakMap();
                 this.currentPage = 1;
                 this.referidosMap = {};
                 this.referidosLoaded = false;
@@ -862,6 +980,7 @@
                     if (!analitica && this.allReportes.length) this.renderReportes(this.filteredReportes);
                 };
                 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => mostrar(t.dataset.view)));
+                this.mostrarVista = mostrar;
                 mostrar(location.hash === '#analitica' ? 'analitica' : 'pacientes', false);
             }
 
@@ -885,18 +1004,65 @@
                         this.aplicarFiltros();
                     });
                 });
-                document.getElementById('filtroGrupo').addEventListener('change', e => { this.filtros.grupo = e.target.value; this.aplicarFiltros(); });
                 document.getElementById('orden').addEventListener('change', e => { this.filtros.orden = e.target.value; this.aplicarFiltros(); });
                 document.getElementById('resetFiltros').addEventListener('click', () => this.limpiarFiltros());
+
+                // Panel de filtros avanzados
+                const toggle = document.getElementById('toggleFiltros');
+                const panel = document.getElementById('panelFiltros');
+                toggle.addEventListener('click', () => {
+                    panel.hidden = !panel.hidden;
+                    toggle.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+                });
+                const opcionesEva = (vacio) => `<option value="">${vacio}</option>` + Array.from({ length: 10 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+                document.getElementById('fEvaMin').innerHTML = opcionesEva('Desde');
+                document.getElementById('fEvaMax').innerHTML = opcionesEva('Hasta');
+                let espera;
+                panel.querySelectorAll('[data-filtro]').forEach(el => {
+                    const leer = () => {
+                        this.filtros[el.dataset.filtro] = el.value;
+                        if (el.dataset.filtro === 'periodo') this.filtros.rango = null;
+                        this.aplicarFiltros();
+                    };
+                    el.addEventListener('change', leer);
+                    if (el.tagName === 'INPUT') el.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(leer, 250); });
+                });
+            }
+
+            filtrosVacios(orden = 'recientes') {
+                return {
+                    modulo: 'todos', profesional: null, orden,
+                    sexo: '', edadMin: '', edadMax: '', evaMin: '', evaMax: '', zona: '',
+                    deporte: '', periodo: '', pesoMin: '',
+                    rango: null // período exacto que llega desde la analítica: { desde, hasta, etiqueta }
+                };
+            }
+
+            // Pasa el estado de this.filtros a los controles de la pantalla
+            sincronizarControles() {
+                document.querySelectorAll('#filtroModulo button').forEach(b => b.classList.toggle('active', b.dataset.modulo === this.filtros.modulo));
+                document.querySelectorAll('#panelFiltros [data-filtro]').forEach(el => { el.value = this.filtros[el.dataset.filtro] || ''; });
+                document.getElementById('orden').value = this.filtros.orden;
             }
 
             limpiarFiltros() {
                 this.searchInput.value = '';
                 document.getElementById('clearSearch').classList.remove('visible');
-                this.filtros = { modulo: 'todos', profesional: null, grupo: '', orden: this.filtros.orden };
-                document.querySelectorAll('#filtroModulo button').forEach(b => b.classList.toggle('active', b.dataset.modulo === 'todos'));
-                document.getElementById('filtroGrupo').value = '';
+                this.filtros = this.filtrosVacios(this.filtros.orden);
+                this.sincronizarControles();
                 this.aplicarFiltros();
+            }
+
+            // Desde la analítica: abrir Pacientes con un filtro ya aplicado (y el mismo período)
+            irAPacientesConFiltro(filtro) {
+                this.searchInput.value = '';
+                document.getElementById('clearSearch').classList.remove('visible');
+                const rango = window.KinetiqAnalitica && window.KinetiqAnalitica.rangoActual ? window.KinetiqAnalitica.rangoActual() : null;
+                this.filtros = { ...this.filtrosVacios(this.filtros.orden), ...filtro, rango };
+                this.sincronizarControles();
+                if (this.mostrarVista) this.mostrarVista('pacientes');
+                this.aplicarFiltros();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
 
             // ---------- Carga de datos ----------
@@ -992,22 +1158,128 @@
                 return String(txt || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
             }
 
-            cumpleGrupo(r, grupo) {
-                const e = this.getEdad(r), p = this.getPeso(r), s = this.getSexo(r);
-                switch (grupo) {
-                    case 'menores': return e !== null && e < 18;
-                    case 'mayores': return e !== null && e >= 60;
-                    case 'peso': return p !== null && p > 100;
-                    case 'masculino': return ['masculino', 'm', 'hombre'].includes(s);
-                    case 'femenino': return ['femenino', 'f', 'mujer'].includes(s);
-                    default: return true;
+            // Atributos clínicos de una valoración, calculados una sola vez (zona, deporte, EVA…)
+            atributos(r) {
+                let a = this._atributos.get(r);
+                if (a) return a;
+                const j = this.getJson(r);
+                const s = this.getSexo(r);
+                a = {
+                    sexo: ['masculino', 'm', 'hombre'].includes(s) ? 'M' : (['femenino', 'f', 'mujer'].includes(s) ? 'F' : null),
+                    edad: this.getEdad(r),
+                    peso: this.getPeso(r),
+                    eva: Kinetiq.evaDe(j),
+                    fecha: new Date(r.fecha_creacion || r.fecha_modificacion || 0),
+                    zonas: [], deportes: []
+                };
+                if (this.getTipoReporte(r) === 'piso_pelvico') {
+                    // Zonas de las consultas musculoesqueléticas atendidas con el formulario pélvico
+                    a.zonas = Kinetiq.motivoPelvico(j).zonas;
+                } else {
+                    a.zonas = Kinetiq.zonasDolor(j.localizacionDolor);
+                    if (!a.zonas.length) a.zonas = Kinetiq.zonasDolor(j.motivoConsulta);
+                    const dep = Kinetiq.clasificarDeporte(j.deporte);
+                    a.deportes = dep.sinDeporte ? ['Sin deporte / sedentario']
+                        : dep.deportes.length ? dep.deportes
+                        : String(j.deporte || '').trim() ? ['Otros'] : [];
                 }
+                this._atributos.set(r, a);
+                return a;
+            }
+
+            inicioPeriodo(periodo) {
+                const hoy = new Date();
+                if (periodo === 'mes') return new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                if (periodo === '3m') return new Date(hoy.getFullYear(), hoy.getMonth() - 2, 1);
+                if (periodo === 'anio') return new Date(hoy.getFullYear(), 0, 1);
+                return null;
+            }
+
+            // ¿La valoración cumple los filtros avanzados? (todos deben cumplirse)
+            cumpleFiltros(r) {
+                const f = this.filtros;
+                const a = this.atributos(r);
+                const num = v => (v === '' || v === null || v === undefined) ? null : Number(v);
+                if (f.sexo && a.sexo !== f.sexo) return false;
+                const edadMin = num(f.edadMin), edadMax = num(f.edadMax);
+                if ((edadMin !== null || edadMax !== null) && a.edad === null) return false;
+                if (edadMin !== null && a.edad < edadMin) return false;
+                if (edadMax !== null && a.edad > edadMax) return false;
+                const evaMin = num(f.evaMin), evaMax = num(f.evaMax);
+                if ((evaMin !== null || evaMax !== null) && a.eva === null) return false;
+                if (evaMin !== null && a.eva < evaMin) return false;
+                if (evaMax !== null && a.eva > evaMax) return false;
+                const pesoMin = num(f.pesoMin);
+                if (pesoMin !== null && (a.peso === null || a.peso < pesoMin)) return false;
+                if (f.zona && !a.zonas.includes(f.zona)) return false;
+                if (f.deporte && !a.deportes.includes(f.deporte)) return false;
+                if (f.rango) {
+                    if (f.rango.desde && a.fecha < new Date(f.rango.desde)) return false;
+                    if (f.rango.hasta && a.fecha > new Date(f.rango.hasta)) return false;
+                } else if (f.periodo) {
+                    const desde = this.inicioPeriodo(f.periodo);
+                    if (desde && a.fecha < desde) return false;
+                }
+                return true;
+            }
+
+            // Opciones de zona, deporte y motivo según lo que existe en los datos (con cantidad)
+            poblarOpcionesFiltros() {
+                if (this._opcionesDe === this.allReportes) return;
+                this._opcionesDe = this.allReportes;
+                // Ordenadas de la más frecuente a la menos frecuente
+                const conteo = { zona: {}, deporte: {} };
+                this.allReportes.forEach(r => {
+                    const a = this.atributos(r);
+                    a.zonas.forEach(z => { conteo.zona[z] = (conteo.zona[z] || 0) + 1; });
+                    a.deportes.forEach(d => { conteo.deporte[d] = (conteo.deporte[d] || 0) + 1; });
+                });
+                const llenar = (id, clave, vacio) => {
+                    const sel = document.getElementById(id);
+                    const opciones = Object.entries(conteo[clave]).sort((x, y) => y[1] - x[1]);
+                    sel.innerHTML = `<option value="">${vacio}</option>` + opciones
+                        .map(([v]) => `<option value="${Kinetiq.escapeHtml(v)}">${Kinetiq.escapeHtml(v)}</option>`).join('');
+                    sel.value = this.filtros[clave] || '';
+                };
+                llenar('fZona', 'zona', 'Todas');
+                llenar('fDeporte', 'deporte', 'Todos');
+            }
+
+            // Chips con cada filtro activo; la ✕ quita sólo ese filtro
+            renderFiltrosActivos() {
+                const f = this.filtros;
+                const activos = [];
+                const quitar = (...claves) => () => { claves.forEach(c => { f[c] = c === 'rango' ? null : ''; }); this.sincronizarControles(); this.aplicarFiltros(); };
+                const periodos = { mes: 'Este mes', '3m': 'Últimos 3 meses', anio: 'Este año' };
+                if (f.sexo) activos.push([f.sexo === 'F' ? 'Femenino' : 'Masculino', quitar('sexo')]);
+                if (f.edadMin || f.edadMax) activos.push([`Edad ${f.edadMin || '0'}–${f.edadMax || '∞'}`, quitar('edadMin', 'edadMax')]);
+                if (f.evaMin || f.evaMax) activos.push([f.evaMin && f.evaMax ? `Dolor ${f.evaMin}–${f.evaMax}` : f.evaMin ? `Dolor ≥ ${f.evaMin}` : `Dolor ≤ ${f.evaMax}`, quitar('evaMin', 'evaMax')]);
+                if (f.zona) activos.push([`Zona: ${f.zona}`, quitar('zona')]);
+                if (f.deporte) activos.push([`Deporte: ${f.deporte}`, quitar('deporte')]);
+                if (f.pesoMin) activos.push([`Peso ≥ ${f.pesoMin} kg`, quitar('pesoMin')]);
+                if (f.rango) activos.push([`Período: ${f.rango.etiqueta}`, quitar('rango')]);
+                else if (f.periodo) activos.push([periodos[f.periodo], quitar('periodo')]);
+
+                const cont = document.getElementById('filtrosActivos');
+                cont.innerHTML = '';
+                activos.forEach(([texto, accion]) => {
+                    const chip = document.createElement('span');
+                    chip.className = 'filtro-activo';
+                    chip.innerHTML = `${Kinetiq.escapeHtml(texto)} <button type="button" aria-label="Quitar filtro ${Kinetiq.escapeHtml(texto)}">✕</button>`;
+                    chip.querySelector('button').addEventListener('click', accion);
+                    cont.appendChild(chip);
+                });
+                const count = document.getElementById('filtrosCount');
+                count.textContent = activos.length;
+                count.hidden = activos.length === 0;
+                return activos.length;
             }
 
             // ---------- Filtros y render ----------
             aplicarFiltros(mantenerPagina = false) {
                 const q = this.normalizarTexto(this.searchInput.value);
-                const { modulo, profesional, grupo } = this.filtros;
+                const { modulo, profesional } = this.filtros;
+                this.poblarOpcionesFiltros();
 
                 // Base sin el filtro de profesional, para que los contadores de los chips sean útiles
                 const base = this.allReportes.filter(r => {
@@ -1016,8 +1288,7 @@
                         if (!texto.includes(q)) return false;
                     }
                     if (modulo !== 'todos' && this.getTipoReporte(r) !== modulo) return false;
-                    if (grupo && !this.cumpleGrupo(r, grupo)) return false;
-                    return true;
+                    return this.cumpleFiltros(r);
                 });
                 this.filteredReportes = profesional
                     ? base.filter(r => (this.getAtendidoPor(r) || '').toLowerCase() === profesional.toLowerCase())
@@ -1028,7 +1299,8 @@
                 this.renderResumen();
                 this.renderReportes(this.filteredReportes);
 
-                const hayFiltros = !!(q || modulo !== 'todos' || profesional || grupo);
+                const nAvanzados = this.renderFiltrosActivos();
+                const hayFiltros = !!(q || modulo !== 'todos' || profesional || nAvanzados);
                 document.getElementById('resetFiltros').classList.toggle('visible', hayFiltros);
 
                 // La analítica (incluido "Datos clínicos") se vuelve a dibujar si está visible
@@ -1081,6 +1353,11 @@
                 const nombre = g => `${g[0].nombre || ''} ${g[0].apellido || ''}`.trim().toLowerCase();
                 if (this.filtros.orden === 'nombre') grupos.sort((a, b) => nombre(a).localeCompare(nombre(b), 'es'));
                 else if (this.filtros.orden === 'antiguos') grupos.sort((a, b) => this.fechaDe(a[0]) - this.fechaDe(b[0]));
+                else if (this.filtros.orden === 'dolor') {
+                    // Mayor EVA del paciente primero; los que no tienen dolor registrado van al final
+                    const maxEva = g => Math.max(-1, ...g.map(r => this.atributos(r).eva ?? -1));
+                    grupos.sort((a, b) => maxEva(b) - maxEva(a) || this.fechaDe(b[0]) - this.fechaDe(a[0]));
+                }
                 else grupos.sort((a, b) => this.fechaDe(b[0]) - this.fechaDe(a[0]));
                 return grupos;
             }
@@ -1157,14 +1434,16 @@
                 const bloques = [];
                 const notas = [];
 
+                // Dolor (EVA): del campo o del "N/10" escrito en el texto, igual que en los filtros
+                const eva = Kinetiq.evaDe(json);
+                if (eva !== null && eva >= 1 && eva <= 10) {
+                    const c = COLORES_EVA[eva - 1];
+                    chips.push(`<span class="pc-chip pain" style="--pain-bg:${c}1F;--pain-fg:${c}">Dolor <b>${eva}/10</b></span>`);
+                }
+
                 if (this.getTipoReporte(reporte) !== 'piso_pelvico') {
                     if (txt(json.motivoConsulta)) {
                         bloques.push(`<div><div class="pc-block-label">Motivo de consulta</div><div class="pc-block-text" title="${esc(txt(json.motivoConsulta))}">${esc(txt(json.motivoConsulta))}</div></div>`);
-                    }
-                    const eva = parseInt(json.escalaDolor, 10);
-                    if (eva >= 1 && eva <= 10) {
-                        const c = COLORES_EVA[eva - 1];
-                        chips.push(`<span class="pc-chip pain" style="--pain-bg:${c}1F;--pain-fg:${c}">Dolor <b>${eva}/10</b></span>`);
                     }
                     if (txt(json.localizacionDolor)) chips.push(`<span class="pc-chip" title="${esc(txt(json.localizacionDolor))}">📍 ${esc(txt(json.localizacionDolor))}</span>`);
                     if (txt(json.deporte)) chips.push(`<span class="pc-chip">${esc(txt(json.deporte))}${txt(json.rol) ? ' · ' + esc(txt(json.rol)) : ''}</span>`);
@@ -1357,11 +1636,12 @@
                         : 'Ambos módulos · según el período seleccionado';
                 }
 
+                // Cada barra puede llevar "ir": el filtro con el que se abre el registro de pacientes
                 const barList = (items, color) => {
                     if (!items.length) return '<div class="an-empty">Sin datos</div>';
                     const max = Math.max(...items.map(i => i.count), 1);
                     return items.map(i => `
-                        <div class="source-item">
+                        <div class="source-item${i.ir ? ' ir-pacientes' : ''}"${i.ir ? ` data-ir="${Kinetiq.escapeHtml(JSON.stringify(i.ir))}" role="link" tabindex="0" title="Ver estos pacientes"` : ''}>
                             <div class="source-label-row">
                                 <span class="source-label">${Kinetiq.escapeHtml(i.label)}</span>
                                 <span class="source-count">${i.count}</span>
@@ -1371,19 +1651,19 @@
                 };
                 const subtitulo = t => `<div class="pc-block-label" style="margin:12px 0 8px;">${t}</div>`;
                 const nota = t => `<div class="an-sub" style="margin:2px 0 8px;">${t}</div>`;
-                const ranking = (conteo, max = 8) => Object.entries(conteo)
-                    .map(([label, count]) => ({ label, count }))
+                const ranking = (conteo, max = 8, ir = null) => Object.entries(conteo)
+                    .map(([label, count]) => ({ label, count, ir: ir ? ir(label) : null }))
                     .sort((a, b) => b.count - a.count)
                     .slice(0, max);
                 const sumar = (conteo, clave) => { conteo[clave] = (conteo[clave] || 0) + 1; };
-                const intensidad = registros => {
+                const intensidad = (registros, mod) => {
                     const evas = registros.map(r => Kinetiq.evaDe(this.getJson(r))).filter(v => v !== null && v >= 1);
                     return {
                         n: evas.length,
                         items: [
-                            { label: 'Leve (1-3)', count: evas.filter(d => d <= 3).length },
-                            { label: 'Moderado (4-6)', count: evas.filter(d => d >= 4 && d <= 6).length },
-                            { label: 'Severo (7-10)', count: evas.filter(d => d >= 7).length }
+                            { label: 'Leve (1-3)', count: evas.filter(d => d <= 3).length, ir: { modulo: mod, evaMin: '1', evaMax: '3' } },
+                            { label: 'Moderado (4-6)', count: evas.filter(d => d >= 4 && d <= 6).length, ir: { modulo: mod, evaMin: '4', evaMax: '6' } },
+                            { label: 'Severo (7-10)', count: evas.filter(d => d >= 7).length, ir: { modulo: mod, evaMin: '7', evaMax: '10' } }
                         ]
                     };
                 };
@@ -1417,21 +1697,21 @@
                         else if (dep.deportes.length) dep.deportes.forEach(d => sumar(deportes, d));
                         else if (String(json.deporte || '').trim()) otrosDeportes++;
                     });
-                    const dolor = intensidad(deportivos);
+                    const dolor = intensidad(deportivos, 'pisada');
                     bloques.push(`
                         ${modulo === 'todos' ? titulo('Fisioterapia deportiva', '#0A94B0') : ''}
                         ${columnas(`
                             <div>${subtitulo('Intensidad del dolor')}${nota(`EVA registrada en ${dolor.n} de ${deportivos.length} valoraciones`)}${barList(dolor.items, '#e67e22')}</div>
-                            <div>${subtitulo('Zonas de dolor más comunes')}${nota(`Zona identificada en ${conZona} de ${conTexto} valoraciones`)}${barList(ranking(zonaCounts), '#c0392b')}
+                            <div>${subtitulo('Zonas de dolor más comunes')}${nota(`Zona identificada en ${conZona} de ${conTexto} valoraciones`)}${barList(ranking(zonaCounts, 8, z => ({ modulo: 'pisada', zona: z })), '#c0392b')}
                                 ${subtitulo('Consultas sin zona de dolor')}${barList([
                                     { label: 'Chequeo / valoración de rendimiento', count: otrasConsultas.chequeo },
                                     { label: 'Sin molestias', count: otrasConsultas.sin_molestias },
                                     { label: 'Dolor sin zona especificada', count: otrasConsultas.sin_zona }
                                 ].filter(i => i.count > 0), '#8A989F')}</div>
-                            <div>${subtitulo('Deportes más practicados')}${barList(ranking(deportes), '#0A94B0')}
+                            <div>${subtitulo('Deportes más practicados')}${barList(ranking(deportes, 8, d => ({ modulo: 'pisada', deporte: d })), '#0A94B0')}
                                 ${(sinDeporte || otrosDeportes) ? subtitulo('Sin deporte / otros') + barList([
-                                    { label: 'Sin deporte / sedentario', count: sinDeporte },
-                                    { label: 'Otros', count: otrosDeportes }
+                                    { label: 'Sin deporte / sedentario', count: sinDeporte, ir: { modulo: 'pisada', deporte: 'Sin deporte / sedentario' } },
+                                    { label: 'Otros', count: otrosDeportes, ir: { modulo: 'pisada', deporte: 'Otros' } }
                                 ].filter(i => i.count > 0), '#8A989F') : ''}</div>
                         `)}`);
                 }
@@ -1456,7 +1736,7 @@
                         if (tiene('barreras', 'estren') || m.motivos.includes('Estreñimiento / defecatorio')) sintomas['Estreñimiento']++;
                         if (/^(si|ocasional)/.test(Kinetiq.normalizar(json.usoProtector))) sintomas['Usa protector íntimo']++;
                     });
-                    const dolor = intensidad(pelvicos);
+                    const dolor = intensidad(pelvicos, 'piso_pelvico');
                     // Cada valoración cae en un solo grupo para el resumen (todo se recalcula con los datos actuales)
                     let nPelvicas = 0, nMusculo = 0, nSinClasificar = 0;
                     pelvicos.forEach(r => {
@@ -1471,7 +1751,7 @@
                         ${modulo === 'todos' ? titulo('Piso pélvico', '#8E24AA') : ''}
                         ${columnas(`
                             <div>${subtitulo('Motivo de consulta')}${nota(resumenMotivos)}${barList(ranking(motivos), '#8E24AA')}
-                                ${Object.keys(zonasMusculo).length ? subtitulo('Zonas (consultas musculoesqueléticas)') + barList(ranking(zonasMusculo), '#c0392b') : ''}</div>
+                                ${Object.keys(zonasMusculo).length ? subtitulo('Zonas (consultas musculoesqueléticas)') + barList(ranking(zonasMusculo, 8, z => ({ modulo: 'piso_pelvico', zona: z })), '#c0392b') : ''}</div>
                             <div>${subtitulo('Síntomas registrados')}${barList(Object.entries(sintomas).map(([label, count]) => ({ label, count })).filter(i => i.count > 0), '#8E24AA')}
                                 ${subtitulo('Intensidad del dolor')}${nota(`EVA registrada en ${dolor.n} de ${pelvicos.length} valoraciones`)}${barList(dolor.items.filter(i => i.count > 0), '#e67e22')}</div>
                             <div>${subtitulo('Especialidad que remite')}${barList(ranking(remite), '#6250d6')}</div>
@@ -1479,6 +1759,13 @@
                 }
 
                 el.innerHTML = bloques.join('<div style="height:1px;background:var(--line);margin:18px 0 10px;"></div>');
+
+                // Clic (o Enter) en una barra: ver esos pacientes en el registro
+                el.querySelectorAll('[data-ir]').forEach(item => {
+                    const ir = () => this.irAPacientesConFiltro(JSON.parse(item.dataset.ir));
+                    item.addEventListener('click', ir);
+                    item.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } });
+                });
             }
         }
 
