@@ -1274,6 +1274,7 @@ class ReporteMedico {
     }
 
     collectFormData() {
+        Kinetiq.textoAMayusculas();
         const formData = {};
 
         document.querySelectorAll('input, select, textarea').forEach(element => {

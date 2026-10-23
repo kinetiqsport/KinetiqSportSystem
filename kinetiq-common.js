@@ -594,6 +594,199 @@
         }
     };
 
+    // ---------- Botones de opciones (reemplazan desplegables cortos) ----------
+    // <select data-botones> se muestra como botones; data-botones="compacto" para filas de números.
+    // El <select> sigue existiendo (oculto), así que guardar, cargar y el PDF no cambian.
+    const ICONOS_OPCION = { si: '✓', no: '✕', femenino: '♀', masculino: '♂', parcialmente: '◐' };
+
+    // Sexo: "♂ M", "♀ F" y "Otro ▾" con el resto de opciones (No binario, Intersexual…).
+    // Al elegir una del menú, el tercer botón muestra su abreviatura (NB, IS, PND, N/E).
+    const ABREVIATURAS_SEXO = { 'no binario': 'NB', intersexual: 'IS', 'prefiere no decir': 'PND', 'no especificado': 'N/E' };
+
+    function initSelectorSexo(select) {
+        const opciones = [...select.options].filter(o => o.value !== '');
+        const principales = opciones.filter(o => ['masculino', 'femenino'].includes(normalizar(o.value)));
+        const otras = opciones.filter(o => !principales.includes(o));
+        select.dataset.mejorado = '1';
+
+        const cont = document.createElement('div');
+        cont.className = 'opt-botones sexo';
+        cont.setAttribute('role', 'radiogroup');
+        cont.setAttribute('aria-label', 'Sexo');
+
+        const elegir = valor => {
+            select.value = valor;
+            select.dispatchEvent(new Event('input', { bubbles: true }));
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            sincronizar();
+        };
+
+        const botones = principales.map(o => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'opt-btn';
+            b.setAttribute('role', 'radio');
+            b.title = o.textContent.trim();
+            const clave = normalizar(o.value);
+            b.innerHTML = `<span class="opt-icono" aria-hidden="true">${ICONOS_OPCION[clave]}</span>${clave === 'masculino' ? 'M' : 'F'}`;
+            b.addEventListener('click', () => elegir(select.value === o.value ? '' : o.value));
+            cont.appendChild(b);
+            return { b, valor: o.value };
+        });
+
+        // Botón "Otro" con su menú
+        const envoltura = document.createElement('div');
+        envoltura.className = 'opt-otro';
+        const otro = document.createElement('button');
+        otro.type = 'button';
+        otro.className = 'opt-btn';
+        otro.setAttribute('aria-haspopup', 'listbox');
+        otro.setAttribute('aria-expanded', 'false');
+        const menu = document.createElement('div');
+        menu.className = 'opt-menu';
+        menu.setAttribute('role', 'listbox');
+        menu.hidden = true;
+        otras.forEach(o => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'opt-menu-item';
+            item.setAttribute('role', 'option');
+            item.dataset.valor = o.value;
+            const abrev = ABREVIATURAS_SEXO[normalizar(o.value)];
+            item.innerHTML = `${escapeHtml(o.textContent.trim())}${abrev ? `<span>${abrev}</span>` : ''}`;
+            item.addEventListener('click', () => {
+                elegir(select.value === o.value ? '' : o.value);
+                cerrarMenu();
+                otro.focus();
+            });
+            menu.appendChild(item);
+        });
+        const abrirMenu = () => { menu.hidden = false; otro.setAttribute('aria-expanded', 'true'); };
+        const cerrarMenu = () => { menu.hidden = true; otro.setAttribute('aria-expanded', 'false'); };
+        otro.addEventListener('click', () => (menu.hidden ? abrirMenu() : cerrarMenu()));
+        document.addEventListener('click', e => { if (!envoltura.contains(e.target)) cerrarMenu(); });
+        envoltura.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrarMenu(); otro.focus(); } });
+        envoltura.appendChild(otro);
+        envoltura.appendChild(menu);
+        cont.appendChild(envoltura);
+
+        const sincronizar = () => {
+            botones.forEach(({ b, valor }) => {
+                const activo = select.value === valor;
+                b.classList.toggle('selected', activo);
+                b.setAttribute('aria-checked', activo ? 'true' : 'false');
+            });
+            const elegidaOtra = otras.find(o => o.value === select.value);
+            otro.classList.toggle('selected', !!elegidaOtra);
+            otro.innerHTML = elegidaOtra
+                ? `${escapeHtml(ABREVIATURAS_SEXO[normalizar(elegidaOtra.value)] || elegidaOtra.textContent.trim())}<span class="opt-flecha" aria-hidden="true">▾</span>`
+                : `Otro<span class="opt-flecha" aria-hidden="true">▾</span>`;
+            otro.title = elegidaOtra ? elegidaOtra.textContent.trim() : 'Otras opciones';
+            menu.querySelectorAll('.opt-menu-item').forEach(i => i.classList.toggle('selected', i.dataset.valor === select.value));
+        };
+
+        select.classList.add('eva-select-oculto');
+        select.setAttribute('tabindex', '-1');
+        select.setAttribute('aria-hidden', 'true');
+        select.insertAdjacentElement('afterend', cont);
+        select.addEventListener('change', sincronizar);
+        select.form?.addEventListener('reset', () => setTimeout(sincronizar, 0));
+        setInterval(sincronizar, 1500);
+        sincronizar();
+    }
+
+    function initBotonesOpciones() {
+        document.querySelectorAll('select[data-botones]').forEach(select => {
+            if (select.dataset.mejorado) return;
+            if (select.dataset.botones === 'sexo') return initSelectorSexo(select);
+            const opciones = [...select.options].filter(o => o.value !== '');
+            if (!opciones.length) return;
+            select.dataset.mejorado = '1';
+
+            const cont = document.createElement('div');
+            cont.className = 'opt-botones' + (select.dataset.botones === 'compacto' ? ' compacto' : '');
+            cont.setAttribute('role', 'radiogroup');
+            const label = select.id ? document.querySelector(`label[for="${select.id}"]`) : null;
+            if (label) cont.setAttribute('aria-label', label.textContent.replace(/[:*]/g, '').trim());
+
+            const botones = opciones.map(o => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'opt-btn';
+                b.setAttribute('role', 'radio');
+                const clave = normalizar(o.value);
+                // Profesionales: ícono de profesional de la salud junto al nombre
+                const icono = select.dataset.botones === 'profesional' ? '🧑‍⚕️' : ICONOS_OPCION[clave];
+                // "-" del Lunge se muestra como signo menos tipográfico
+                const compacto = select.dataset.botones === 'compacto';
+                // data-corto: etiqueta abreviada en el botón; el valor guardado no cambia
+                const texto = o.value === '-' ? '−' : (o.dataset.corto || (compacto ? o.value : o.textContent.trim()));
+                if (compacto || o.dataset.corto) b.title = o.textContent.trim();
+                b.innerHTML = icono ? `<span class="opt-icono" aria-hidden="true">${icono}</span>${escapeHtml(texto)}` : escapeHtml(texto);
+                b.dataset.valor = o.value;
+                if (clave === 'si') b.classList.add('opt-si');
+                if (clave === 'no') b.classList.add('opt-no');
+                b.addEventListener('click', () => {
+                    // Volver a pulsar la opción marcada la desmarca (salvo si el select no admite vacío, p. ej. Nataly)
+                    const admiteVacio = !!select.querySelector('option[value=""]');
+                    select.value = select.value === o.value && admiteVacio ? '' : o.value;
+                    select.dispatchEvent(new Event('input', { bubbles: true }));
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    sincronizar();
+                });
+                cont.appendChild(b);
+                return b;
+            });
+
+            const sincronizar = () => {
+                botones.forEach(b => {
+                    const activo = b.dataset.valor === select.value;
+                    b.classList.toggle('selected', activo);
+                    b.setAttribute('aria-checked', activo ? 'true' : 'false');
+                });
+            };
+
+            // Si la validación marca el campo como faltante (rojo), los botones también lo muestran
+            new MutationObserver(() => cont.classList.toggle('field-missing', select.classList.contains('field-missing')))
+                .observe(select, { attributes: true, attributeFilter: ['class'] });
+
+            select.classList.add('eva-select-oculto');
+            select.setAttribute('tabindex', '-1');
+            select.setAttribute('aria-hidden', 'true');
+            select.insertAdjacentElement('afterend', cont);
+            select.addEventListener('change', sincronizar);
+            select.form?.addEventListener('reset', () => setTimeout(sincronizar, 0));
+            // Los datos cargados por código (paciente, PDF, JSON) no disparan eventos
+            setInterval(sincronizar, 1500);
+            sincronizar();
+        });
+    }
+
+    // ---------- Texto del formulario siempre en MAYÚSCULAS ----------
+    // Unifica cómo se ve lo escrito (en pantalla, en la base y en el PDF).
+    const SELECTOR_TEXTO = '#reportForm input[type="text"], #reportForm input:not([type]), #reportForm textarea';
+
+    function aMayusculas(el) {
+        const mayus = el.value.toLocaleUpperCase('es');
+        if (mayus === el.value) return;
+        // Conservar la posición del cursor (la longitud no cambia)
+        const inicio = el.selectionStart, fin = el.selectionEnd;
+        el.value = mayus;
+        if (document.activeElement === el && inicio != null) el.setSelectionRange(inicio, fin);
+    }
+
+    // También pasa a mayúsculas lo cargado de reportes anteriores antes de guardar o exportar
+    function textoAMayusculas() {
+        document.querySelectorAll(SELECTOR_TEXTO).forEach(aMayusculas);
+    }
+
+    function initMayusculas() {
+        document.querySelectorAll(SELECTOR_TEXTO).forEach(el => el.setAttribute('autocapitalize', 'characters'));
+        document.addEventListener('input', e => {
+            if (e.target.matches && e.target.matches(SELECTOR_TEXTO)) aMayusculas(e.target);
+        });
+    }
+
     window.Kinetiq = {
         PROFESIONALES,
         MAX_ADJUNTO_MB,
@@ -611,14 +804,17 @@
         clasificarDeporte,
         motivoPelvico,
         especialidadQueRemite,
+        textoAMayusculas,
         pdf
     };
 
     function initUI() {
         poblarProfesionales();
         poblarSelectsDias();
+        initBotonesOpciones();
         initEscalaDolor();
         initProgresoFormulario();
+        initMayusculas();
         // En los formularios, dejar listo el logo liviano para el PDF
         if (document.getElementById('reportForm')) pdf.cargarLogo();
     }

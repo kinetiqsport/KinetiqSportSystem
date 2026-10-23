@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="env-config.js"></script>
     <script src="supabase-config.js?v=20261022_v1"></script>
-    <script src="kinetiq-common.js?v=20261022_v10"></script>
+    <script src="kinetiq-common.js?v=20261023_v8"></script>
     <script src="analitica.js?v=20261022_v5"></script>
     <script src="auth-guard.js?v=20261022_v4"></script>
     <style>
@@ -767,6 +767,7 @@
                         <option value="">Todos</option>
                         <option value="F">Femenino</option>
                         <option value="M">Masculino</option>
+                        <option value="O">Otro (no binario, intersexual…)</option>
                     </select>
                 </div>
                 <div class="an-field">
@@ -1165,7 +1166,7 @@
                 const j = this.getJson(r);
                 const s = this.getSexo(r);
                 a = {
-                    sexo: ['masculino', 'm', 'hombre'].includes(s) ? 'M' : (['femenino', 'f', 'mujer'].includes(s) ? 'F' : null),
+                    sexo: ['masculino', 'm', 'hombre'].includes(s) ? 'M' : ['femenino', 'f', 'mujer'].includes(s) ? 'F' : s ? 'O' : null,
                     edad: this.getEdad(r),
                     peso: this.getPeso(r),
                     eva: Kinetiq.evaDe(j),
@@ -1251,7 +1252,7 @@
                 const activos = [];
                 const quitar = (...claves) => () => { claves.forEach(c => { f[c] = c === 'rango' ? null : ''; }); this.sincronizarControles(); this.aplicarFiltros(); };
                 const periodos = { mes: 'Este mes', '3m': 'Últimos 3 meses', anio: 'Este año' };
-                if (f.sexo) activos.push([f.sexo === 'F' ? 'Femenino' : 'Masculino', quitar('sexo')]);
+                if (f.sexo) activos.push([{ F: 'Femenino', M: 'Masculino', O: 'Sexo: otro' }[f.sexo], quitar('sexo')]);
                 if (f.edadMin || f.edadMax) activos.push([`Edad ${f.edadMin || '0'}–${f.edadMax || '∞'}`, quitar('edadMin', 'edadMax')]);
                 if (f.evaMin || f.evaMax) activos.push([f.evaMin && f.evaMax ? `Dolor ${f.evaMin}–${f.evaMax}` : f.evaMin ? `Dolor ≥ ${f.evaMin}` : `Dolor ≤ ${f.evaMax}`, quitar('evaMin', 'evaMax')]);
                 if (f.zona) activos.push([`Zona: ${f.zona}`, quitar('zona')]);

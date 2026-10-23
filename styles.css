@@ -1864,3 +1864,104 @@ body.modulo-pelvico .field-filled { border-color: #D9C3E0 !important; }
 body.modulo-pelvico .form-progress-bar span { background: linear-gradient(90deg, #8E24AA, #C46BD6); }
 body.modulo-pelvico .form-progress-pill.done { background: var(--accent-soft); border-color: #D9B8E2; color: var(--secondary-color); }
 body.modulo-pelvico .form-progress-pill.active { outline-color: var(--accent-ring); }
+
+/* ===================== BOTONES DE OPCIONES (sexo, HODS, Lunge, días, Sí/No) ===================== */
+.opt-botones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.opt-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1.5px solid #DCE4E8;
+    background: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    color: #33434A;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+}
+.opt-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
+.opt-btn:focus-visible { outline: 3px solid rgba(10, 148, 176, 0.35); outline-offset: 1px; }
+.opt-btn.selected {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(11, 20, 23, 0.12);
+}
+.opt-icono { font-size: 15px; line-height: 1; }
+.opt-btn.opt-si .opt-icono { color: #2E9E5B; }
+.opt-btn.opt-no .opt-icono { color: #C62828; }
+.opt-btn.selected .opt-icono { color: #fff; }
+
+/* Días (0 a 7): fila compacta de números */
+.opt-botones.compacto {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 4px;
+}
+.opt-botones.compacto .opt-btn {
+    min-height: 36px;
+    padding: 0;
+    border-radius: 9px;
+    font-size: 13.5px;
+}
+@media (max-width: 520px) {
+    .opt-btn { flex: 1 1 auto; padding: 0 10px; }
+}
+
+/* Sexo: ♂ M · ♀ F · Otro ▾ (menú con el resto de opciones) */
+.opt-botones.sexo {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+}
+.opt-botones.sexo .opt-btn { width: 100%; padding: 0 4px; gap: 4px; }
+.opt-otro { position: relative; }
+.opt-flecha { font-size: 10px; opacity: 0.7; margin-left: 2px; }
+.opt-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 950;
+    min-width: 210px;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid #DCE4E8;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(11, 20, 23, 0.16);
+    display: grid;
+    gap: 2px;
+}
+.opt-menu[hidden] { display: none; }
+.opt-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 9px 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: #33434A;
+    text-align: left;
+    cursor: pointer;
+}
+.opt-menu-item span { font-size: 11.5px; font-weight: 800; color: #8A989F; }
+.opt-menu-item:hover, .opt-menu-item:focus-visible { background: #F1F4F6; outline: none; }
+.opt-menu-item.selected { background: var(--primary-color); color: #fff; }
+.opt-menu-item.selected span { color: rgba(255, 255, 255, 0.8); }
+
+/* Campo obligatorio sin responder (p. ej. "Atendido por") */
+.opt-botones.field-missing .opt-btn { border-color: #E57373; background: #FFF6F6; }

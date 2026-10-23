@@ -8,13 +8,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261022_v6">
+    <link rel="stylesheet" href="styles.css?v=20261023_v5">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="env-config.js"></script>
     <script src="supabase-config.js?v=20261022_v1"></script>
-    <script src="kinetiq-common.js?v=20261022_v10"></script>
+    <script src="kinetiq-common.js?v=20261023_v8"></script>
     <script src="auth-guard.js?v=20261022_v4"></script>
 </head>
 <body class="modulo-deportivo">
@@ -69,10 +69,13 @@
                             </div>
                             <div class="form-group">
                                 <label for="sexo">Sexo:</label>
-                                <select id="sexo" name="sexo" class="form-control">
+                                <select id="sexo" data-botones="sexo" name="sexo" class="form-control">
                                     <option value="">Seleccione...</option>
                                     <option value="Masculino">Masculino</option>
                                     <option value="Femenino">Femenino</option>
+                                    <option value="No binario">No binario</option>
+                                    <option value="Intersexual">Intersexual</option>
+                                    <option value="Prefiere no decir">Prefiere no decir</option>
                                     <option value="No especificado">No especificado</option>
                                 </select>
                             </div>
@@ -89,11 +92,11 @@
                             </div>
                             <div class="form-group">
                                 <label for="dominancia">Dominancia:</label>
-                                <select id="dominancia" name="dominancia" class="form-control">
+                                <select id="dominancia" name="dominancia" class="form-control" data-botones="si">
                                     <option value="">Seleccione...</option>
-                                    <option value="Derecha">Derecha</option>
-                                    <option value="Izquierda">Izquierda</option>
-                                    <option value="Ambidiestro">Ambidiestro</option>
+                                    <option value="Derecha" data-corto="Der">Derecha</option>
+                                    <option value="Izquierda" data-corto="Izq">Izquierda</option>
+                                    <option value="Ambidiestro" data-corto="Amb">Ambidiestro</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -113,7 +116,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="atendidoPor">Atendido por: *</label>
-                                <select id="atendidoPor" name="atendidoPor" class="form-control" data-profesionales="pisada" required>
+                                <select id="atendidoPor" name="atendidoPor" class="form-control" data-profesionales="pisada" data-botones="profesional" required>
                                     <option value="">Seleccione profesional...</option>
                                 </select>
                             </div>
@@ -254,7 +257,7 @@
                         </div>
                         <div class="form-group">
                             <label for="diasEntrenamiento">Días de entrenamientos:</label>
-                            <select id="diasEntrenamiento" name="diasEntrenamiento" class="form-control" data-dias>
+                            <select id="diasEntrenamiento" data-botones="compacto" name="diasEntrenamiento" class="form-control" data-dias>
                                 <option value="">Seleccione...</option>
                             </select>
                         </div>
@@ -263,13 +266,13 @@
                     <div class="form-grid-2">
                         <div class="form-group">
                             <label for="diasGimnasio">Días de gimnasio:</label>
-                            <select id="diasGimnasio" name="diasGimnasio" class="form-control" data-dias>
+                            <select id="diasGimnasio" data-botones="compacto" name="diasGimnasio" class="form-control" data-dias>
                                 <option value="">Seleccione...</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label for="diasDescanso">Días de descanso:</label>
-                            <select id="diasDescanso" name="diasDescanso" class="form-control" data-dias>
+                            <select id="diasDescanso" data-botones="compacto" name="diasDescanso" class="form-control" data-dias>
                                 <option value="">Seleccione...</option>
                             </select>
                         </div>
@@ -329,7 +332,7 @@
                     <div class="form-grid-2">
                         <div class="form-group">
                             <label for="hods">HODS:</label>
-                            <select id="hods" name="hods" class="form-control">
+                            <select id="hods" data-botones="si" name="hods" class="form-control">
                                 <option value="">Seleccione...</option>
                                 <option value="0">0</option>
                                 <option value="1">1</option>
@@ -339,7 +342,7 @@
                         </div>
                         <div class="form-group">
                             <label for="lunge">Lunge:</label>
-                            <select id="lunge" name="lunge" class="form-control">
+                            <select id="lunge" data-botones="si" name="lunge" class="form-control">
                                 <option value="">Seleccione...</option>
                                 <option value="+">+</option>
                                 <option value="-">-</option>
@@ -504,6 +507,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <script src="script.js?v=20261022_v7"></script>
+    <script src="script.js?v=20261023_v8"></script>
 </body>
 </html>

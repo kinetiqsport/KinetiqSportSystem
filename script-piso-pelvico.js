@@ -272,7 +272,11 @@ class ReportePisoPelvico {
                 } else if (key === 'referidoSeleccionado') {
                     this._pendingReferidoValue = data[key];
                 } else if (element.tagName === 'SELECT') {
-                    element.value = data[key];
+                    // Opciones que cambiaron de nombre: alcohol pasó de "Frecuente" a "Sí"
+                    // (cigarrillo, alcohol y protector usan ahora Sí / No / Ocasional)
+                    const EQUIVALENCIAS = { consumoAlcohol: { frecuente: 'Sí' } };
+                    const equivalente = EQUIVALENCIAS[key]?.[String(data[key]).trim().toLowerCase()];
+                    element.value = equivalente || data[key];
                     if (!element.value && data[key]) {
                         const searchVal = String(data[key]).trim().toLowerCase();
                         for (const opt of element.options) {
@@ -326,6 +330,7 @@ class ReportePisoPelvico {
     }
 
     collectFormData() {
+        Kinetiq.textoAMayusculas();
         const formData = {};
 
         document.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea').forEach(element => {
