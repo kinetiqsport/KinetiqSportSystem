@@ -1965,3 +1965,41 @@ body.modulo-pelvico .form-progress-pill.active { outline-color: var(--accent-rin
 
 /* Campo obligatorio sin responder (p. ej. "Atendido por") */
 .opt-botones.field-missing .opt-btn { border-color: #E57373; background: #FFF6F6; }
+
+/* Piso pélvico: botones Sí/No/... con el mismo formato de círculo que las opciones de radio */
+.opt-botones.estilo-radio { gap: 8px; }
+.opt-botones.estilo-radio .opt-btn {
+    min-height: 0;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+}
+.opt-botones.estilo-radio .opt-btn:hover { color: #33434A; }
+.opt-botones.estilo-radio .opt-btn.selected {
+    background: var(--accent-soft);
+    border-color: var(--primary-color);
+    color: var(--secondary-color);
+    box-shadow: none;
+}
+.opt-circulo {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    border: 1.5px solid #9AA8AE;
+    border-radius: 50%;
+    background: #fff;
+}
+.opt-btn.selected .opt-circulo {
+    border-color: var(--primary-color);
+    box-shadow: inset 0 0 0 3px #fff;
+    background: var(--primary-color);
+}
+
+/* Columnas fijas: al aparecer "Referido por" / "Especificar" la casilla de al lado no cambia de ancho */
+@media (min-width: 769px) {
+    .form-grid-2.columnas-fijas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .form-grid-4.columnas-fijas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

@@ -12,6 +12,8 @@
         pisada: ['Jorge', 'Santiago', 'Mariana'],
         piso_pelvico: ['Nataly']
     };
+    // Ícono de cada profesional en los botones de "Atendido por"
+    const ICONO_PROFESIONAL = { Jorge: '👨‍⚕️', Santiago: '👨‍⚕️', Mariana: '👩‍⚕️', Nataly: '👩‍⚕️' };
 
     // Límites de archivos
     const MAX_ADJUNTO_MB = 10; // Cada adjunto se guarda en la base de datos
@@ -705,6 +707,9 @@
 
             const cont = document.createElement('div');
             cont.className = 'opt-botones' + (select.dataset.botones === 'compacto' ? ' compacto' : '');
+            // Piso pélvico: mismo formato que sus opciones de círculo (p. ej. "Deseo miccional")
+            const estiloRadio = select.dataset.botones === 'si' && document.body.classList.contains('modulo-pelvico');
+            if (estiloRadio) cont.classList.add('estilo-radio');
             cont.setAttribute('role', 'radiogroup');
             const label = select.id ? document.querySelector(`label[for="${select.id}"]`) : null;
             if (label) cont.setAttribute('aria-label', label.textContent.replace(/[:*]/g, '').trim());
@@ -716,13 +721,14 @@
                 b.setAttribute('role', 'radio');
                 const clave = normalizar(o.value);
                 // Profesionales: ícono de profesional de la salud junto al nombre
-                const icono = select.dataset.botones === 'profesional' ? '🧑‍⚕️' : ICONOS_OPCION[clave];
+                const icono = select.dataset.botones === 'profesional' ? (ICONO_PROFESIONAL[o.value] || '🧑‍⚕️') : ICONOS_OPCION[clave];
                 // "-" del Lunge se muestra como signo menos tipográfico
                 const compacto = select.dataset.botones === 'compacto';
                 // data-corto: etiqueta abreviada en el botón; el valor guardado no cambia
                 const texto = o.value === '-' ? '−' : (o.dataset.corto || (compacto ? o.value : o.textContent.trim()));
                 if (compacto || o.dataset.corto) b.title = o.textContent.trim();
-                b.innerHTML = icono ? `<span class="opt-icono" aria-hidden="true">${icono}</span>${escapeHtml(texto)}` : escapeHtml(texto);
+                if (estiloRadio) b.innerHTML = `<span class="opt-circulo" aria-hidden="true"></span>${escapeHtml(texto)}`;
+                else b.innerHTML = icono ? `<span class="opt-icono" aria-hidden="true">${icono}</span>${escapeHtml(texto)}` : escapeHtml(texto);
                 b.dataset.valor = o.value;
                 if (clave === 'si') b.classList.add('opt-si');
                 if (clave === 'no') b.classList.add('opt-no');
