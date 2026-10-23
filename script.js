@@ -276,6 +276,8 @@ class ReporteMedico {
     }
 
     loadDataFromObject(data) {
+        // Evita avisar "paciente existente" sobre el mismo reporte que se está editando
+        if (data && data.cc) document.body.dataset.cedulaCargada = String(data.cc).trim();
         Object.keys(data).forEach(key => {
             if (key === 'saltos' || key === 'unipodal') return;
             
@@ -409,7 +411,12 @@ class ReporteMedico {
 
     getAllEmptyFields() {
         const empty = [];
-        document.querySelectorAll('.form-control').forEach(el => {
+        // Solo campos del formulario que se ven (no el buscador ni las ventanas de referidos,
+        // ni "Referido por"/"Especificar" cuando están ocultos). Los selects con botones están
+        // ocultos, pero su grupo sí se ve.
+        document.querySelectorAll('#reportForm .form-control').forEach(el => {
+            const grupo = el.closest('.form-group') || el;
+            if (grupo.offsetParent === null) return;
             if (el.value == null || el.value.toString().trim() === '') {
                 const id = el.id;
                 let label = '';
@@ -454,15 +461,7 @@ class ReporteMedico {
                     this.validateCC();
                 });
                 ccInput.addEventListener('blur', () => {
-                    const cedula = ccInput.value.trim();
-                    if (cedula.length < 6 || !window.supabaseClient?.supabase) return;
-                    window.supabaseClient.supabase.from('reportes').select('*').eq('cedula', cedula).then(({ data }) => {
-                        if (!data || data.length === 0) return;
-                        if (confirm('Este paciente ya está registrado. ¿Desea cargar sus datos automáticamente?')) {
-                            this.prefillFromPaciente(data[0]);
-                            this.showAlert('✔ Datos cargados correctamente', 'success');
-                        }
-                    }).catch(() => {});
+                    Kinetiq.revisarPacienteExistente(ccInput.value, 'pisada', paciente => this.prefillFromPaciente(paciente)).catch(() => {});
                 });
             }
             if (celularInput) {
@@ -1228,6 +1227,7 @@ class ReporteMedico {
             this.resetConfirmModal();
             
             // Mostrar mensaje de éxito
+            Kinetiq.descartarBorrador();
             this.showAlert('✓ Reporte guardado correctamente', 'success');
             
             // Redirigir a bienvenida después de 1.5 segundos
@@ -1613,7 +1613,7 @@ class ReporteMedico {
                 }
             }
 
-            Kinetiq.pdf.pie(doc, 'Valoración por fisioterapia deportiva', nombreCompleto);
+            Kinetiq.pdf.pie(doc, 'Valoración por fisioterapia deportiva', nombreCompleto, document.getElementById('atendidoPor')?.value || '');
 
             // Exportar a bytes
             let pdfBytes = doc.output('arraybuffer');
@@ -1944,6 +1944,9 @@ class ReporteMedico {
         if (datos.talla) document.getElementById('talla').value = datos.talla;
         if (datos.celular) document.getElementById('celular').value = datos.celular;
         if (datos.cc) document.getElementById('cc').value = datos.cc;
+        if (datos.ocupacion) document.getElementById('ocupacion').value = datos.ocupacion;
+        // Sexo se muestra con botones: avisar el cambio para que se marquen
+        document.getElementById('sexo')?.dispatchEvent(new Event('change', { bubbles: true }));
 
         document.querySelectorAll('.form-control').forEach(el => {
             if (el.value.trim()) {
@@ -1974,7 +1977,9 @@ class ReporteMedico {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const abriendoReporte = !!sessionStorage.getItem('reportToLoad');
     window.reporte = new ReporteMedico();
+    Kinetiq.initBorrador(window.reporte, 'pisada', abriendoReporte);
 });
 
 if (typeof module !== 'undefined' && module.exports) {

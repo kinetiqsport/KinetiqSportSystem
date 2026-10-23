@@ -10,9 +10,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="env-config.js"></script>
     <script src="supabase-config.js?v=20261022_v1"></script>
-    <script src="kinetiq-common.js?v=20261023_v10"></script>
+    <script src="kinetiq-common.js?v=20261023_v12"></script>
     <script src="analitica.js?v=20261022_v5"></script>
-    <script src="auth-guard.js?v=20261022_v4"></script>
+    <script src="auth-guard.js?v=20261023_v5"></script>
     <style>
         :root {
             --brand: #0A94B0;
@@ -289,6 +289,7 @@
             cursor: pointer;
         }
         .filter-btn:hover, .filter-btn[aria-expanded="true"] { border-color: var(--brand); color: var(--brand-strong); }
+        .filter-btn .count[hidden] { display: none; }
         .filter-btn .count {
             min-width: 20px;
             height: 20px;
@@ -757,6 +758,10 @@
                     <option value="dolor">Mayor dolor primero</option>
                 </select>
                 <button type="button" id="resetFiltros" class="reset-btn">Limpiar filtros</button>
+                <button type="button" id="exportarExcel" class="filter-btn" title="Descarga la lista con los filtros aplicados (se abre en Excel)">
+                    <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+                    Excel
+                </button>
             </div>
 
             <!-- Filtros avanzados: se combinan entre sí (todos deben cumplirse) -->
@@ -1007,6 +1012,7 @@
                 });
                 document.getElementById('orden').addEventListener('change', e => { this.filtros.orden = e.target.value; this.aplicarFiltros(); });
                 document.getElementById('resetFiltros').addEventListener('click', () => this.limpiarFiltros());
+                document.getElementById('exportarExcel').addEventListener('click', () => this.exportarExcel());
 
                 // Panel de filtros avanzados
                 const toggle = document.getElementById('toggleFiltros');
@@ -1306,6 +1312,54 @@
 
                 // La analítica (incluido "Datos clínicos") se vuelve a dibujar si está visible
                 if (window.KinetiqAnalitica) window.KinetiqAnalitica.refrescar();
+            }
+
+            comoNosConocio(j) {
+                const ETIQUETAS = { redes_sociales: 'Redes sociales', charlas_informativas: 'Charlas informativas', referido_por: 'Referido', otro: 'Otro' };
+                const v = String(j.comoNosConociste || '').trim();
+                if (!v) return '';
+                const detalle = v === 'otro' ? String(j.otroComoNosConociste || '').trim() : '';
+                return (ETIQUETAS[v] || v.replace(/_/g, ' ')) + (detalle ? `: ${detalle}` : '');
+            }
+
+            // Descarga las valoraciones visibles (con filtros) como CSV que Excel abre directamente
+            exportarExcel() {
+                const filas = [...(this.filteredReportes || [])].sort((a, b) => this.fechaDe(b) - this.fechaDe(a));
+                if (!filas.length) return;
+                // Excel en español separa con ";". Lo que empieza por = + - @ se trata como texto (no fórmula)
+                const celda = v => {
+                    let t = String(v ?? '').replace(/\s+/g, ' ').trim();
+                    if (/^[=+\-@]/.test(t)) t = "'" + t;
+                    return `"${t.replace(/"/g, '""')}"`;
+                };
+                // Cédula y celular como texto para que Excel no los convierta a notación científica
+                const comoTexto = v => (String(v ?? '').trim() ? `="${String(v).trim().replace(/"/g, '')}"` : '""');
+                const SEXO = { F: 'Femenino', M: 'Masculino' };
+                const encabezado = ['Fecha', 'Módulo', 'Nombre', 'Apellido', 'Cédula', 'Sexo', 'Edad', 'Peso (kg)', 'Celular',
+                    'Atendido por', 'Dolor (0-10)', 'Zona de dolor', 'Deporte / motivo', '¿Cómo nos conoció?'];
+                const lineas = filas.map(r => {
+                    const j = this.getJson(r);
+                    const a = this.atributos(r);
+                    const pelvico = this.getTipoReporte(r) === 'piso_pelvico';
+                    const detalle = pelvico ? Kinetiq.motivoPelvico(j).motivos.join(', ') : (j.deporte || '');
+                    return [
+                        celda(this.formatFecha(r.fecha_creacion || r.fecha_modificacion)),
+                        celda(pelvico ? 'Piso pélvico' : 'Fisio deportiva'),
+                        celda(j.nombre || r.nombre), celda(j.apellido || r.apellido),
+                        comoTexto(r.cedula),
+                        celda(SEXO[a.sexo] || j.sexo || ''),
+                        celda(a.edad ?? ''), celda(a.peso ?? ''),
+                        comoTexto(j.celular),
+                        celda(this.getAtendidoPor(r) || ''),
+                        celda(a.eva ?? ''),
+                        celda(a.zonas.join(', ')),
+                        celda(detalle),
+                        celda(this.comoNosConocio(j))
+                    ].join(';');
+                });
+                const csv = '﻿' + [encabezado.map(celda).join(';'), ...lineas].join('\r\n');
+                const hoy = new Date().toISOString().slice(0, 10);
+                Kinetiq.descargarArchivo(csv, `pacientes_kinetiq_${hoy}.csv`, 'text/csv;charset=utf-8');
             }
 
             renderResumen() {

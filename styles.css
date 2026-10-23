@@ -2003,3 +2003,52 @@ body.modulo-pelvico .form-progress-pill.active { outline-color: var(--accent-rin
     .form-grid-2.columnas-fijas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .form-grid-4.columnas-fijas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+
+/* Avisos dentro del formulario: borrador sin guardar y paciente existente */
+.aviso-kinetiq {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border: 1px solid var(--primary-color);
+    border-left-width: 4px;
+    border-radius: 12px;
+    background: #F4FAFC;
+    font-size: 14px;
+    color: #33434A;
+}
+.modulo-pelvico .aviso-kinetiq { background: #FAF6FC; }
+.aviso-kinetiq.advertencia { border-color: #E0A23B; background: #FFF9EE; }
+.aviso-icono { font-size: 18px; line-height: 1; }
+.aviso-texto { flex: 1 1 260px; line-height: 1.45; }
+.aviso-acciones { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.aviso-btn {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1.5px solid var(--primary-color);
+    border-radius: 10px;
+    background: #fff;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--primary-color);
+    cursor: pointer;
+}
+.aviso-btn.principal { background: var(--primary-color); color: #fff; }
+.aviso-cerrar {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #8A989F;
+    font-size: 14px;
+    cursor: pointer;
+}
+.aviso-cerrar:hover { background: rgba(0, 0, 0, 0.05); }
+.section > .aviso-kinetiq { margin-left: 28px; margin-right: 28px; }
+@media (max-width: 768px) {
+    .section > .aviso-kinetiq { margin-left: 16px; margin-right: 16px; }
+}

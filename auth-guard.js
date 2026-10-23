@@ -109,8 +109,18 @@
     resetInactivityTimer();
 
     // Exponer funciones globalmente
-    window.logout = secureLogout;
-    window.secureLogout = secureLogout;
+    // Cerrar sesión a propósito borra los borradores de formularios de este navegador.
+    // (Si la sesión vence o se cierra por inactividad, el borrador se conserva para recuperarlo.)
+    function cerrarSesionManual() {
+        try {
+            Object.keys(localStorage)
+                .filter(k => k.startsWith('kinetiq_borrador_'))
+                .forEach(k => localStorage.removeItem(k));
+        } catch (e) {}
+        return secureLogout();
+    }
+    window.logout = cerrarSesionManual;
+    window.secureLogout = cerrarSesionManual;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', verifySupabaseSession);

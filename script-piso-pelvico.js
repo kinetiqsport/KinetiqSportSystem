@@ -261,6 +261,8 @@ class ReportePisoPelvico {
     }
 
     loadDataFromObject(data) {
+        // Evita avisar "paciente existente" sobre el mismo reporte que se está editando
+        if (data && data.cc) document.body.dataset.cedulaCargada = String(data.cc).trim();
         Object.keys(data).forEach(key => {
             if (key === 'checkboxGroups' || key === 'radioGroups') return;
 
@@ -447,7 +449,12 @@ class ReportePisoPelvico {
 
     getAllEmptyFields() {
         const empty = [];
-        document.querySelectorAll('.form-control').forEach(el => {
+        // Solo campos del formulario que se ven (no el buscador ni las ventanas de referidos,
+        // ni "Referido por"/"Especificar" cuando están ocultos). Los selects con botones están
+        // ocultos, pero su grupo sí se ve.
+        document.querySelectorAll('#reportForm .form-control').forEach(el => {
+            const grupo = el.closest('.form-group') || el;
+            if (grupo.offsetParent === null) return;
             if (el.value == null || el.value.toString().trim() === '') {
                 const id = el.id;
                 let label = '';
@@ -482,15 +489,7 @@ class ReportePisoPelvico {
         if (ccInput) {
             ccInput.addEventListener('input', () => { this.restrictToNumbers(ccInput); this.validateCC(); });
             ccInput.addEventListener('blur', () => {
-                const cedula = ccInput.value.trim();
-                if (cedula.length < 6 || !window.supabaseClient?.supabase) return;
-                window.supabaseClient.supabase.from('reportes').select('*').eq('cedula', cedula).then(({ data }) => {
-                    if (!data || data.length === 0) return;
-                    if (confirm('Este paciente ya está registrado. ¿Desea cargar sus datos automáticamente?')) {
-                        this.prefillFromPaciente(data[0]);
-                        this.showAlert('✔ Datos cargados correctamente', 'success');
-                    }
-                }).catch(() => {});
+                Kinetiq.revisarPacienteExistente(ccInput.value, 'piso_pelvico', paciente => this.prefillFromPaciente(paciente)).catch(() => {});
             });
         }
         if (celularInput) celularInput.addEventListener('input', () => { this.restrictToNumbers(celularInput); this.validateCelular(); });
@@ -786,6 +785,8 @@ class ReportePisoPelvico {
         if (datos.talla) document.getElementById('talla').value = datos.talla;
         if (datos.celular) document.getElementById('celular').value = datos.celular;
         if (datos.cc) document.getElementById('cc').value = datos.cc;
+        // Sexo se muestra con botones: avisar el cambio para que se marquen
+        document.getElementById('sexo')?.dispatchEvent(new Event('change', { bubbles: true }));
         if (datos.ocupacion) document.getElementById('ocupacion').value = datos.ocupacion;
 
         document.querySelectorAll('.form-control').forEach(el => {
@@ -1399,6 +1400,7 @@ class ReportePisoPelvico {
         try {
             await this.guardarEnDB();
             this.resetConfirmModal();
+            Kinetiq.descartarBorrador();
             this.showAlert('✓ Reporte guardado correctamente', 'success');
             setTimeout(() => window.location.href = 'bienvenida.html', 1500);
         } catch (error) {
@@ -1504,7 +1506,11 @@ class ReportePisoPelvico {
 
     getCheckboxValues(name) {
         const checked = document.querySelectorAll(`input[name="${name}"]:checked`);
-        return Array.from(checked).map(c => c.value);
+        // Opciones "Otra" con cuadro de texto al lado: mostrar lo que se escribió
+        return Array.from(checked).map(c => {
+            const detalle = c.parentElement?.querySelector('input[type="text"]')?.value?.trim();
+            return detalle ? `${c.value}: ${detalle}` : c.value;
+        });
     }
 
     getRadioValue(name) {
@@ -1728,7 +1734,8 @@ class ReportePisoPelvico {
                 ['Días menstruación:', document.getElementById('diasMenstruacion')?.value || '-', 'Intervalo:', document.getElementById('intervaloPeriodo')?.value ? document.getElementById('intervaloPeriodo').value + ' días' : '-'],
                 ['Caract. sangrado:', this.getCheckboxValues('caractSangrado').join(', ') || '-', ''],
                 ['Dolor menstrual:', this.getCheckboxValues('dolorMenstrual').join(', ') || '-', ''],
-                ['Anticonceptivo:', this.getCheckboxValues('anticonceptivo').join(', ') || '-', '']
+                ['Anticonceptivo:', this.getCheckboxValues('anticonceptivo').join(', ') || '-', ''],
+                ['Observaciones:', document.getElementById('observacionesMenstruales')?.value?.trim() || '-', '']
             ]).map(r => {
                 if (r.length === 2) return [r[0], { content: r[1], colSpan: 3 }];
                 if (r.length === 3 && (!r[2] || r[2] === '')) return [r[0], { content: r[1], colSpan: 3 }];
@@ -1827,7 +1834,8 @@ class ReportePisoPelvico {
                 ['Movilidad coxis:', document.getElementById('movilidadCoxis')?.value ? document.getElementById('movilidadCoxis').value + ' cm' : '-', 'Mov. columna lumbar:', document.getElementById('movilidadColumna')?.value || '-'],
                 ['Tos y estornudo:', document.getElementById('genitoTosEstornudo')?.value || '-', ''],
                 ['Ano:', document.getElementById('genitoAno')?.value || '-', ''],
-                ['NFCP:', document.getElementById('genitoNFCP')?.value || '-', '']
+                ['NFCP:', document.getElementById('genitoNFCP')?.value || '-', ''],
+                ['Movilidad pelvis:', document.getElementById('movilidadPelvis')?.value?.trim() || '-', '']
             ]).map(r => {
                 if (r.length === 2) return [r[0], { content: r[1], colSpan: 3 }];
                 if (r.length === 3 && (!r[2] || r[2] === '')) return [r[0], { content: r[1], colSpan: 3 }];
@@ -1951,7 +1959,7 @@ class ReportePisoPelvico {
                 }
             }
 
-            Kinetiq.pdf.pie(doc, 'Reporte de piso pélvico', nombreCompleto);
+            Kinetiq.pdf.pie(doc, 'Reporte de piso pélvico', nombreCompleto, document.getElementById('atendidoPor')?.value || '');
 
             let pdfBytes = doc.output('arraybuffer');
 
@@ -2120,5 +2128,7 @@ class ReportePisoPelvico {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const abriendoReporte = !!sessionStorage.getItem('reportToLoad');
     window.reporte = new ReportePisoPelvico();
+    Kinetiq.initBorrador(window.reporte, 'piso_pelvico', abriendoReporte);
 });

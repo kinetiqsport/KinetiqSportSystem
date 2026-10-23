@@ -560,10 +560,13 @@
             doc.text(doc.splitTextToSize(nombre || 'Archivo adjunto', 180)[0], 14, 17.5);
         },
 
-        // Pie en todas las páginas y encabezado mínimo a partir de la segunda
-        pie(doc, subtitulo, paciente) {
+        // Pie en todas las páginas (con profesional y fecha, por si se imprime una sola hoja)
+        // y encabezado mínimo a partir de la segunda
+        pie(doc, subtitulo, paciente, profesional) {
             const t = doc.__tema;
             const total = doc.getNumberOfPages();
+            const fecha = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const detalle = [subtitulo, profesional ? `Atendido por ${profesional}` : '', fecha, 'Confidencial'].filter(Boolean).join('  ·  ');
             for (let i = 1; i <= total; i++) {
                 doc.setPage(i);
                 if (i > 1 && !doc.__paginasAnexo?.has(i)) {
@@ -590,7 +593,7 @@
                 const ancho = doc.getTextWidth('Kinetiq Sports');
                 doc.setFont('helvetica', 'normal');
                 doc.setTextColor(...t.tintaTenue);
-                doc.text(`·  ${subtitulo}  ·  Información clínica confidencial`, 16 + ancho + 1.5, 286);
+                doc.text(`·  ${detalle}`, 16 + ancho + 1.5, 286);
                 doc.text(`Página ${i} de ${total}`, 198, 286, { align: 'right' });
             }
         }
@@ -793,6 +796,153 @@
         });
     }
 
+    // ---------- Avisos dentro del formulario ----------
+    function crearAviso(id, ancla, posicion, html) {
+        document.getElementById(id)?.remove();
+        const aviso = document.createElement('div');
+        aviso.id = id;
+        aviso.className = 'aviso-kinetiq';
+        aviso.setAttribute('role', 'status');
+        aviso.innerHTML = html;
+        ancla.insertAdjacentElement(posicion, aviso);
+        return aviso;
+    }
+
+    const fechaCorta = d => (d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+
+    // ---------- Paciente existente (al salir del campo cédula) ----------
+    const NOMBRE_MODULO = { pisada: 'valoración deportiva', piso_pelvico: 'valoración de piso pélvico' };
+    const PAGINA_MODULO = { pisada: 'index.html', piso_pelvico: 'reporte-piso-pelvico.html' };
+    let ultimaCedulaRevisada = '';
+
+    async function revisarPacienteExistente(cedula, modulo, alCargarDatos) {
+        cedula = String(cedula || '').trim();
+        if (cedula.length < 6 || cedula === ultimaCedulaRevisada || !window.supabaseClient?.supabase) return;
+        // Reporte abierto desde la base, un archivo o un borrador: no avisar de sí mismo
+        if (document.body.dataset.cedulaCargada === cedula) return;
+        ultimaCedulaRevisada = cedula;
+
+        const { data, error } = await window.supabaseClient.supabase
+            .from('reportes')
+            .select('cedula, nombre, apellido, tipo_reporte, reporte_json, fecha_modificacion')
+            .eq('cedula', cedula)
+            .order('fecha_modificacion', { ascending: false });
+        const campo = document.getElementById('cc');
+        if (error || !data?.length || !campo || campo.value.trim() !== cedula) return;
+
+        const mismo = data.find(r => (r.tipo_reporte || 'pisada') === modulo);
+        const ref = mismo || data[0];
+        const nombre = escapeHtml(`${ref.reporte_json?.nombre || ref.nombre || ''} ${ref.reporte_json?.apellido || ref.apellido || ''}`.trim() || 'Este paciente');
+        const texto = mismo
+            ? `<strong>${nombre}</strong> ya tiene una ${NOMBRE_MODULO[modulo]} (${fechaCorta(mismo.fecha_modificacion)}). Si guardas este formulario, <strong>la reemplazas</strong>.`
+            : `<strong>${nombre}</strong> ya está registrado (${NOMBRE_MODULO[ref.tipo_reporte || 'pisada']}, ${fechaCorta(ref.fecha_modificacion)}).`;
+
+        const ancla = campo.closest('.form-grid-4, .form-grid-2') || campo;
+        const aviso = crearAviso('avisoPaciente', ancla, 'afterend', `
+            <span class="aviso-icono" aria-hidden="true">${mismo ? '⚠️' : '👤'}</span>
+            <div class="aviso-texto">${texto}</div>
+            <div class="aviso-acciones">
+                ${mismo ? '<button type="button" class="aviso-btn principal" data-accion="abrir">Abrir esa valoración</button>' : ''}
+                <button type="button" class="aviso-btn${mismo ? '' : ' principal'}" data-accion="cargar">Cargar datos generales</button>
+                <button type="button" class="aviso-cerrar" data-accion="cerrar" aria-label="Cerrar aviso">✕</button>
+            </div>`);
+        if (mismo) aviso.classList.add('advertencia');
+
+        aviso.addEventListener('click', e => {
+            const accion = e.target.closest('[data-accion]')?.dataset.accion;
+            if (!accion) return;
+            if (accion === 'abrir') {
+                sessionStorage.setItem('reportToLoad', JSON.stringify(mismo.reporte_json || {}));
+                window.location.href = PAGINA_MODULO[modulo];
+                return;
+            }
+            if (accion === 'cargar') alCargarDatos(ref);
+            aviso.remove();
+        });
+    }
+
+    // ---------- Borrador automático ----------
+    // Se guarda solo en este navegador (localStorage): no hace peticiones a Vercel ni a Supabase.
+    const BORRADOR_HORAS = 48;
+    const PREFIJO_BORRADOR = 'kinetiq_borrador_';
+    let claveBorradorActiva = null;
+
+    function descartarBorrador() {
+        if (!claveBorradorActiva) return;
+        try { localStorage.removeItem(claveBorradorActiva); } catch (e) {}
+    }
+
+    function haceCuanto(ms) {
+        const min = Math.max(1, Math.round((Date.now() - ms) / 60000));
+        if (min < 60) return `hace ${min} min`;
+        const h = Math.round(min / 60);
+        return h < 24 ? `hace ${h} h` : `hace ${Math.round(h / 24)} día(s)`;
+    }
+
+    function initBorrador(reporte, modulo, abriendoReporte) {
+        const form = document.getElementById('reportForm');
+        if (!form || !reporte?.collectFormData) return;
+        const clave = PREFIJO_BORRADOR + modulo;
+        claveBorradorActiva = clave;
+        const usuario = sessionStorage.getItem('userEmail') || '';
+        let editado = false;  // solo lo que escribe o marca la persona; cargar un reporte no cuenta
+        let pausado = false;  // mientras se ofrece recuperar uno anterior, no sobrescribirlo
+        let timer = null;
+
+        const guardar = () => {
+            if (pausado || !editado) return;
+            try { localStorage.setItem(clave, JSON.stringify({ fecha: Date.now(), usuario, datos: reporte.collectFormData() })); } catch (e) {}
+        };
+        const programar = e => {
+            if (!e.isTrusted) return;
+            editado = true;
+            clearTimeout(timer);
+            timer = setTimeout(guardar, 1000);
+        };
+        form.addEventListener('input', programar);
+        form.addEventListener('change', programar);
+        // Los botones de opción cambian el select oculto por código: contar el clic de la persona
+        form.addEventListener('click', e => { if (e.target.closest('.opt-btn, .opt-menu-item, .eva-btn')) programar(e); });
+        // En el celular la pestaña puede cerrarse sin aviso: guardar al salir de ella
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardar(); });
+        form.addEventListener('reset', () => {
+            descartarBorrador();
+            document.getElementById('avisoBorrador')?.remove();
+            pausado = false;
+            editado = false;
+        });
+
+        let previo = null;
+        try { previo = JSON.parse(localStorage.getItem(clave) || 'null'); } catch (e) {}
+        if (!previo?.datos) return;
+        if (Date.now() - previo.fecha > BORRADOR_HORAS * 3600000) { descartarBorrador(); return; }
+        // Abrir un reporte guardado no debe pisar el borrador; tampoco ofrecerlo a otro usuario
+        if (abriendoReporte || (previo.usuario && usuario && previo.usuario !== usuario)) return;
+
+        pausado = true;
+        const nombre = escapeHtml(`${previo.datos.nombre || ''} ${previo.datos.apellido || ''}`.trim() || 'un paciente sin nombre');
+        const aviso = crearAviso('avisoBorrador', form, 'afterbegin', `
+            <span class="aviso-icono" aria-hidden="true">📝</span>
+            <div class="aviso-texto">Tienes una valoración sin guardar de <strong>${nombre}</strong> (${haceCuanto(previo.fecha)}).</div>
+            <div class="aviso-acciones">
+                <button type="button" class="aviso-btn principal" data-accion="recuperar">Recuperar</button>
+                <button type="button" class="aviso-btn" data-accion="descartar">Descartar</button>
+            </div>`);
+        aviso.addEventListener('click', e => {
+            const accion = e.target.closest('[data-accion]')?.dataset.accion;
+            if (!accion) return;
+            if (accion === 'recuperar') {
+                reporte.loadDataFromObject(previo.datos);
+                reporte.updateHeaderPatient?.();
+                reporte.calculateIMC?.();
+            } else {
+                descartarBorrador();
+            }
+            pausado = false;
+            aviso.remove();
+        });
+    }
+
     window.Kinetiq = {
         PROFESIONALES,
         MAX_ADJUNTO_MB,
@@ -811,6 +961,10 @@
         motivoPelvico,
         especialidadQueRemite,
         textoAMayusculas,
+        revisarPacienteExistente,
+        initBorrador,
+        descartarBorrador,
+        PREFIJO_BORRADOR,
         pdf
     };
 
