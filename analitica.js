@@ -4,7 +4,7 @@
  * Proprietary and confidential. Unauthorized copying or distribution is strictly prohibited.
  */
 
-// analitica.js - Vista de analítica del dashboard (KPIs, gráficos y exportación CSV)
+// analitica.js - Vista de analítica del dashboard (KPIs, gráficos y exportación a Excel)
 
 (function() {
     const CHART_JS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
@@ -327,30 +327,38 @@
     }
 
     // ---------- Exportación ----------
-    function exportarCSV() {
+    // Genera un Excel con formato (resumen con gráficas + hoja de pacientes) del período y módulo elegidos
+    async function exportarExcel() {
+        const viewer = window.reportesViewer;
         const filas = state.ultimoFiltrado;
-        const referidosMap = (window.reportesViewer && window.reportesViewer.referidosMap) || {};
-        const cols = ['Fecha', 'Tipo', 'Cédula', 'Nombre', 'Apellido', 'Edad', 'Sexo', 'Atendido por', 'Cómo nos conoció', 'Referido', 'Deporte', 'Localización del dolor', 'EVA'];
-        const fuente = Object.fromEntries(FUENTES.map(f => [f.key, f.label]));
-        const esc = v => {
-            let s = String(v ?? '');
-            if (/^[=+\-@]/.test(s)) s = "'" + s; // Evita fórmulas al abrir en Excel
-            return /[";\n,]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-        };
-        const lineas = [cols.join(';')];
-        filas.forEach(r => {
-            const j = json(r), f = fecha(r);
-            lineas.push([
-                f ? f.toISOString().slice(0, 10) : '',
-                tipo(r) === 'piso_pelvico' ? 'Piso pélvico' : 'Fisioterapia deportiva',
-                r.cedula, r.nombre, r.apellido, j.edad, j.sexo, atendidoPor(r) || '',
-                fuente[j.comoNosConociste] || j.comoNosConociste || '',
-                j.referidoSeleccionado ? (referidosMap[j.referidoSeleccionado] || '') : '',
-                j.deporte, j.localizacionDolor, Kinetiq.evaDe(j) ?? ''
-            ].map(esc).join(';'));
-        });
-        const hoy = new Date().toISOString().slice(0, 10);
-        Kinetiq.descargarArchivo('﻿' + lineas.join('\r\n'), `Kinetiq_reportes_${hoy}.csv`, 'text/csv;charset=utf-8');
+        const btn = document.getElementById('anExportar');
+        if (!viewer || !filas.length) {
+            setText('anEstado', 'No hay valoraciones para exportar en este período.');
+            return;
+        }
+        const htmlBoton = btn.innerHTML;
+        btn.disabled = true;
+        btn.textContent = 'Generando Excel…';
+        try {
+            const filtros = [];
+            const rango = window.KinetiqAnalitica.rangoActual();
+            filtros.push(`Período: ${rango ? rango.etiqueta : 'Todo el histórico'}`);
+            const modulo = document.getElementById('anModulo');
+            if (modulo.value !== 'todos') filtros.push(`Módulo: ${modulo.options[modulo.selectedIndex].text}`);
+            const ordenadas = [...filas].sort((a, b) => (fecha(b) || 0) - (fecha(a) || 0));
+            await window.KinetiqExcel.exportar({
+                filas: ordenadas.map(r => viewer.filaParaExcel(r)),
+                filtros,
+                nombre: 'Kinetiq_analitica'
+            });
+            setText('anEstado', '');
+        } catch (error) {
+            console.error('Error exportando a Excel:', error);
+            setText('anEstado', 'No se pudo generar el Excel: ' + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = htmlBoton;
+        }
     }
 
     // ---------- Orquestación ----------
@@ -394,7 +402,7 @@
         ['anRango', 'anModulo', 'anDesde', 'anHasta'].forEach(id => {
             document.getElementById(id).addEventListener('change', actualizar);
         });
-        document.getElementById('anExportar').addEventListener('click', exportarCSV);
+        document.getElementById('anExportar').addEventListener('click', exportarExcel);
     }
 
     // La página de reportes llama a mostrar() al abrir la pestaña "Analítica";

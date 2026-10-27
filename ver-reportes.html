@@ -11,7 +11,8 @@
     <script src="env-config.js"></script>
     <script src="supabase-config.js?v=20261022_v1"></script>
     <script src="kinetiq-common.js?v=20261023_v12"></script>
-    <script src="analitica.js?v=20261022_v5"></script>
+    <script src="analitica.js?v=20261027_v1"></script>
+    <script src="exportar-xlsx.js?v=20261027_v4"></script>
     <script src="auth-guard.js?v=20261023_v5"></script>
     <style>
         :root {
@@ -861,7 +862,7 @@
             </div>
             <button id="anExportar" class="an-export" type="button">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
-                <span>Exportar CSV (<span id="anExportCount">0</span>)</span>
+                <span>Exportar Excel (<span id="anExportCount">0</span>)</span>
             </button>
         </div>
         <div class="an-estado" id="anEstado"></div>
@@ -1322,44 +1323,75 @@
                 return (ETIQUETAS[v] || v.replace(/_/g, ' ')) + (detalle ? `: ${detalle}` : '');
             }
 
-            // Descarga las valoraciones visibles (con filtros) como CSV que Excel abre directamente
-            exportarExcel() {
-                const filas = [...(this.filteredReportes || [])].sort((a, b) => this.fechaDe(b) - this.fechaDe(a));
-                if (!filas.length) return;
-                // Excel en español separa con ";". Lo que empieza por = + - @ se trata como texto (no fórmula)
-                const celda = v => {
-                    let t = String(v ?? '').replace(/\s+/g, ' ').trim();
-                    if (/^[=+\-@]/.test(t)) t = "'" + t;
-                    return `"${t.replace(/"/g, '""')}"`;
+            // Una valoración convertida en la fila del Excel (la usan la lista y la analítica)
+            filaParaExcel(r) {
+                const j = this.getJson(r);
+                const a = this.atributos(r);
+                const pelvico = this.getTipoReporte(r) === 'piso_pelvico';
+                const SEXO = { F: 'Femenino', M: 'Masculino', O: 'Otro' };
+                const CATEGORIAS = { redes_sociales: 'Redes sociales', charlas_informativas: 'Charlas informativas', referido_por: 'Referidos', otro: 'Otros' };
+                const origen = String(j.comoNosConociste || '').trim();
+                return {
+                    fecha: new Date(r.fecha_creacion || r.fecha_modificacion),
+                    modulo: this.getTipoReporte(r),
+                    nombre: j.nombre || r.nombre,
+                    apellido: j.apellido || r.apellido,
+                    cedula: r.cedula,
+                    sexo: SEXO[a.sexo] || j.sexo || '',
+                    edad: a.edad,
+                    peso: a.peso,
+                    celular: j.celular,
+                    profesional: this.getAtendidoPor(r) || '',
+                    eva: a.eva,
+                    zonas: a.zonas.join(', '),
+                    detalle: pelvico ? Kinetiq.motivoPelvico(j).motivos.join(', ') : (j.deporte || ''),
+                    fuente: origen ? (CATEGORIAS[origen] || origen.replace(/_/g, ' ')) : '',
+                    fuenteDetalle: this.comoNosConocio(j),
+                    referido: j.referidoSeleccionado ? (this.referidosMap[j.referidoSeleccionado] || '') : ''
                 };
-                // Cédula y celular como texto para que Excel no los convierta a notación científica
-                const comoTexto = v => (String(v ?? '').trim() ? `="${String(v).trim().replace(/"/g, '')}"` : '""');
-                const SEXO = { F: 'Femenino', M: 'Masculino' };
-                const encabezado = ['Fecha', 'Módulo', 'Nombre', 'Apellido', 'Cédula', 'Sexo', 'Edad', 'Peso (kg)', 'Celular',
-                    'Atendido por', 'Dolor (0-10)', 'Zona de dolor', 'Deporte / motivo', '¿Cómo nos conoció?'];
-                const lineas = filas.map(r => {
-                    const j = this.getJson(r);
-                    const a = this.atributos(r);
-                    const pelvico = this.getTipoReporte(r) === 'piso_pelvico';
-                    const detalle = pelvico ? Kinetiq.motivoPelvico(j).motivos.join(', ') : (j.deporte || '');
-                    return [
-                        celda(this.formatFecha(r.fecha_creacion || r.fecha_modificacion)),
-                        celda(pelvico ? 'Piso pélvico' : 'Fisio deportiva'),
-                        celda(j.nombre || r.nombre), celda(j.apellido || r.apellido),
-                        comoTexto(r.cedula),
-                        celda(SEXO[a.sexo] || j.sexo || ''),
-                        celda(a.edad ?? ''), celda(a.peso ?? ''),
-                        comoTexto(j.celular),
-                        celda(this.getAtendidoPor(r) || ''),
-                        celda(a.eva ?? ''),
-                        celda(a.zonas.join(', ')),
-                        celda(detalle),
-                        celda(this.comoNosConocio(j))
-                    ].join(';');
-                });
-                const csv = '﻿' + [encabezado.map(celda).join(';'), ...lineas].join('\r\n');
-                const hoy = new Date().toISOString().slice(0, 10);
-                Kinetiq.descargarArchivo(csv, `pacientes_kinetiq_${hoy}.csv`, 'text/csv;charset=utf-8');
+            }
+
+            // Los filtros activos en palabras, para dejarlos escritos en el Excel
+            filtrosComoTexto() {
+                const f = this.filtros, txt = [];
+                const periodos = { mes: 'Este mes', '3m': 'Últimos 3 meses', anio: 'Este año' };
+                const q = (this.searchInput.value || '').trim();
+                if (q) txt.push(`Búsqueda: "${q}"`);
+                if (f.modulo !== 'todos') txt.push(f.modulo === 'piso_pelvico' ? 'Módulo: Piso pélvico' : 'Módulo: Fisio deportiva');
+                if (f.profesional) txt.push(`Profesional: ${f.profesional}`);
+                if (f.sexo) txt.push(`Sexo: ${{ F: 'Femenino', M: 'Masculino', O: 'Otro' }[f.sexo]}`);
+                if (f.edadMin || f.edadMax) txt.push(`Edad ${f.edadMin || '0'}–${f.edadMax || '∞'}`);
+                if (f.evaMin || f.evaMax) txt.push(f.evaMin && f.evaMax ? `Dolor ${f.evaMin}–${f.evaMax}` : f.evaMin ? `Dolor ≥ ${f.evaMin}` : `Dolor ≤ ${f.evaMax}`);
+                if (f.zona) txt.push(`Zona: ${f.zona}`);
+                if (f.deporte) txt.push(`Deporte: ${f.deporte}`);
+                if (f.pesoMin) txt.push(`Peso ≥ ${f.pesoMin} kg`);
+                if (f.rango) txt.push(`Período: ${f.rango.etiqueta}`);
+                else if (f.periodo) txt.push(`Período: ${periodos[f.periodo]}`);
+                return txt;
+            }
+
+            // Descarga las valoraciones visibles (con filtros) como Excel con formato (.xlsx)
+            async exportarExcel() {
+                const filas = [...(this.filteredReportes || [])].sort((a, b) => this.fechaDe(b) - this.fechaDe(a));
+                if (!filas.length) { this.mostrarAviso('No hay valoraciones para exportar con los filtros actuales.'); return; }
+                const btn = document.getElementById('exportarExcel');
+                const htmlBoton = btn.innerHTML;
+                btn.disabled = true;
+                btn.textContent = 'Generando…';
+                try {
+                    await window.KinetiqExcel.exportar({
+                        filas: filas.map(r => this.filaParaExcel(r)),
+                        filtros: this.filtrosComoTexto(),
+                        nombre: 'Kinetiq_pacientes'
+                    });
+                    this.errorContainer.innerHTML = '';
+                } catch (error) {
+                    console.error('Error exportando a Excel:', error);
+                    this.mostrarAviso('No se pudo generar el Excel: ' + error.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = htmlBoton;
+                }
             }
 
             renderResumen() {
